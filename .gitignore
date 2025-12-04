@@ -1,0 +1,37 @@
+.DS_Store
+node_modules
+.next
+out
+dist
+build
+coverage
+*.log
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Rust
+target
+Cargo.lock
+
+# .NET
+bin
+obj
+*.user
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Logs and data
+logs/
+*.csv
+
+# Supabase
+.supabase
+supabase/.temp

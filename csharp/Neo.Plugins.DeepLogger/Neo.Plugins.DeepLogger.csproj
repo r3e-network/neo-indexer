@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Neo" Version="3.6.0" />
+    <PackageReference Include="Neo.Cryptography" Version="3.6.0" />
+    <PackageReference Include="Neo.Network.RPC" Version="3.6.0" />
+  </ItemGroup>
+</Project>

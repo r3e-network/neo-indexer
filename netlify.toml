@@ -1,0 +1,25 @@
+[build]
+  base = "web/neo-debugger"
+  command = "npm run build:netlify"
+  publish = ".next"
+  functions = ".netlify/functions"
+
+[build.environment]
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[context.production.environment]
+  NEXT_PUBLIC_SUPABASE_URL = "" # set in Netlify UI
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "" # set in Netlify UI
+  SUPABASE_SERVICE_ROLE_KEY = "" # set in Netlify UI
+  REVALIDATE_TOKEN = "" # set to secure ISR hook
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[context.deploy-preview.environment]
+  NEXT_PUBLIC_SUPABASE_URL = ""
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
+  SUPABASE_SERVICE_ROLE_KEY = ""
+  REVALIDATE_TOKEN = ""
+  NEXT_TELEMETRY_DISABLED = "1"
