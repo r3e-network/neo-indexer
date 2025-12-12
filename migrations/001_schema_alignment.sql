@@ -114,6 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_storage_reads_block_index ON storage_reads(block_
 CREATE INDEX IF NOT EXISTS idx_storage_reads_contract_id ON storage_reads(contract_id);
 CREATE INDEX IF NOT EXISTS idx_storage_reads_block_contract ON storage_reads(block_index, contract_id);
 CREATE INDEX IF NOT EXISTS idx_storage_reads_tx_hash ON storage_reads(tx_hash);
+CREATE INDEX IF NOT EXISTS idx_storage_reads_block_order ON storage_reads(block_index, read_order);
 
 -- Foreign key to enable PostgREST relationship embedding.
 -- Marked NOT VALID to avoid long scans on already-populated databases.
