@@ -339,6 +339,38 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Automatically ensure partitions exist up to current height + lookahead.
+-- Call periodically (e.g., via Supabase scheduled function) to keep default partitions empty.
+CREATE OR REPLACE FUNCTION ensure_trace_partitions(
+    partition_size INTEGER DEFAULT 100000,
+    lookahead_blocks INTEGER DEFAULT 100000
+) RETURNS void AS $$
+DECLARE
+    current_height INTEGER;
+    target_height INTEGER;
+    start_block INTEGER;
+    end_block INTEGER;
+    table_name TEXT;
+    tables TEXT[] := ARRAY['opcode_traces','syscall_traces','contract_calls','storage_writes','notifications'];
+BEGIN
+    SELECT COALESCE(MAX(block_index), 0) INTO current_height FROM blocks;
+    target_height := current_height + lookahead_blocks;
+
+    start_block := (current_height / partition_size) * partition_size;
+    IF start_block < 0 THEN
+        start_block := 0;
+    END IF;
+
+    WHILE start_block <= target_height LOOP
+        end_block := start_block + partition_size;
+        FOREACH table_name IN ARRAY tables LOOP
+            PERFORM create_trace_partition(table_name, start_block, end_block);
+        END LOOP;
+        start_block := end_block;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Function to drop old partitions (for pruning)
 CREATE OR REPLACE FUNCTION prune_old_partitions(
     table_name TEXT,
