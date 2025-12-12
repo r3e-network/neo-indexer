@@ -169,16 +169,26 @@ namespace Neo.Plugins.BlockStateIndexer
             var readRecorder = provider.DrainReadRecorder(block.Index);
             var storageReadCount = readRecorder?.Entries.Count ?? 0;
 
-            if (readRecorder != null && storageReadCount > 0 && (allowBinaryUploads || allowRestApiUploads))
+            if (readRecorder != null && (allowBinaryUploads || allowRestApiUploads))
             {
-                var effectiveReadMode =
-                    allowBinaryUploads && allowRestApiUploads
-                        ? StateRecorderSettings.UploadMode.Both
-                        : allowBinaryUploads
-                            ? StateRecorderSettings.UploadMode.Binary
-                            : StateRecorderSettings.UploadMode.RestApi;
+                if (storageReadCount > 0)
+                {
+                    var effectiveReadMode =
+                        allowBinaryUploads && allowRestApiUploads
+                            ? StateRecorderSettings.UploadMode.Both
+                            : allowBinaryUploads
+                                ? StateRecorderSettings.UploadMode.Binary
+                                : StateRecorderSettings.UploadMode.RestApi;
 
-                StateRecorderSupabase.TryUpload(readRecorder, effectiveReadMode);
+                    StateRecorderSupabase.TryUpload(readRecorder, effectiveReadMode);
+                }
+                else if (allowRestApiUploads)
+                {
+                    // Still upsert the block row (read_key_count=0) so the frontend can
+                    // search blocks even when no storage keys were touched. Avoid binary
+                    // snapshot uploads for empty read sets to prevent file explosion.
+                    StateRecorderSupabase.TryUpload(readRecorder, StateRecorderSettings.UploadMode.RestApi);
+                }
             }
 
             var recorders = provider.DrainBlock(block.Index);
