@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   fetchBlockTrace,
+  fetchContractCallStats,
   fetchContractCalls,
   fetchOpCodeStats,
   fetchSyscallStats,
@@ -11,6 +12,7 @@ import { OpCodeViewer } from '../components/traces/OpCodeViewer';
 import { SyscallTimeline } from '../components/traces/SyscallTimeline';
 import { CallGraph } from '../components/traces/CallGraph';
 import { OpCodeStatsTable } from '../components/traces/OpCodeStatsTable';
+import { ContractCallStatsTable } from '../components/traces/ContractCallStatsTable';
 import type { ContractCallTraceEntry, SyscallStat, TransactionTraceResult } from '../types';
 
 const tabs = [
@@ -40,6 +42,7 @@ export default function TraceBrowser() {
   const [statsParams, setStatsParams] = useState<{ start?: number; end?: number }>({});
   const [statsValidationError, setStatsValidationError] = useState<string | null>(null);
   const [opcodeStatsParams, setOpcodeStatsParams] = useState<{ start?: number; end?: number }>({});
+  const [contractCallStatsParams, setContractCallStatsParams] = useState<{ start?: number; end?: number }>({});
 
   const blockTraceQuery = useQuery({
     queryKey: ['block-trace', submittedBlock],
@@ -75,6 +78,16 @@ export default function TraceBrowser() {
     queryKey: ['opcode-stats', opcodeStatsParams.start, opcodeStatsParams.end],
     queryFn: () => fetchOpCodeStats(opcodeStatsParams.start!, opcodeStatsParams.end!),
     enabled: typeof opcodeStatsParams.start === 'number' && typeof opcodeStatsParams.end === 'number',
+    staleTime: 300_000,
+  });
+
+  const contractCallStatsQuery = useQuery({
+    queryKey: ['contract-call-stats', contractCallStatsParams.start, contractCallStatsParams.end, contractQueryHash],
+    queryFn: () =>
+      fetchContractCallStats(contractCallStatsParams.start!, contractCallStatsParams.end!, {
+        calleeHash: contractQueryHash || undefined,
+      }),
+    enabled: typeof contractCallStatsParams.start === 'number' && typeof contractCallStatsParams.end === 'number',
     staleTime: 300_000,
   });
 
@@ -183,6 +196,12 @@ export default function TraceBrowser() {
     setOpcodeStatsParams(range);
   }, [validateStatsRange]);
 
+  const handleContractCallStatsLoad = useCallback(() => {
+    const range = validateStatsRange();
+    if (!range) return;
+    setContractCallStatsParams(range);
+  }, [validateStatsRange]);
+
   const isTraceLoading =
     mode === 'block'
       ? blockTraceQuery.isLoading || blockTraceQuery.isFetching
@@ -193,6 +212,7 @@ export default function TraceBrowser() {
   const contractError = contractCallsQuery.error as Error | null;
   const statsError = syscallStatsQuery.error as Error | null;
   const opcodeStatsError = opcodeStatsQuery.error as Error | null;
+  const contractCallStatsError = contractCallStatsQuery.error as Error | null;
 
   const blockTransactions = blockTraceQuery.data?.transactions ?? [];
 
@@ -210,6 +230,7 @@ export default function TraceBrowser() {
 
   const activeSyscallStats: SyscallStat[] = syscallStatsQuery.data ?? [];
   const activeOpcodeStats = opcodeStatsQuery.data ?? [];
+  const activeContractCallStats = contractCallStatsQuery.data ?? [];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 text-white">
@@ -369,10 +390,20 @@ export default function TraceBrowser() {
                 >
                   Fetch opcode stats
                 </button>
+                <button
+                  type="button"
+                  onClick={handleContractCallStatsLoad}
+                  className="rounded-xl bg-slate-800/80 px-4 py-2 text-sm text-white transition hover:bg-slate-700"
+                >
+                  Fetch contract call stats
+                </button>
                 {statsValidationError && <p className="text-xs text-rose-300">{statsValidationError}</p>}
                 {statsError && <p className="text-xs text-rose-300">Stats error: {statsError.message}</p>}
                 {opcodeStatsError && (
                   <p className="text-xs text-rose-300">Opcode stats error: {opcodeStatsError.message}</p>
+                )}
+                {contractCallStatsError && (
+                  <p className="text-xs text-rose-300">Contract call stats error: {contractCallStatsError.message}</p>
                 )}
               </div>
             </div>
@@ -480,11 +511,18 @@ export default function TraceBrowser() {
           )}
 
           {activeTab === 'callgraph' && (
-            <CallGraph
-              calls={callGraphSource}
-              highlightContract={contractQueryHash}
-              isLoading={contractCallsQuery.isLoading || contractCallsQuery.isFetching}
-            />
+            <div className="space-y-4">
+              <CallGraph
+                calls={callGraphSource}
+                highlightContract={contractQueryHash}
+                isLoading={contractCallsQuery.isLoading || contractCallsQuery.isFetching}
+              />
+              <ContractCallStatsTable
+                stats={activeContractCallStats}
+                isLoading={contractCallStatsQuery.isLoading || contractCallStatsQuery.isFetching}
+                error={contractCallStatsError?.message ?? null}
+              />
+            </div>
           )}
         </div>
       </div>

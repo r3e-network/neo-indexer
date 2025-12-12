@@ -1,6 +1,7 @@
 import type {
   BlockTraceResult,
   ContractCallGraph,
+  ContractCallStat,
   ContractCallTraceEntry,
   OpCodeTraceEntry,
   OpCodeStat,
@@ -70,6 +71,19 @@ interface RawOpCodeStat {
   max_gas_consumed?: number;
   first_block?: number;
   last_block?: number;
+}
+
+interface RawContractCallStat {
+  callee_hash: string;
+  caller_hash?: string | null;
+  method_name?: string | null;
+  call_count: number;
+  success_count?: number | null;
+  failure_count?: number | null;
+  total_gas_consumed?: number | null;
+  avg_gas_consumed?: number | null;
+  first_block?: number | null;
+  last_block?: number | null;
 }
 
 function normalizeOpCodeTrace(raw: RawOpCodeTrace, fallbackTxHash: string, fallbackBlockIndex: number): OpCodeTraceEntry {
@@ -158,6 +172,21 @@ function normalizeOpCodeStat(raw: RawOpCodeStat): OpCodeStat {
     maxGasConsumed: raw.max_gas_consumed ?? undefined,
     firstBlock: raw.first_block ?? undefined,
     lastBlock: raw.last_block ?? undefined,
+  };
+}
+
+function normalizeContractCallStat(raw: RawContractCallStat): ContractCallStat {
+  return {
+    calleeHash: raw.callee_hash,
+    callerHash: raw.caller_hash ?? null,
+    methodName: raw.method_name ?? null,
+    callCount: raw.call_count,
+    successCount: raw.success_count ?? 0,
+    failureCount: raw.failure_count ?? 0,
+    totalGasConsumed: raw.total_gas_consumed ?? 0,
+    averageGasConsumed: raw.avg_gas_consumed ?? null,
+    firstBlock: raw.first_block ?? null,
+    lastBlock: raw.last_block ?? null,
   };
 }
 
@@ -330,4 +359,26 @@ export async function fetchOpCodeStats(startBlock: number, endBlock: number): Pr
 
   const entries = (data as RawOpCodeStat[] | null) ?? [];
   return entries.map((entry) => normalizeOpCodeStat(entry));
+}
+
+export async function fetchContractCallStats(
+  startBlock: number,
+  endBlock: number,
+  options: { calleeHash?: string; callerHash?: string; methodName?: string } = {}
+): Promise<ContractCallStat[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.rpc('get_contract_call_stats', {
+    start_block: startBlock,
+    end_block: endBlock,
+    p_callee_hash: options.calleeHash ?? null,
+    p_caller_hash: options.callerHash ?? null,
+    p_method_name: options.methodName ?? null,
+  });
+
+  if (error) {
+    throw new Error(`Failed to fetch contract call stats: ${error.message}`);
+  }
+
+  const entries = (data as RawContractCallStat[] | null) ?? [];
+  return entries.map((entry) => normalizeContractCallStat(entry));
 }

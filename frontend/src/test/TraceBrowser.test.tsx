@@ -8,12 +8,14 @@ import { setupServer } from 'msw/node';
 
 const {
   mockFetchBlockTrace,
+  mockFetchContractCallStats,
   mockFetchTransactionTrace,
   mockFetchContractCalls,
   mockFetchSyscallStats,
   mockFetchOpCodeStats,
 } = vi.hoisted(() => ({
   mockFetchBlockTrace: vi.fn(),
+  mockFetchContractCallStats: vi.fn(),
   mockFetchTransactionTrace: vi.fn(),
   mockFetchContractCalls: vi.fn(),
   mockFetchSyscallStats: vi.fn(),
@@ -57,6 +59,7 @@ vi.mock('../components/traces/CallGraph', () => ({
 
 vi.mock('../services/api', () => ({
   fetchBlockTrace: mockFetchBlockTrace,
+  fetchContractCallStats: mockFetchContractCallStats,
   fetchTransactionTrace: mockFetchTransactionTrace,
   fetchContractCalls: mockFetchContractCalls,
   fetchSyscallStats: mockFetchSyscallStats,

@@ -133,3 +133,17 @@ export interface OpCodeStat {
   firstBlock?: number;
   lastBlock?: number;
 }
+
+/** Aggregated contract/native method statistics */
+export interface ContractCallStat {
+  calleeHash: string;
+  callerHash: string | null;
+  methodName: string | null;
+  callCount: number;
+  successCount: number;
+  failureCount: number;
+  totalGasConsumed: number;
+  averageGasConsumed?: number | null;
+  firstBlock?: number | null;
+  lastBlock?: number | null;
+}
