@@ -335,6 +335,29 @@ BEGIN
         end_block
     );
 
+    -- Ensure per-partition indexes exist for fast queries.
+    -- New partitions created after parent indexes are defined do NOT automatically get indexes.
+    IF table_name = 'opcode_traces' THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (contract_hash)', partition_name || '_contract_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (opcode)', partition_name || '_opcode_idx', partition_name);
+    ELSIF table_name = 'syscall_traces' THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (contract_hash)', partition_name || '_contract_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (syscall_name)', partition_name || '_syscall_name_idx', partition_name);
+    ELSIF table_name = 'contract_calls' THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (caller_hash)', partition_name || '_caller_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (callee_hash)', partition_name || '_callee_hash_idx', partition_name);
+    ELSIF table_name = 'storage_writes' THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (contract_id)', partition_name || '_contract_id_idx', partition_name);
+    ELSIF table_name = 'notifications' THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (contract_hash)', partition_name || '_contract_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (event_name)', partition_name || '_event_name_idx', partition_name);
+    END IF;
+
     RAISE NOTICE 'Created partition: %', partition_name;
 END;
 $$ LANGUAGE plpgsql;
