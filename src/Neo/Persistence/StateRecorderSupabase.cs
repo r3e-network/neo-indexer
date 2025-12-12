@@ -173,7 +173,7 @@ namespace Neo.Persistence
                 writer.Write(entry.ContractHash.ToArray());
 
                 // Key
-                var keyBytes = entry.Key.Key.ToArray();
+                var keyBytes = entry.Key.ToArray();
                 if (keyBytes.Length > ushort.MaxValue)
                 {
                     throw new InvalidOperationException(
@@ -254,7 +254,7 @@ namespace Neo.Persistence
             var keys = new List<object>(entries.Length);
             foreach (var entry in entries)
             {
-                var keyBytes = entry.Key.Key.ToArray();
+                var keyBytes = entry.Key.ToArray();
                 var valueBytes = entry.Value.Value.ToArray();
                 keys.Add(new
                 {
@@ -293,7 +293,7 @@ namespace Neo.Persistence
                 var contractId = entry.Key.Id >= 0 ? entry.Key.Id.ToString() : string.Empty;
                 var contractHash = entry.ContractHash.ToString();
                 var manifestName = entry.ManifestName ?? string.Empty;
-                var keyBase64 = Convert.ToBase64String(entry.Key.Key.ToArray());
+                var keyBase64 = Convert.ToBase64String(entry.Key.ToArray());
                 var valueBase64 = Convert.ToBase64String(entry.Value.Value.ToArray());
                 var readOrder = entry.Order.ToString();
                 var txHash = entry.TxHash?.ToString() ?? string.Empty;
