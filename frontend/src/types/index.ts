@@ -49,7 +49,7 @@ export interface PaginatedResponse<T> {
 }
 
 /** Export format options */
-export type ExportFormat = 'csv' | 'json' | 'binary';
+export type ExportFormat = "csv" | "json" | "binary";
 
 /** Normalized opcode trace entry returned by trace APIs */
 export interface OpCodeTraceEntry {
@@ -78,7 +78,7 @@ export interface SyscallTraceEntry {
 
 /** Contract call trace entry */
 export interface ContractCallTraceEntry {
-  blockIndex?: number;
+  blockIndex: number;
   txHash: string;
   callerHash: string | null;
   calleeHash: string;
@@ -111,7 +111,7 @@ export interface ContractCallGraph {
   calls: ContractCallTraceEntry[];
 }
 
-export type SyscallCategory = 'storage' | 'contract' | 'runtime' | 'system' | 'crypto' | 'network' | 'other';
+export type SyscallCategory = "storage" | "contract" | "runtime" | "system" | "crypto" | "network" | "other";
 
 /** Aggregated syscall statistics */
 export interface SyscallStat {

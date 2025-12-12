@@ -1,6 +1,6 @@
 -- Migration: 002_trace_tables.sql
 -- Description: Create tables for execution trace data (OpCodes, Syscalls, Contract Calls, etc.)
--- Date: 2025-01-XX
+-- Date: 2025-12-11
 
 -- ============================================
 -- OpCode Traces Table (Partitioned)
