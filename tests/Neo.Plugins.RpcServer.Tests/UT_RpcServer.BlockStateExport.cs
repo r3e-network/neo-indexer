@@ -26,6 +26,7 @@ namespace Neo.Plugins.RpcServer.Tests
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", "true");
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", "https://example.supabase.co");
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", "test");
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_MODE", "Both");
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS", "true");
             var snapshot = _neoSystem.GetSnapshotCache();
             var block = NativeContract.Ledger.GetBlock(snapshot, 0);
@@ -50,6 +51,7 @@ namespace Neo.Plugins.RpcServer.Tests
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", null);
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", null);
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", null);
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_MODE", null);
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS", null);
         }
 
@@ -59,6 +61,7 @@ namespace Neo.Plugins.RpcServer.Tests
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", "true");
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", "https://example.supabase.co");
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", "test");
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_MODE", "Both");
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS", "false");
 
             Assert.ThrowsExactly<RpcException>(() => _rpcServer.GetBlockStateExport(0, "json"));
@@ -67,6 +70,7 @@ namespace Neo.Plugins.RpcServer.Tests
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", null);
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", null);
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", null);
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_MODE", null);
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS", null);
         }
     }

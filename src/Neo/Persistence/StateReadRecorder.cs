@@ -270,14 +270,31 @@ namespace Neo.Persistence
 
         private static StateRecorderSettings Load()
         {
+            var enabled = GetEnvBool("ENABLED");
+            var supabaseUrl = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_URL") ?? string.Empty;
+            var supabaseApiKey = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_KEY") ?? string.Empty;
+            var modeValue = Environment.GetEnvironmentVariable($"{Prefix}UPLOAD_MODE");
+
+            var mode = ParseUploadMode(modeValue);
+            // Supabase-only deployments are the primary use case for this fork.
+            // If the user configured Supabase URL/key but did not specify an upload mode,
+            // default to RestApi so blocks/traces are persisted in Postgres.
+            if (string.IsNullOrWhiteSpace(modeValue) &&
+                enabled &&
+                !string.IsNullOrWhiteSpace(supabaseUrl) &&
+                !string.IsNullOrWhiteSpace(supabaseApiKey))
+            {
+                mode = UploadMode.RestApi;
+            }
+
             return new StateRecorderSettings
             {
-                Enabled = GetEnvBool("ENABLED"),
-                SupabaseUrl = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_URL") ?? string.Empty,
-                SupabaseApiKey = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_KEY") ?? string.Empty,
+                Enabled = enabled,
+                SupabaseUrl = supabaseUrl,
+                SupabaseApiKey = supabaseApiKey,
                 SupabaseBucket = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_BUCKET") ?? "block-state",
                 SupabaseConnectionString = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_CONNECTION_STRING") ?? string.Empty,
-                Mode = ParseUploadMode(Environment.GetEnvironmentVariable($"{Prefix}UPLOAD_MODE")),
+                Mode = mode,
                 TraceLevel = ParseTraceLevel(Environment.GetEnvironmentVariable($"{Prefix}TRACE_LEVEL")),
                 UploadAuxFormats = GetEnvBool("UPLOAD_AUX_FORMATS")
             };
