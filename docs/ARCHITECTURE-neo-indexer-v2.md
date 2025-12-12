@@ -337,6 +337,8 @@ public sealed class StateRecorderSettings
     public string SupabaseUrl { get; init; } = string.Empty;
     public string SupabaseApiKey { get; init; } = string.Empty;
     public string SupabaseBucket { get; init; } = "block-state";
+    public string SupabaseConnectionString { get; init; } = string.Empty;
+    public bool UploadAuxFormats { get; init; }
 
     // Trace level flags (OpCodes, Syscalls, ContractCalls, Storage, Notifications)
     public ExecutionTraceLevel TraceLevel { get; init; } = ExecutionTraceLevel.All;
@@ -351,6 +353,9 @@ NEO_STATE_RECORDER__ENABLED=true
 NEO_STATE_RECORDER__UPLOAD_MODE=RestApi
 NEO_STATE_RECORDER__SUPABASE_URL=https://your-project.supabase.co
 NEO_STATE_RECORDER__SUPABASE_KEY=your-service-key
+
+# Optional: also upload JSON/CSV per block (default false)
+NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=false
 
 # Trace configuration (comma-separated flags)
 NEO_STATE_RECORDER__TRACE_LEVEL=OpCodes,Syscalls,ContractCalls,Storage,Notifications

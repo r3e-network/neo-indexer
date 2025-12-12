@@ -26,6 +26,7 @@ namespace Neo.Plugins.RpcServer.Tests
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", "true");
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", "https://example.supabase.co");
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", "test");
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS", "true");
             var snapshot = _neoSystem.GetSnapshotCache();
             var block = NativeContract.Ledger.GetBlock(snapshot, 0);
             Assert.IsNotNull(block);
@@ -49,6 +50,24 @@ namespace Neo.Plugins.RpcServer.Tests
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", null);
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", null);
             Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", null);
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS", null);
+        }
+
+        [TestMethod]
+        public void TestGetBlockStateExport_AuxFormatsDisabled()
+        {
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", "true");
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", "https://example.supabase.co");
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", "test");
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS", "false");
+
+            Assert.ThrowsExactly<RpcException>(() => _rpcServer.GetBlockStateExport(0, "json"));
+            Assert.ThrowsExactly<RpcException>(() => _rpcServer.GetBlockStateExport(0, "csv"));
+
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", null);
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", null);
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", null);
+            Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS", null);
         }
     }
 }

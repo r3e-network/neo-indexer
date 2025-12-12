@@ -18,6 +18,10 @@
     <PackageReference Include="System.IO.Hashing" Version="9.0.1" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)'=='net9.0'">
+    <PackageReference Include="Npgsql" Version="10.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Neo.Cryptography.BLS12_381\Neo.Cryptography.BLS12_381.csproj" />
     <ProjectReference Include="..\Neo.Extensions\Neo.Extensions.csproj" />

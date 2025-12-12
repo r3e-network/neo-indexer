@@ -37,6 +37,9 @@ namespace Neo.Plugins.RpcServer
             if (fmt is not ("bin" or "json" or "csv"))
                 throw new RpcException(RpcError.InvalidParams.WithData("format must be \"bin\", \"json\", or \"csv\""));
 
+            if (fmt is not "bin" && !settings.UploadAuxFormats)
+                throw new RpcException(RpcError.InvalidParams.WithData("json/csv exports are disabled; set NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=true"));
+
             var isBinaryMode = settings.Mode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
             if (!settings.UploadEnabled || !isBinaryMode)
                 throw new RpcException(RpcError.InternalServerError.WithData("state recorder uploads not enabled"));

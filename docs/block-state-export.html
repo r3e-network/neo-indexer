@@ -98,7 +98,7 @@
 <body>
   <div class="card">
     <h1>Block State Export</h1>
-    <p>Fetch the download URL for initial key-value reads captured by the state recorder (via RPC method <code>getblockstateexport</code>). Choose binary NSBR (<code>.bin</code>), JSON, or CSV (base64 fields). Recorder uploads must be enabled and in Binary/Both mode for files to exist.</p>
+    <p>Fetch the download URL for initial key-value reads captured by the state recorder (via RPC method <code>getblockstateexport</code>). Choose binary NSBR (<code>.bin</code>), JSON, or CSV (base64 fields). Recorder uploads must be enabled and in Binary/Both mode for files to exist. JSON/CSV files are only uploaded when <code>NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=true</code> (default is binary-only).</p>
 
     <label for="endpoint">RPC Endpoint (JSON-RPC over HTTP)</label>
     <input id="endpoint" type="text" placeholder="http://localhost:10332">

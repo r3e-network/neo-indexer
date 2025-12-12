@@ -238,9 +238,9 @@ namespace Neo.Persistence
         public enum UploadMode
         {
             Binary,
-            Postgres, // Legacy alias for RestApi (direct Postgres upload removed).
-            Both,     // Binary + RestApi.
-            RestApi  // Uses Supabase PostgREST API (HTTPS, no direct PostgreSQL connection needed)
+            Postgres, // Direct PostgreSQL upload using SupabaseConnectionString.
+            Both,     // Binary + database (RestApi or Postgres).
+            RestApi   // Uses Supabase PostgREST API (HTTPS)
         }
 
         public bool Enabled { get; init; }
@@ -250,6 +250,11 @@ namespace Neo.Persistence
         public string SupabaseConnectionString { get; init; } = string.Empty;
         public UploadMode Mode { get; init; } = UploadMode.Binary;
         public ExecutionTraceLevel TraceLevel { get; init; } = ExecutionTraceLevel.All;
+        /// <summary>
+        /// When true, also upload per-block JSON/CSV exports to storage.
+        /// Disabled by default to avoid creating large numbers of files.
+        /// </summary>
+        public bool UploadAuxFormats { get; init; }
         public bool UploadEnabled => Enabled && !string.IsNullOrWhiteSpace(SupabaseUrl) && !string.IsNullOrWhiteSpace(SupabaseApiKey);
 
         public static StateRecorderSettings Current => Load();
@@ -264,7 +269,8 @@ namespace Neo.Persistence
                 SupabaseBucket = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_BUCKET") ?? "block-state",
                 SupabaseConnectionString = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_CONNECTION_STRING") ?? string.Empty,
                 Mode = ParseUploadMode(Environment.GetEnvironmentVariable($"{Prefix}UPLOAD_MODE")),
-                TraceLevel = ParseTraceLevel(Environment.GetEnvironmentVariable($"{Prefix}TRACE_LEVEL"))
+                TraceLevel = ParseTraceLevel(Environment.GetEnvironmentVariable($"{Prefix}TRACE_LEVEL")),
+                UploadAuxFormats = GetEnvBool("UPLOAD_AUX_FORMATS")
             };
         }
 
