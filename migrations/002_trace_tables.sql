@@ -282,51 +282,58 @@ BEGIN
 END;
 $policy$;
 
--- Create policies for authenticated insert/update (idempotent)
+-- Create policies for service role insert/update (idempotent).
+-- Only the Supabase service key should be able to write trace data.
 DO $policy$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'opcode_traces' AND polname = 'Allow authenticated insert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated insert" ON opcode_traces FOR INSERT WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'syscall_traces' AND polname = 'Allow authenticated insert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated insert" ON syscall_traces FOR INSERT WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'contract_calls' AND polname = 'Allow authenticated insert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated insert" ON contract_calls FOR INSERT WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'storage_writes' AND polname = 'Allow authenticated insert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated insert" ON storage_writes FOR INSERT WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'notifications' AND polname = 'Allow authenticated insert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated insert" ON notifications FOR INSERT WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'opcode_traces' AND polname = 'Allow authenticated upsert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated upsert" ON opcode_traces FOR UPDATE USING (true) WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'syscall_traces' AND polname = 'Allow authenticated upsert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated upsert" ON syscall_traces FOR UPDATE USING (true) WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'contract_calls' AND polname = 'Allow authenticated upsert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated upsert" ON contract_calls FOR UPDATE USING (true) WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'storage_writes' AND polname = 'Allow authenticated upsert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated upsert" ON storage_writes FOR UPDATE USING (true) WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'notifications' AND polname = 'Allow authenticated upsert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated upsert" ON notifications FOR UPDATE USING (true) WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'block_stats' AND polname = 'Allow authenticated insert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated insert" ON block_stats FOR INSERT WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'block_stats' AND polname = 'Allow authenticated upsert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated upsert" ON block_stats FOR UPDATE USING (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'syscall_names' AND polname = 'Allow authenticated insert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated insert" ON syscall_names FOR INSERT WITH CHECK (true)';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'syscall_names' AND polname = 'Allow authenticated upsert') THEN
-        EXECUTE 'CREATE POLICY "Allow authenticated upsert" ON syscall_names FOR UPDATE USING (true)';
-    END IF;
+    -- Drop any legacy wide-open policies.
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON opcode_traces';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON syscall_traces';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON contract_calls';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON storage_writes';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON notifications';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON block_stats';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON syscall_names';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON opcode_traces';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON syscall_traces';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON contract_calls';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON storage_writes';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON notifications';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON block_stats';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON syscall_names';
+
+    -- Drop prior service-role policies if this migration is re-run.
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON opcode_traces';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON syscall_traces';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON contract_calls';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON storage_writes';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON notifications';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON block_stats';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON syscall_names';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON opcode_traces';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON syscall_traces';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON contract_calls';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON storage_writes';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON notifications';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON block_stats';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON syscall_names';
+
+    -- Only allow writes when JWT role is service_role.
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON opcode_traces FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON syscall_traces FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON contract_calls FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON storage_writes FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON notifications FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON block_stats FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON syscall_names FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON opcode_traces FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON syscall_traces FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON contract_calls FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON storage_writes FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON notifications FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON block_stats FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON syscall_names FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
 END;
 $policy$;
 
