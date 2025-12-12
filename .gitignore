@@ -266,3 +266,16 @@ launchSettings.json
 
 # Benchmarks
 **/BenchmarkDotNet.Artifacts/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local data and build artifacts
+Data_LevelDB_*/
+frontend/coverage/
+frontend/dist/
+frontend/node_modules/
+.serena/
+.claude/
