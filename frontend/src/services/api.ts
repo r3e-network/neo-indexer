@@ -343,7 +343,6 @@ export async function fetchSyscallStats(startBlock: number, endBlock: number): P
 
   const rows = await fetchRest<RawSyscallStat>('syscall_traces', [
     ['select', select],
-    ['groupby', 'syscall_name'],
     ['order', 'call_count.desc'],
     ['block_index', `gte.${startBlock}`],
     ['block_index', `lte.${endBlock}`],
@@ -358,7 +357,6 @@ export async function fetchOpCodeStats(startBlock: number, endBlock: number): Pr
 
   const rows = await fetchRest<RawOpCodeStat>('opcode_traces', [
     ['select', select],
-    ['groupby', 'opcode,opcode_name'],
     ['order', 'call_count.desc'],
     ['block_index', `gte.${startBlock}`],
     ['block_index', `lte.${endBlock}`],
