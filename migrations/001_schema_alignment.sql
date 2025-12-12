@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS blocks (
 -- Add block_index column if it doesn't exist (maps from existing 'index' column)
 ALTER TABLE blocks ADD COLUMN IF NOT EXISTS block_index INTEGER;
 
+-- Ensure required metadata columns exist
+ALTER TABLE blocks ADD COLUMN IF NOT EXISTS hash TEXT;
+ALTER TABLE blocks ADD COLUMN IF NOT EXISTS tx_count INTEGER DEFAULT 0;
+
 -- Add read_key_count column
 ALTER TABLE blocks ADD COLUMN IF NOT EXISTS read_key_count INTEGER DEFAULT 0;
 
