@@ -1,0 +1,9 @@
+{
+  "PluginConfiguration": {
+    "Enabled": true,
+    "Network": 0,
+    "MinTransactionCount": 1,
+    "UploadMode": "RestApi",
+    "ExceptionPolicy": "StopPlugin"
+  }
+}

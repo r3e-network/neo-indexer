@@ -1,0 +1,10 @@
+{
+  "PluginConfiguration": {
+    "Enabled": true,
+    "SupabaseUrl": "",
+    "SupabaseApiKey": "",
+    "SupabaseBucket": "block-state",
+    "CacheDirectory": "state-replay-cache",
+    "ComparisonModeEnabled": false
+  }
+}
