@@ -144,9 +144,9 @@ namespace Neo.Plugins.RpcServer
             {
                 ["start_block"] = (int)options.StartBlock.Value,
                 ["end_block"] = (int)options.EndBlock.Value,
-                ["contract_hash"] = options.ContractHash,
-                ["transaction_hash"] = options.TransactionHash,
-                ["syscall_name"] = options.SyscallName,
+                ["p_contract_hash"] = options.ContractHash,
+                ["p_transaction_hash"] = options.TransactionHash,
+                ["p_syscall_name"] = options.SyscallName,
                 ["limit_rows"] = options.Limit,
                 ["offset_rows"] = options.Offset
             };
@@ -210,10 +210,10 @@ namespace Neo.Plugins.RpcServer
             {
                 ["start_block"] = (int)options.StartBlock.Value,
                 ["end_block"] = (int)options.EndBlock.Value,
-                ["contract_hash"] = options.ContractHash,
-                ["transaction_hash"] = options.TransactionHash,
-                ["opcode"] = options.OpCode,
-                ["opcode_name"] = options.OpCodeName,
+                ["p_contract_hash"] = options.ContractHash,
+                ["p_transaction_hash"] = options.TransactionHash,
+                ["p_opcode"] = options.OpCode,
+                ["p_opcode_name"] = options.OpCodeName,
                 ["limit_rows"] = options.Limit,
                 ["offset_rows"] = options.Offset
             };
