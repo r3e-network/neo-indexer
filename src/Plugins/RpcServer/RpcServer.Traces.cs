@@ -244,6 +244,71 @@ namespace Neo.Plugins.RpcServer
             return json;
         }
 
+        [RpcMethod]
+        protected internal virtual async Task<JToken> GetContractCallStats(JArray _params)
+        {
+            ContractCallStatsQueryOptions options;
+            if (_params.Count >= 2 && _params[0] is not JObject)
+            {
+                options = new ContractCallStatsQueryOptions
+                {
+                    StartBlock = ParseUIntParam(_params[0], "startBlock"),
+                    EndBlock = ParseUIntParam(_params[1], "endBlock")
+                };
+                if (options.StartBlock.HasValue && options.EndBlock.HasValue && options.StartBlock > options.EndBlock)
+                    throw new RpcException(RpcError.InvalidParams.WithData("startBlock cannot be greater than endBlock"));
+
+                if (_params.Count > 2)
+                {
+                    var extra = ParseContractCallStatsOptions(_params[2]);
+                    extra.StartBlock ??= options.StartBlock;
+                    extra.EndBlock ??= options.EndBlock;
+                    options = extra;
+                }
+            }
+            else
+            {
+                options = ParseContractCallStatsOptions(_params.Count > 0 ? _params[0] : null);
+            }
+
+            var settings = EnsureSupabaseTraceSettings();
+
+            if (!options.StartBlock.HasValue || !options.EndBlock.HasValue)
+                throw new RpcException(RpcError.InvalidParams.WithData("startBlock and endBlock are required"));
+
+            var payload = new Dictionary<string, object?>
+            {
+                ["start_block"] = (int)options.StartBlock.Value,
+                ["end_block"] = (int)options.EndBlock.Value,
+                ["p_callee_hash"] = options.CalleeHash,
+                ["p_caller_hash"] = options.CallerHash,
+                ["p_method_name"] = options.MethodName,
+                ["limit_rows"] = options.Limit,
+                ["offset_rows"] = options.Offset
+            };
+
+            var results = await SendSupabaseRpcAsync<ContractCallStatsResult>(settings, "get_contract_call_stats", payload).ConfigureAwait(false);
+
+            JObject json = new();
+            json["startBlock"] = (int)options.StartBlock.Value;
+            json["endBlock"] = (int)options.EndBlock.Value;
+            if (!string.IsNullOrEmpty(options.CalleeHash))
+                json["calleeHash"] = options.CalleeHash;
+            if (!string.IsNullOrEmpty(options.CallerHash))
+                json["callerHash"] = options.CallerHash;
+            if (!string.IsNullOrEmpty(options.MethodName))
+                json["methodName"] = options.MethodName;
+            json["limit"] = options.Limit;
+            json["offset"] = options.Offset;
+            json["total"] = results.FirstOrDefault()?.TotalRows ?? results.Count;
+
+            var stats = new JArray();
+            foreach (var stat in results)
+                stats.Add(stat.ToJson());
+            json["stats"] = stats;
+            return json;
+        }
+
         private static BlockHashOrIndex ParseBlockIdentifier(JToken token)
         {
             if (token is null)
@@ -422,6 +487,51 @@ namespace Neo.Plugins.RpcServer
                         throw new RpcException(RpcError.InvalidParams.WithData($"invalid opcode: {raw}"));
                     }
                 }
+            }
+
+            return options;
+        }
+
+        private static ContractCallStatsQueryOptions ParseContractCallStatsOptions(JToken? token)
+        {
+            var options = new ContractCallStatsQueryOptions();
+            if (token is not JObject obj)
+                return options;
+
+            options.Limit = NormalizeLimit(TryParseInt(obj, "limit"));
+            options.Offset = NormalizeOffset(TryParseInt(obj, "offset"));
+            options.StartBlock = TryParseUInt(obj, "startBlock");
+            options.EndBlock = TryParseUInt(obj, "endBlock");
+            if (options.StartBlock.HasValue && options.EndBlock.HasValue && options.StartBlock > options.EndBlock)
+                throw new RpcException(RpcError.InvalidParams.WithData("startBlock cannot be greater than endBlock"));
+
+            if (obj.ContainsProperty("calleeHash"))
+            {
+                var raw = obj["calleeHash"]?.AsString();
+                if (!string.IsNullOrWhiteSpace(raw))
+                {
+                    if (!UInt160.TryParse(raw, out var calleeHash))
+                        throw new RpcException(RpcError.InvalidParams.WithData($"invalid callee hash: {raw}"));
+                    options.CalleeHash = calleeHash.ToString();
+                }
+            }
+
+            if (obj.ContainsProperty("callerHash"))
+            {
+                var raw = obj["callerHash"]?.AsString();
+                if (!string.IsNullOrWhiteSpace(raw))
+                {
+                    if (!UInt160.TryParse(raw, out var callerHash))
+                        throw new RpcException(RpcError.InvalidParams.WithData($"invalid caller hash: {raw}"));
+                    options.CallerHash = callerHash.ToString();
+                }
+            }
+
+            if (obj.ContainsProperty("methodName"))
+            {
+                var name = obj["methodName"]?.AsString();
+                if (!string.IsNullOrWhiteSpace(name))
+                    options.MethodName = name;
             }
 
             return options;
@@ -789,6 +899,17 @@ namespace Neo.Plugins.RpcServer
             public string? TransactionHash { get; set; }
             public int? OpCode { get; set; }
             public string? OpCodeName { get; set; }
+        }
+
+        private sealed class ContractCallStatsQueryOptions
+        {
+            public int Limit { get; set; } = DefaultTraceLimit;
+            public int Offset { get; set; }
+            public uint? StartBlock { get; set; }
+            public uint? EndBlock { get; set; }
+            public string? CalleeHash { get; set; }
+            public string? CallerHash { get; set; }
+            public string? MethodName { get; set; }
         }
 
         private sealed class SupabaseResponse<T>
