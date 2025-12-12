@@ -237,6 +237,24 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE block_stats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE syscall_names ENABLE ROW LEVEL SECURITY;
 
+-- Enable RLS on any existing partitions so policies apply consistently.
+-- Partitions do not automatically inherit the parent's RLS flag.
+DO $rls_partitions$
+DECLARE
+    part RECORD;
+BEGIN
+    FOR part IN
+        SELECT child.relname AS partition_name
+        FROM pg_class parent
+        JOIN pg_inherits i ON i.inhparent = parent.oid
+        JOIN pg_class child ON child.oid = i.inhrelid
+        WHERE parent.relname IN ('opcode_traces','syscall_traces','contract_calls','storage_writes','notifications')
+    LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', part.partition_name);
+    END LOOP;
+END;
+$rls_partitions$;
+
 -- Create policies for public read access (idempotent)
 DO $policy$
 BEGIN
