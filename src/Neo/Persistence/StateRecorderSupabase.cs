@@ -434,6 +434,9 @@ namespace Neo.Persistence
         /// </summary>
         private static async Task UploadRestApiAsync(BlockReadRecorder recorder, StateRecorderSettings settings)
         {
+            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
             var entries = GetOrderedEntries(recorder);
             var blockRecord = BuildBlockRecord(recorder, entries);
             var storageReads = BuildStorageReadRecords(recorder, entries);
@@ -462,6 +465,11 @@ namespace Neo.Persistence
 
             Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
                 $"REST API upsert successful for block {recorder.BlockIndex}: {storageReads.Count} reads, {contracts.Count} new contracts");
+            }
+            finally
+            {
+                TraceUploadSemaphore.Release();
+            }
         }
 
         private static async Task DeleteStorageReadsRestApiAsync(string baseUrl, string apiKey, int blockIndex)
