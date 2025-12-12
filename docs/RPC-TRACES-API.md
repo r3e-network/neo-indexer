@@ -10,6 +10,11 @@ There are two ways to consume traces:
    - `get_syscall_stats(start_block, end_block, ...)`
    - `get_opcode_stats(start_block, end_block, ...)`
    - `get_contract_call_stats(start_block, end_block, ...)`
+
+   **Guardrails:** when called with public `anon` / `authenticated` keys, all stats RPCs enforce:
+   - max block range of **500,000 blocks per request**
+   - `limit_rows` clamped to **1000**
+   Service role callers are exempt.
 2. **Neo JSON‑RPC proxy (optional)**  
    The `RpcServer.Traces` plugin exposes `getblocktrace`, `gettransactiontrace`,
    `getcontractcalls`, `getcontractcallstats`, `getsyscallstats`, and `getopcodestats`. These are thin HTTPS
