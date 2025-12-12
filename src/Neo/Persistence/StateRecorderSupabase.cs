@@ -495,7 +495,7 @@ namespace Neo.Persistence
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             };
             AddRestApiHeaders(request, apiKey);
-            request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates");
+            request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
 
             using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -521,7 +521,7 @@ namespace Neo.Persistence
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             };
             AddRestApiHeaders(request, apiKey);
-            request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates");
+            request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
 
             using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -560,6 +560,7 @@ namespace Neo.Persistence
                     Content = new StringContent(json, Encoding.UTF8, "application/json")
                 };
                 AddRestApiHeaders(request, apiKey);
+                request.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
 
                 using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
@@ -1286,7 +1287,7 @@ ON CONFLICT (block_index) DO UPDATE SET
                     Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
                 };
                 AddRestApiHeaders(request, apiKey);
-                request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates");
+                request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
 
                 using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
