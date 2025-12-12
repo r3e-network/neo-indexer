@@ -25,6 +25,39 @@ BEGIN
 END;
 $policy$;
 
+-- Service role write policies (idempotent).
+-- The indexer uses the Supabase service role key; frontend is read-only.
+DO $policy$
+BEGIN
+    -- Drop any legacy wide-open policies.
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON blocks';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON contracts';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert" ON storage_reads';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON blocks';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON contracts';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated upsert" ON storage_reads';
+
+    -- Drop prior service role policies if re-running.
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON blocks';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON contracts';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role insert" ON storage_reads';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON blocks';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON contracts';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role upsert" ON storage_reads';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow service role delete" ON storage_reads';
+
+    -- Only allow writes when JWT role is service_role.
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON blocks FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON blocks FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON contracts FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role upsert" ON contracts FOR UPDATE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'') WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+
+    EXECUTE 'CREATE POLICY "Allow service role delete" ON storage_reads FOR DELETE USING (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+    EXECUTE 'CREATE POLICY "Allow service role insert" ON storage_reads FOR INSERT WITH CHECK (current_setting(''request.jwt.claim.role'', true) = ''service_role'')';
+END;
+$policy$;
+
 -- ============================================
 -- Storage bucket read access
 -- ============================================
@@ -50,4 +83,3 @@ BEGIN
     END IF;
 END;
 $policy$;
-
