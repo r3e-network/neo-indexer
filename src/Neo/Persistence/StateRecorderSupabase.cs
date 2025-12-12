@@ -48,6 +48,8 @@ namespace Neo.Persistence
         private const int DefaultTraceBatchSize = 1000;
         private const int MaxTraceBatchSize = 5000;
         private const string TraceBatchSizeEnvVar = "NEO_STATE_RECORDER__TRACE_BATCH_SIZE";
+        private const string TraceUploadConcurrencyEnvVar = "NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY";
+        private static readonly SemaphoreSlim TraceUploadSemaphore = new(GetTraceUploadConcurrency());
 
         /// <summary>
         /// Trigger upload of recorded block state based on configured mode.
@@ -1087,72 +1089,80 @@ ON CONFLICT (block_index) DO UPDATE SET
                 throw new InvalidOperationException("ExecutionTraceRecorder must include a transaction hash before uploading traces.");
             }
 
-            var blockIndexValue = checked((int)blockIndex);
-            var batchSize = GetTraceUploadBatchSize();
-
-            var opCodeRows = BuildOpCodeTraceRows(blockIndexValue, txHash, recorder.GetOpCodeTraces());
-            var syscallRows = BuildSyscallTraceRows(blockIndexValue, txHash, recorder.GetSyscallTraces());
-            var contractCallRows = BuildContractCallTraceRows(blockIndexValue, txHash, recorder.GetContractCallTraces());
-            var storageWriteRows = BuildStorageWriteTraceRows(blockIndexValue, txHash, recorder.GetStorageWriteTraces());
-            var notificationRows = BuildNotificationTraceRows(blockIndexValue, txHash, recorder.GetNotificationTraces());
-
-            var useDirectPostgres = settings.Mode == StateRecorderSettings.UploadMode.Postgres || !settings.UploadEnabled;
-            if (useDirectPostgres)
+            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
             {
-                if (string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
-                    return;
+                var blockIndexValue = checked((int)blockIndex);
+                var batchSize = GetTraceUploadBatchSize();
+
+                var opCodeRows = BuildOpCodeTraceRows(blockIndexValue, txHash, recorder.GetOpCodeTraces());
+                var syscallRows = BuildSyscallTraceRows(blockIndexValue, txHash, recorder.GetSyscallTraces());
+                var contractCallRows = BuildContractCallTraceRows(blockIndexValue, txHash, recorder.GetContractCallTraces());
+                var storageWriteRows = BuildStorageWriteTraceRows(blockIndexValue, txHash, recorder.GetStorageWriteTraces());
+                var notificationRows = BuildNotificationTraceRows(blockIndexValue, txHash, recorder.GetNotificationTraces());
+
+                var useDirectPostgres = settings.Mode == StateRecorderSettings.UploadMode.Postgres || !settings.UploadEnabled;
+                if (useDirectPostgres)
+                {
+                    if (string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
+                        return;
 
 #if NET9_0_OR_GREATER
-                await UploadBlockTracePostgresAsync(
-                    blockIndexValue,
-                    txHash,
-                    opCodeRows,
-                    syscallRows,
-                    contractCallRows,
-                    storageWriteRows,
-                    notificationRows,
-                    batchSize,
-                    settings).ConfigureAwait(false);
+                    await UploadBlockTracePostgresAsync(
+                        blockIndexValue,
+                        txHash,
+                        opCodeRows,
+                        syscallRows,
+                        contractCallRows,
+                        storageWriteRows,
+                        notificationRows,
+                        batchSize,
+                        settings).ConfigureAwait(false);
 #endif
-                return;
+                    return;
+                }
+
+                var baseUrl = settings.SupabaseUrl.TrimEnd('/');
+                var apiKey = settings.SupabaseApiKey;
+                var uploadTasks = new List<Task>(5);
+
+                if (opCodeRows.Count > 0)
+                {
+                    uploadTasks.Add(UploadOpCodeTracesRestApiAsync(baseUrl, apiKey, opCodeRows, batchSize));
+                }
+
+                if (syscallRows.Count > 0)
+                {
+                    uploadTasks.Add(UploadSyscallTracesRestApiAsync(baseUrl, apiKey, syscallRows, batchSize));
+                }
+
+                if (contractCallRows.Count > 0)
+                {
+                    uploadTasks.Add(UploadContractCallTracesRestApiAsync(baseUrl, apiKey, contractCallRows, batchSize));
+                }
+
+                if (storageWriteRows.Count > 0)
+                {
+                    uploadTasks.Add(UploadStorageWriteTracesRestApiAsync(baseUrl, apiKey, storageWriteRows, batchSize));
+                }
+
+                if (notificationRows.Count > 0)
+                {
+                    uploadTasks.Add(UploadNotificationTracesRestApiAsync(baseUrl, apiKey, notificationRows, batchSize));
+                }
+
+                if (uploadTasks.Count == 0)
+                    return;
+
+                await Task.WhenAll(uploadTasks).ConfigureAwait(false);
+
+                Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
+                    $"Trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}");
             }
-
-            var baseUrl = settings.SupabaseUrl.TrimEnd('/');
-            var apiKey = settings.SupabaseApiKey;
-            var uploadTasks = new List<Task>(5);
-
-            if (opCodeRows.Count > 0)
+            finally
             {
-                uploadTasks.Add(UploadOpCodeTracesRestApiAsync(baseUrl, apiKey, opCodeRows, batchSize));
+                TraceUploadSemaphore.Release();
             }
-
-            if (syscallRows.Count > 0)
-            {
-                uploadTasks.Add(UploadSyscallTracesRestApiAsync(baseUrl, apiKey, syscallRows, batchSize));
-            }
-
-            if (contractCallRows.Count > 0)
-            {
-                uploadTasks.Add(UploadContractCallTracesRestApiAsync(baseUrl, apiKey, contractCallRows, batchSize));
-            }
-
-            if (storageWriteRows.Count > 0)
-            {
-                uploadTasks.Add(UploadStorageWriteTracesRestApiAsync(baseUrl, apiKey, storageWriteRows, batchSize));
-            }
-
-            if (notificationRows.Count > 0)
-            {
-                uploadTasks.Add(UploadNotificationTracesRestApiAsync(baseUrl, apiKey, notificationRows, batchSize));
-            }
-
-            if (uploadTasks.Count == 0)
-                return;
-
-            await Task.WhenAll(uploadTasks).ConfigureAwait(false);
-
-            Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
-                $"Trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}");
         }
 
         /// <summary>
@@ -1166,37 +1176,45 @@ ON CONFLICT (block_index) DO UPDATE SET
             if (!settings.Enabled || !IsRestApiMode(settings.Mode))
                 return;
 
-            var useDirectPostgres = settings.Mode == StateRecorderSettings.UploadMode.Postgres || !settings.UploadEnabled;
-            if (useDirectPostgres)
+            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
             {
-                if (string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
-                    return;
+                var useDirectPostgres = settings.Mode == StateRecorderSettings.UploadMode.Postgres || !settings.UploadEnabled;
+                if (useDirectPostgres)
+                {
+                    if (string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
+                        return;
 
 #if NET9_0_OR_GREATER
-                await UploadBlockStatsPostgresAsync(stats, settings).ConfigureAwait(false);
+                    await UploadBlockStatsPostgresAsync(stats, settings).ConfigureAwait(false);
 #endif
-                return;
+                    return;
+                }
+
+                var baseUrl = settings.SupabaseUrl.TrimEnd('/');
+                var apiKey = settings.SupabaseApiKey;
+
+                var row = new BlockStatsRow(
+                    checked((int)stats.BlockIndex),
+                    stats.TransactionCount,
+                    stats.TotalGasConsumed,
+                    stats.OpCodeCount,
+                    stats.SyscallCount,
+                    stats.ContractCallCount,
+                    stats.StorageReadCount,
+                    stats.StorageWriteCount,
+                    stats.NotificationCount);
+
+                var payload = JsonSerializer.Serialize(new[] { row });
+                await SendTraceRequestWithRetryAsync($"{baseUrl}/rest/v1/block_stats", apiKey, payload, "block stats").ConfigureAwait(false);
+
+                Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
+                    $"Block stats upsert successful for block {stats.BlockIndex}");
             }
-
-            var baseUrl = settings.SupabaseUrl.TrimEnd('/');
-            var apiKey = settings.SupabaseApiKey;
-
-            var row = new BlockStatsRow(
-                checked((int)stats.BlockIndex),
-                stats.TransactionCount,
-                stats.TotalGasConsumed,
-                stats.OpCodeCount,
-                stats.SyscallCount,
-                stats.ContractCallCount,
-                stats.StorageReadCount,
-                stats.StorageWriteCount,
-                stats.NotificationCount);
-
-            var payload = JsonSerializer.Serialize(new[] { row });
-            await SendTraceRequestWithRetryAsync($"{baseUrl}/rest/v1/block_stats", apiKey, payload, "block stats").ConfigureAwait(false);
-
-            Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
-                $"Block stats upsert successful for block {stats.BlockIndex}");
+            finally
+            {
+                TraceUploadSemaphore.Release();
+            }
         }
 
         private static Task UploadOpCodeTracesRestApiAsync(string baseUrl, string apiKey, IReadOnlyList<OpCodeTraceRow> rows, int batchSize)
@@ -1409,6 +1427,14 @@ ON CONFLICT (block_index) DO UPDATE SET
                 return Math.Min(parsed, MaxTraceBatchSize);
             }
             return DefaultTraceBatchSize;
+        }
+
+        private static int GetTraceUploadConcurrency()
+        {
+            var raw = Environment.GetEnvironmentVariable(TraceUploadConcurrencyEnvVar);
+            if (!string.IsNullOrWhiteSpace(raw) && int.TryParse(raw, out var parsed) && parsed > 0)
+                return parsed;
+            return 4;
         }
 
         #endregion
