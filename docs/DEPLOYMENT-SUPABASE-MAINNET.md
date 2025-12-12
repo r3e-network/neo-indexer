@@ -21,6 +21,7 @@ Run the SQL files in order in the Supabase SQL editor:
 4. `migrations/005_stats_functions.sql`
 5. `migrations/006_contract_call_stats.sql`
 6. `migrations/007_stats_range_caps.sql`
+7. `migrations/008_partition_management_security_definer.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
