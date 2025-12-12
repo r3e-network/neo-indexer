@@ -62,6 +62,40 @@ namespace Neo.Plugins.BlockStateIndexer
             ConsoleHelper.Info($"  - UploadMode: {Settings.Default.UploadMode}");
 
             var recorderSettings = StateRecorderSettings.Current;
+            ConsoleHelper.Info($"  - Recorder Enabled: {recorderSettings.Enabled}");
+            ConsoleHelper.Info($"  - Recorder Upload Mode (env): {recorderSettings.Mode}");
+
+            if (recorderSettings.Enabled && !recorderSettings.UploadEnabled)
+            {
+                ConsoleHelper.Info("BlockStateIndexer: State recorder enabled but Supabase URL/KEY are missing; uploads are disabled.");
+            }
+
+            var pluginMode = Settings.Default.UploadMode;
+            var pluginAllowsBinary = pluginMode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
+            var pluginAllowsRestApi = pluginMode is StateRecorderSettings.UploadMode.RestApi
+                or StateRecorderSettings.UploadMode.Postgres
+                or StateRecorderSettings.UploadMode.Both;
+
+            var envAllowsBinary = recorderSettings.Mode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
+            var envAllowsRestApi = recorderSettings.Mode is StateRecorderSettings.UploadMode.RestApi
+                or StateRecorderSettings.UploadMode.Postgres
+                or StateRecorderSettings.UploadMode.Both;
+
+            if (pluginAllowsRestApi && !envAllowsRestApi)
+            {
+                ConsoleHelper.Info(
+                    $"BlockStateIndexer: Warning - plugin UploadMode {pluginMode} expects RestApi/Postgres uploads, " +
+                    $"but env NEO_STATE_RECORDER__UPLOAD_MODE is {recorderSettings.Mode}. " +
+                    "Set NEO_STATE_RECORDER__UPLOAD_MODE=RestApi or Both to enable database writes.");
+            }
+
+            if (pluginAllowsBinary && !envAllowsBinary)
+            {
+                ConsoleHelper.Info(
+                    $"BlockStateIndexer: Note - binary snapshot uploads are disabled by env upload mode {recorderSettings.Mode}. " +
+                    "Set NEO_STATE_RECORDER__UPLOAD_MODE=Binary or Both if replayable .bin files are needed.");
+            }
+
             if (Settings.Default.Enabled && recorderSettings.Enabled)
             {
                 _previousEngineProvider = ApplicationEngine.Provider;
