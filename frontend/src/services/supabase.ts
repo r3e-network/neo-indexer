@@ -162,13 +162,13 @@ export async function downloadStateFile(blockIndex: number, format: 'bin' | 'jso
 }
 
 /**
- * Check if a state file exists in storage (exact object). Uses HEAD via download to avoid substring matches.
+ * Check if a state file exists in storage (exact object).
+ * Uses storage.list with server-side search to avoid downloading large files.
  */
 export async function stateFileExists(blockIndex: number, format: 'bin' | 'json' | 'csv'): Promise<boolean> {
   const supabase = getSupabase();
   const fileName = `block-${blockIndex}.${format}`;
-  const { data, error } = await supabase.storage.from(supabaseBucket).download(fileName);
+  const { data, error } = await supabase.storage.from(supabaseBucket).list('', { search: fileName, limit: 1 });
   if (error) return false;
-  if (data) return true;
-  return false;
+  return (data ?? []).some((item) => item.name === fileName);
 }
