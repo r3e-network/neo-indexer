@@ -68,6 +68,20 @@ namespace StateReplay
                 throw new InvalidDataException($"Invalid entry count: {entryCount}.");
             }
 
+            if (stream.CanSeek)
+            {
+                // Minimum bytes per entry:
+                // ContractHash(20) + KeyLength(2) + ValueLength(4) + ReadOrder(4) = 30 bytes
+                const int minBytesPerEntry = 30;
+                var remaining = stream.Length - stream.Position;
+                var minRequired = (long)entryCount * minBytesPerEntry;
+                if (minRequired > remaining)
+                {
+                    throw new InvalidDataException(
+                        $"File truncated or corrupt: declared {entryCount} entries but only {remaining} bytes remain.");
+                }
+            }
+
             // Read entries
             var entries = new List<BinaryStateEntry>(entryCount);
             for (var i = 0; i < entryCount; i++)
@@ -93,6 +107,14 @@ namespace StateReplay
                 if (valueLength < 0)
                 {
                     throw new InvalidDataException($"Invalid value length: {valueLength}.");
+                }
+                if (stream.CanSeek)
+                {
+                    var remainingValueBytes = stream.Length - stream.Position;
+                    if (valueLength > remainingValueBytes)
+                    {
+                        throw new InvalidDataException("Unexpected end of file while reading value bytes.");
+                    }
                 }
                 var valueBytes = reader.ReadBytes(valueLength);
                 if (valueBytes.Length != valueLength)
