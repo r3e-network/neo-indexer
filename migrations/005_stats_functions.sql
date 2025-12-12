@@ -64,6 +64,7 @@ AS $$
     OFFSET offset_rows;
 $$;
 
+REVOKE ALL ON FUNCTION get_syscall_stats(INTEGER, INTEGER, TEXT, TEXT, TEXT, INTEGER, INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_syscall_stats(INTEGER, INTEGER, TEXT, TEXT, TEXT, INTEGER, INTEGER) TO anon, authenticated;
 
 -- ============================================
@@ -122,4 +123,5 @@ AS $$
     OFFSET offset_rows;
 $$;
 
+REVOKE ALL ON FUNCTION get_opcode_stats(INTEGER, INTEGER, TEXT, TEXT, INTEGER, TEXT, INTEGER, INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_opcode_stats(INTEGER, INTEGER, TEXT, TEXT, INTEGER, TEXT, INTEGER, INTEGER) TO anon, authenticated;
