@@ -13,13 +13,13 @@ ALTER TABLE storage_reads ENABLE ROW LEVEL SECURITY;
 -- Public SELECT policies (idempotent)
 DO $policy$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'blocks' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'blocks' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON blocks FOR SELECT USING (true)';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'contracts' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'contracts' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON contracts FOR SELECT USING (true)';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'storage_reads' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'storage_reads' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON storage_reads FOR SELECT USING (true)';
     END IF;
 END;
@@ -72,7 +72,7 @@ BEGIN
         SELECT 1 FROM pg_policies
         WHERE schemaname = 'storage'
           AND tablename = 'objects'
-          AND polname = 'Allow public read access to block-state bucket'
+          AND policyname = 'Allow public read access to block-state bucket'
     ) THEN
         EXECUTE $sql$
             CREATE POLICY "Allow public read access to block-state bucket"

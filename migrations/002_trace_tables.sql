@@ -258,25 +258,25 @@ $rls_partitions$;
 -- Create policies for public read access (idempotent)
 DO $policy$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'opcode_traces' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'opcode_traces' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON opcode_traces FOR SELECT USING (true)';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'syscall_traces' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'syscall_traces' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON syscall_traces FOR SELECT USING (true)';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'contract_calls' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'contract_calls' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON contract_calls FOR SELECT USING (true)';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'storage_writes' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'storage_writes' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON storage_writes FOR SELECT USING (true)';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'notifications' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON notifications FOR SELECT USING (true)';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'block_stats' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'block_stats' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON block_stats FOR SELECT USING (true)';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'syscall_names' AND polname = 'Allow public read access') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'syscall_names' AND policyname = 'Allow public read access') THEN
         EXECUTE 'CREATE POLICY "Allow public read access" ON syscall_names FOR SELECT USING (true)';
     END IF;
 END;
