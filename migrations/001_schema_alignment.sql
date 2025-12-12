@@ -115,6 +115,25 @@ CREATE INDEX IF NOT EXISTS idx_storage_reads_contract_id ON storage_reads(contra
 CREATE INDEX IF NOT EXISTS idx_storage_reads_block_contract ON storage_reads(block_index, contract_id);
 CREATE INDEX IF NOT EXISTS idx_storage_reads_tx_hash ON storage_reads(tx_hash);
 
+-- Foreign key to enable PostgREST relationship embedding.
+-- Marked NOT VALID to avoid long scans on already-populated databases.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE table_schema = 'public'
+          AND table_name = 'storage_reads'
+          AND constraint_name = 'storage_reads_contract_id_fkey'
+    ) THEN
+        ALTER TABLE storage_reads
+            ADD CONSTRAINT storage_reads_contract_id_fkey
+            FOREIGN KEY (contract_id) REFERENCES contracts(contract_id)
+            ON DELETE SET NULL
+            NOT VALID;
+    END IF;
+END;
+$$;
+
 -- ============================================================================
 -- STEP 4: Create storage bucket for binary uploads (run in Supabase Dashboard)
 -- ============================================================================
