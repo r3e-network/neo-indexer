@@ -218,8 +218,14 @@ namespace Neo.Plugins.RpcServer.Model
     /// </summary>
     public sealed class SyscallStatsResult
     {
+        [JsonPropertyName("syscall_hash")]
+        public string? SyscallHash { get; set; }
+
         [JsonPropertyName("syscall_name")]
         public string SyscallName { get; set; } = string.Empty;
+
+        [JsonPropertyName("category")]
+        public string? Category { get; set; }
 
         [JsonPropertyName("call_count")]
         public long CallCount { get; set; }
@@ -242,11 +248,21 @@ namespace Neo.Plugins.RpcServer.Model
         [JsonPropertyName("last_block")]
         public int? LastBlockIndex { get; set; }
 
+        [JsonPropertyName("gas_base")]
+        public long? GasBase { get; set; }
+
+        [JsonPropertyName("total_rows")]
+        public long? TotalRows { get; set; }
+
         public JObject ToJson()
         {
             JObject json = new();
             json["syscallName"] = SyscallName;
+            if (!string.IsNullOrEmpty(SyscallHash))
+                json["syscallHash"] = SyscallHash;
             json["callCount"] = CallCount;
+            if (!string.IsNullOrEmpty(Category))
+                json["category"] = Category;
             if (TotalGasCost.HasValue)
                 json["totalGasCost"] = TotalGasCost.Value;
             if (AverageGasCost.HasValue)
@@ -259,6 +275,8 @@ namespace Neo.Plugins.RpcServer.Model
                 json["firstBlock"] = FirstBlockIndex.Value;
             if (LastBlockIndex.HasValue)
                 json["lastBlock"] = LastBlockIndex.Value;
+            if (GasBase.HasValue)
+                json["gasBase"] = GasBase.Value;
             return json;
         }
     }
@@ -294,6 +312,9 @@ namespace Neo.Plugins.RpcServer.Model
 
         [JsonPropertyName("last_block")]
         public int? LastBlockIndex { get; set; }
+
+        [JsonPropertyName("total_rows")]
+        public long? TotalRows { get; set; }
 
         public JObject ToJson()
         {

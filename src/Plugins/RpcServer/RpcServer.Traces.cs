@@ -137,8 +137,21 @@ namespace Neo.Plugins.RpcServer
             }
             var settings = EnsureSupabaseTraceSettings();
 
-            var query = BuildSyscallStatsQuery(options);
-            var response = await SendSupabaseQueryAsync<SyscallStatsResult>(settings, "syscall_traces", query).ConfigureAwait(false);
+            if (!options.StartBlock.HasValue || !options.EndBlock.HasValue)
+                throw new RpcException(RpcError.InvalidParams.WithData("startBlock and endBlock are required"));
+
+            var payload = new Dictionary<string, object?>
+            {
+                ["start_block"] = (int)options.StartBlock.Value,
+                ["end_block"] = (int)options.EndBlock.Value,
+                ["contract_hash"] = options.ContractHash,
+                ["transaction_hash"] = options.TransactionHash,
+                ["syscall_name"] = options.SyscallName,
+                ["limit_rows"] = options.Limit,
+                ["offset_rows"] = options.Offset
+            };
+
+            var results = await SendSupabaseRpcAsync<SyscallStatsResult>(settings, "get_syscall_stats", payload).ConfigureAwait(false);
 
             JObject json = new();
             if (options.StartBlock.HasValue)
@@ -153,10 +166,10 @@ namespace Neo.Plugins.RpcServer
                 json["syscallName"] = options.SyscallName;
             json["limit"] = options.Limit;
             json["offset"] = options.Offset;
-            json["total"] = response.TotalCount ?? response.Items.Count;
+            json["total"] = results.FirstOrDefault()?.TotalRows ?? results.Count;
 
             var stats = new JArray();
-            foreach (var stat in response.Items)
+            foreach (var stat in results)
                 stats.Add(stat.ToJson());
             json["stats"] = stats;
             return json;
@@ -190,8 +203,22 @@ namespace Neo.Plugins.RpcServer
             }
             var settings = EnsureSupabaseTraceSettings();
 
-            var query = BuildOpCodeStatsQuery(options);
-            var response = await SendSupabaseQueryAsync<OpCodeStatsResult>(settings, "opcode_traces", query).ConfigureAwait(false);
+            if (!options.StartBlock.HasValue || !options.EndBlock.HasValue)
+                throw new RpcException(RpcError.InvalidParams.WithData("startBlock and endBlock are required"));
+
+            var payload = new Dictionary<string, object?>
+            {
+                ["start_block"] = (int)options.StartBlock.Value,
+                ["end_block"] = (int)options.EndBlock.Value,
+                ["contract_hash"] = options.ContractHash,
+                ["transaction_hash"] = options.TransactionHash,
+                ["opcode"] = options.OpCode,
+                ["opcode_name"] = options.OpCodeName,
+                ["limit_rows"] = options.Limit,
+                ["offset_rows"] = options.Offset
+            };
+
+            var results = await SendSupabaseRpcAsync<OpCodeStatsResult>(settings, "get_opcode_stats", payload).ConfigureAwait(false);
 
             JObject json = new();
             if (options.StartBlock.HasValue)
@@ -208,10 +235,10 @@ namespace Neo.Plugins.RpcServer
                 json["opcodeName"] = options.OpCodeName;
             json["limit"] = options.Limit;
             json["offset"] = options.Offset;
-            json["total"] = response.TotalCount ?? response.Items.Count;
+            json["total"] = results.FirstOrDefault()?.TotalRows ?? results.Count;
 
             var stats = new JArray();
-            foreach (var stat in response.Items)
+            foreach (var stat in results)
                 stats.Add(stat.ToJson());
             json["stats"] = stats;
             return json;
@@ -638,6 +665,33 @@ namespace Neo.Plugins.RpcServer
 
             var total = TryParseTotalCount(response) ?? items?.Count ?? 0;
             return new SupabaseResponse<T>(items ?? new List<T>(), total);
+        }
+
+        private async Task<IReadOnlyList<T>> SendSupabaseRpcAsync<T>(StateRecorderSettings settings, string functionName, object payload)
+        {
+            var uri = BuildSupabaseUri(settings.SupabaseUrl, $"rpc/{functionName}", Array.Empty<KeyValuePair<string, string?>>());
+            var jsonBody = JsonSerializer.Serialize(payload, TraceSerializerOptions);
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri)
+            {
+                Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
+            };
+            ApplySupabaseHeaders(request, settings.SupabaseApiKey);
+
+            using var response = await TraceHttpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+                throw new RpcException(RpcError.InternalServerError.WithData($"Supabase RPC request failed ({(int)response.StatusCode}): {body}"));
+
+            try
+            {
+                return JsonSerializer.Deserialize<List<T>>(body, TraceSerializerOptions) ?? new List<T>();
+            }
+            catch (JsonException ex)
+            {
+                throw new RpcException(RpcError.InternalServerError.WithData($"Failed to parse Supabase response: {ex.Message}"));
+            }
         }
 
         private static string BuildSupabaseUri(string? baseUrl, string resource, IEnumerable<KeyValuePair<string, string?>> queryParams)
