@@ -323,6 +323,18 @@ SELECT prune_old_partitions('storage_writes', 1000000);
 SELECT prune_old_partitions('notifications', 1000000);
 ```
 
+### 6.3 Automatic Partition Rotation
+
+The migrations also define `ensure_trace_partitions(partition_size, lookahead_blocks)` which
+creates missing partitions for all trace tables up to the current max `blocks.block_index`
+plus a lookahead window. Schedule this in Supabase (or run manually) to keep the
+`*_default` partitions empty on mainnet:
+
+```sql
+-- Create 100k‑block partitions up to current height + 200k
+SELECT ensure_trace_partitions(100000, 200000);
+```
+
 ## 7. Configuration
 
 ### 7.1 Extended Settings
