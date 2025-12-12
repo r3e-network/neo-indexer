@@ -9,24 +9,7 @@ import type {
   SyscallTraceEntry,
   TransactionTraceResult,
 } from '../types';
-
-type JsonRpcSuccess<T> = {
-  jsonrpc: '2.0';
-  id: number;
-  result: T;
-};
-
-type JsonRpcErrorResponse = {
-  jsonrpc: '2.0';
-  id: number;
-  error: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-};
-
-type JsonRpcResponse<T> = JsonRpcSuccess<T> | JsonRpcErrorResponse;
+import { getSupabase } from './supabase';
 
 interface RawOpCodeTrace {
   block_index?: number;
@@ -35,11 +18,9 @@ interface RawOpCodeTrace {
   instruction_pointer?: number;
   opcode?: string | number;
   opcode_name?: string;
-  operand?: string | null;
   operand_base64?: string | null;
   gas_consumed?: number;
-  stack_depth?: number;
-  order?: number;
+  stack_depth?: number | null;
   trace_order?: number;
 }
 
@@ -50,7 +31,6 @@ interface RawSyscallTrace {
   syscall_name: string;
   syscall_hash?: string;
   gas_cost?: number;
-  order?: number;
   trace_order?: number;
 }
 
@@ -61,34 +41,16 @@ interface RawContractCallTrace {
   callee_hash: string;
   method_name?: string | null;
   call_depth?: number;
-  order?: number;
+  trace_order?: number;
   success?: boolean;
-  gas_consumed?: number;
-}
-
-interface RawTransactionTrace {
-  tx_hash: string;
-  block_index: number;
-  opcodes?: RawOpCodeTrace[];
-  syscalls?: RawSyscallTrace[];
-  contract_calls?: RawContractCallTrace[];
-}
-
-interface RawBlockTrace {
-  block_index: number;
-  block_hash: string;
-  transactions?: RawTransactionTrace[];
-}
-
-interface RawContractCallGraph {
-  contract_hash?: string;
-  calls?: RawContractCallTrace[];
+  gas_consumed?: number | null;
 }
 
 interface RawSyscallStat {
   syscall_name: string;
   call_count: number;
-  total_gas: number;
+  total_gas?: number;
+  total_gas_cost?: number;
   category?: string;
 }
 
@@ -104,65 +66,45 @@ interface RawOpCodeStat {
   last_block?: number;
 }
 
-interface RawStatsResponse<T> {
-  stats?: T[];
-}
+const restUrl =
+  (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL : undefined) ??
+  (typeof globalThis !== 'undefined' && (globalThis as Record<string, any>).__vitest_env__
+    ? (globalThis as Record<string, any>).__vitest_env__.VITE_SUPABASE_URL
+    : undefined);
 
-function getTraceEnv() {
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env as Record<string, string | undefined>;
-  }
-  if (typeof globalThis !== 'undefined' && (globalThis as Record<string, any>).__vitest_env__) {
-    return (globalThis as Record<string, any>).__vitest_env__ as Record<string, string | undefined>;
-  }
-  return {};
-}
+const restKey =
+  (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_ANON_KEY : undefined) ??
+  (typeof globalThis !== 'undefined' && (globalThis as Record<string, any>).__vitest_env__
+    ? (globalThis as Record<string, any>).__vitest_env__.VITE_SUPABASE_ANON_KEY
+    : undefined);
 
-const runtimeEnv = getTraceEnv();
-const TRACE_RPC_URL =
-  runtimeEnv.VITE_TRACE_RPC_URL ?? (typeof process !== 'undefined' ? process.env?.VITE_TRACE_RPC_URL : undefined);
-const TRACE_API_KEY =
-  runtimeEnv.VITE_TRACE_API_KEY ?? (typeof process !== 'undefined' ? process.env?.VITE_TRACE_API_KEY : undefined);
-
-function isErrorResponse<T>(response: JsonRpcResponse<T>): response is JsonRpcErrorResponse {
-  return (response as JsonRpcErrorResponse).error !== undefined;
-}
-
-async function callTraceRpc<T>(method: string, params: unknown[]): Promise<T> {
-  if (!TRACE_RPC_URL) {
-    throw new Error('Trace RPC URL is not configured. Set VITE_TRACE_RPC_URL.');
+async function fetchRest<T>(resource: string, queryParams: Array<[string, string]>): Promise<T[]> {
+  if (!restUrl || !restKey) {
+    throw new Error('Missing Supabase configuration. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  if (TRACE_API_KEY) {
-    headers['x-api-key'] = TRACE_API_KEY;
+  const qs = new URLSearchParams();
+  for (const [key, value] of queryParams) {
+    qs.append(key, value);
   }
+  const url = `${restUrl.replace(/\/$/, '')}/rest/v1/${resource}?${qs.toString()}`;
 
-  const body = JSON.stringify({
-    jsonrpc: '2.0',
-    id: Date.now(),
-    method,
-    params,
-  });
-
-  const response = await fetch(TRACE_RPC_URL, {
-    method: 'POST',
-    headers,
-    body,
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      apikey: restKey,
+      Authorization: `Bearer ${restKey}`,
+      Prefer: 'count=exact',
+    },
   });
 
   if (!response.ok) {
-    throw new Error(`Trace RPC request failed with status ${response.status}`);
+    const text = await response.text();
+    throw new Error(`Supabase request failed (${response.status}): ${text}`);
   }
 
-  const payload = (await response.json()) as JsonRpcResponse<T>;
-  if (isErrorResponse(payload)) {
-    throw new Error(payload.error?.message ?? 'Trace RPC request failed');
-  }
-  return payload.result;
+  const data = (await response.json()) as T[];
+  return data ?? [];
 }
 
 function normalizeOpCodeTrace(raw: RawOpCodeTrace, fallbackTxHash: string, fallbackBlockIndex: number): OpCodeTraceEntry {
@@ -178,10 +120,10 @@ function normalizeOpCodeTrace(raw: RawOpCodeTrace, fallbackTxHash: string, fallb
     instructionPointer: raw.instruction_pointer ?? 0,
     opcode: typeof raw.opcode === 'string' ? raw.opcode : opcodeName,
     opcodeName,
-    operand: raw.operand ?? raw.operand_base64 ?? null,
+    operand: raw.operand_base64 ?? null,
     gasConsumed: raw.gas_consumed ?? 0,
     stackDepth: raw.stack_depth ?? 0,
-    order: raw.order ?? raw.trace_order ?? 0,
+    order: raw.trace_order ?? 0,
   };
 }
 
@@ -197,7 +139,7 @@ function normalizeSyscallTrace(
     syscallName: raw.syscall_name,
     syscallHash: raw.syscall_hash,
     gasCost: raw.gas_cost ?? 0,
-    order: raw.order ?? raw.trace_order ?? 0,
+    order: raw.trace_order ?? 0,
   };
 }
 
@@ -213,21 +155,9 @@ function normalizeContractCallTrace(
     calleeHash: raw.callee_hash,
     methodName: raw.method_name,
     callDepth: raw.call_depth ?? 0,
-    order: raw.order ?? 0,
+    order: raw.trace_order ?? 0,
     success: raw.success ?? true,
     gasConsumed: raw.gas_consumed ?? 0,
-  };
-}
-
-function normalizeTransactionTrace(raw: RawTransactionTrace): TransactionTraceResult {
-  return {
-    txHash: raw.tx_hash,
-    blockIndex: raw.block_index,
-    opcodes: (raw.opcodes ?? []).map((entry) => normalizeOpCodeTrace(entry, raw.tx_hash, raw.block_index)),
-    syscalls: (raw.syscalls ?? []).map((entry) => normalizeSyscallTrace(entry, raw.tx_hash, raw.block_index)),
-    contractCalls: (raw.contract_calls ?? []).map((entry) =>
-      normalizeContractCallTrace(entry, raw.tx_hash, raw.block_index)
-    ),
   };
 }
 
@@ -243,11 +173,12 @@ function normalizeSyscallCategory(rawCategory?: string): SyscallCategory {
 }
 
 function normalizeSyscallStat(raw: RawSyscallStat): SyscallStat {
+  const categoryHint = raw.category ?? raw.syscall_name;
   return {
     syscallName: raw.syscall_name,
     callCount: raw.call_count,
-    totalGas: raw.total_gas,
-    category: normalizeSyscallCategory(raw.category),
+    totalGas: raw.total_gas ?? raw.total_gas_cost ?? 0,
+    category: normalizeSyscallCategory(categoryHint),
   };
 }
 
@@ -265,44 +196,171 @@ function normalizeOpCodeStat(raw: RawOpCodeStat): OpCodeStat {
   };
 }
 
+async function fetchAllTraces<T>(table: string, blockIndex: number): Promise<T[]> {
+  const supabase = getSupabase();
+  const results: T[] = [];
+  const batchSize = 5000;
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .eq('block_index', blockIndex)
+      .order('trace_order', { ascending: true })
+      .range(offset, offset + batchSize - 1);
+
+    if (error) {
+      throw new Error(`Failed to fetch ${table}: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) break;
+    results.push(...(data as unknown as T[]));
+    if (data.length < batchSize) break;
+    offset += batchSize;
+  }
+
+  return results;
+}
+
+async function fetchAllByTx<T>(table: string, txHash: string): Promise<T[]> {
+  const supabase = getSupabase();
+  const results: T[] = [];
+  const batchSize = 5000;
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .eq('tx_hash', txHash)
+      .order('trace_order', { ascending: true })
+      .range(offset, offset + batchSize - 1);
+
+    if (error) {
+      throw new Error(`Failed to fetch ${table}: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) break;
+    results.push(...(data as unknown as T[]));
+    if (data.length < batchSize) break;
+    offset += batchSize;
+  }
+
+  return results;
+}
+
 export async function fetchBlockTrace(blockIndex: number): Promise<BlockTraceResult> {
-  const result = await callTraceRpc<RawBlockTrace>('getblocktrace', [blockIndex]);
+  const supabase = getSupabase();
+
+  const [{ data: blockRow, error: blockError }, opcodes, syscalls, calls] = await Promise.all([
+    supabase.from('blocks').select('hash').eq('block_index', blockIndex).maybeSingle(),
+    fetchAllTraces<RawOpCodeTrace>('opcode_traces', blockIndex),
+    fetchAllTraces<RawSyscallTrace>('syscall_traces', blockIndex),
+    fetchAllTraces<RawContractCallTrace>('contract_calls', blockIndex),
+  ]);
+
+  if (blockError) {
+    throw new Error(`Failed to fetch block metadata: ${blockError.message}`);
+  }
+
+  const txHashes = new Set<string>();
+  opcodes.forEach((row) => row.tx_hash && txHashes.add(row.tx_hash));
+  syscalls.forEach((row) => row.tx_hash && txHashes.add(row.tx_hash));
+  calls.forEach((row) => row.tx_hash && txHashes.add(row.tx_hash));
+
+  const transactions: TransactionTraceResult[] = Array.from(txHashes)
+    .sort()
+    .map((txHash) => ({
+      txHash,
+      blockIndex,
+      opcodes: opcodes.filter((row) => row.tx_hash === txHash).map((row) => normalizeOpCodeTrace(row, txHash, blockIndex)),
+      syscalls: syscalls.filter((row) => row.tx_hash === txHash).map((row) => normalizeSyscallTrace(row, txHash, blockIndex)),
+      contractCalls: calls
+        .filter((row) => row.tx_hash === txHash)
+        .map((row) => normalizeContractCallTrace(row, txHash, blockIndex)),
+    }));
+
   return {
-    blockIndex: result.block_index,
-    blockHash: result.block_hash,
-    transactions: (result.transactions ?? []).map((tx) => normalizeTransactionTrace(tx)),
+    blockIndex,
+    blockHash: blockRow?.hash ?? '',
+    transactions,
   };
 }
 
 export async function fetchTransactionTrace(txHash: string): Promise<TransactionTraceResult> {
-  const result = await callTraceRpc<RawTransactionTrace>('gettransactiontrace', [txHash]);
-  return normalizeTransactionTrace(result);
+  const [opcodes, syscalls, calls] = await Promise.all([
+    fetchAllByTx<RawOpCodeTrace>('opcode_traces', txHash),
+    fetchAllByTx<RawSyscallTrace>('syscall_traces', txHash),
+    fetchAllByTx<RawContractCallTrace>('contract_calls', txHash),
+  ]);
+
+  const blockIndex =
+    opcodes[0]?.block_index ??
+    syscalls[0]?.block_index ??
+    calls[0]?.block_index ??
+    null;
+
+  if (blockIndex === null || blockIndex === undefined) {
+    throw new Error(`No traces found for transaction ${txHash}`);
+  }
+
+  return {
+    txHash,
+    blockIndex,
+    opcodes: opcodes.map((row) => normalizeOpCodeTrace(row, txHash, blockIndex)),
+    syscalls: syscalls.map((row) => normalizeSyscallTrace(row, txHash, blockIndex)),
+    contractCalls: calls.map((row) => normalizeContractCallTrace(row, txHash, blockIndex)),
+  };
 }
 
 export async function fetchContractCalls(contractHash: string): Promise<ContractCallGraph> {
-  const result = await callTraceRpc<RawContractCallGraph>('getcontractcalls', [contractHash]);
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('contract_calls')
+    .select('*')
+    .or(`caller_hash.eq.${contractHash},callee_hash.eq.${contractHash}`)
+    .order('block_index', { ascending: false })
+    .limit(1000);
+
+  if (error) {
+    throw new Error(`Failed to fetch contract calls: ${error.message}`);
+  }
+
+  const calls = (data ?? []).map((row) =>
+    normalizeContractCallTrace(row as RawContractCallTrace, row.tx_hash ?? contractHash, row.block_index ?? 0)
+  );
+
   return {
-    contractHash: result.contract_hash ?? contractHash,
-    calls: (result.calls ?? []).map((call) =>
-      normalizeContractCallTrace(call, call.tx_hash ?? contractHash, call.block_index ?? 0)
-    ),
+    contractHash,
+    calls,
   };
 }
 
 export async function fetchSyscallStats(startBlock: number, endBlock: number): Promise<SyscallStat[]> {
-  const result = await callTraceRpc<RawStatsResponse<RawSyscallStat> | RawSyscallStat[]>('getsyscallstats', [
-    { startBlock, endBlock },
+  const select =
+    'syscall_name,call_count:count(*),total_gas:sum(gas_cost),avg_gas:avg(gas_cost),min_gas:min(gas_cost),max_gas:max(gas_cost),first_block:min(block_index),last_block:max(block_index)';
+
+  const rows = await fetchRest<RawSyscallStat>('syscall_traces', [
+    ['select', select],
+    ['order', 'call_count.desc'],
+    ['block_index', `gte.${startBlock}`],
+    ['block_index', `lte.${endBlock}`],
   ]);
 
-  const statsArray = Array.isArray(result) ? result : result.stats ?? [];
-  return statsArray.map((entry) => normalizeSyscallStat(entry));
+  return rows.map((entry) => normalizeSyscallStat(entry));
 }
 
 export async function fetchOpCodeStats(startBlock: number, endBlock: number): Promise<OpCodeStat[]> {
-  const result = await callTraceRpc<RawStatsResponse<RawOpCodeStat> | RawOpCodeStat[]>('getopcodestats', [
-    { startBlock, endBlock },
+  const select =
+    'opcode,opcode_name,call_count:count(*),total_gas_consumed:sum(gas_consumed),avg_gas_consumed:avg(gas_consumed),min_gas_consumed:min(gas_consumed),max_gas_consumed:max(gas_consumed),first_block:min(block_index),last_block:max(block_index)';
+
+  const rows = await fetchRest<RawOpCodeStat>('opcode_traces', [
+    ['select', select],
+    ['order', 'call_count.desc'],
+    ['block_index', `gte.${startBlock}`],
+    ['block_index', `lte.${endBlock}`],
   ]);
 
-  const statsArray = Array.isArray(result) ? result : result.stats ?? [];
-  return statsArray.map((entry) => normalizeOpCodeStat(entry));
+  return rows.map((entry) => normalizeOpCodeStat(entry));
 }

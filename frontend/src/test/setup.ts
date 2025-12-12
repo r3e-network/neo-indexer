@@ -5,8 +5,6 @@ const testEnv = {
   VITE_SUPABASE_URL: 'https://test.supabase.co',
   VITE_SUPABASE_ANON_KEY: 'test-key',
   VITE_SUPABASE_BUCKET: 'block-state',
-  VITE_TRACE_RPC_URL: 'http://localhost:10332',
-  VITE_TRACE_API_KEY: 'test-trace-key',
 };
 
 Object.defineProperty(import.meta, 'env', {

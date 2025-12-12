@@ -62,24 +62,7 @@ vi.mock('../services/api', () => ({
 
 const server = setupServer();
 
-const ensureTraceEnv = () => {
-  Object.defineProperty(import.meta, 'env', {
-    value: {
-      ...(import.meta.env ?? {}),
-      VITE_TRACE_RPC_URL: import.meta.env?.VITE_TRACE_RPC_URL ?? 'http://localhost:10332',
-      VITE_TRACE_API_KEY: import.meta.env?.VITE_TRACE_API_KEY ?? 'test-trace-key',
-    },
-    configurable: true,
-  });
-
-  if (typeof process !== 'undefined' && process.env) {
-    process.env.VITE_TRACE_RPC_URL = process.env.VITE_TRACE_RPC_URL ?? 'http://localhost:10332';
-    process.env.VITE_TRACE_API_KEY = process.env.VITE_TRACE_API_KEY ?? 'test-trace-key';
-  }
-};
-
 beforeAll(() => {
-  ensureTraceEnv();
   server.listen();
 });
 afterEach(() => {
@@ -348,54 +331,63 @@ describe('TraceBrowser validation and error states', () => {
 describe('Trace API service with MSW', () => {
   it('fetchBlockTrace normalizes nested traces', async () => {
     server.use(
-      http.post('http://localhost:10332', async ({ request }) => {
-        const body = await request.json();
-        expect(body.method).toBe('getblocktrace');
-        expect(body.params).toEqual([123]);
-        return HttpResponse.json({
-          jsonrpc: '2.0',
-          id: 1,
-          result: {
+      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/blocks.*/, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('block_index')).toBe('eq.123');
+        return HttpResponse.json({ hash: '0xabc' });
+      }),
+      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/opcode_traces.*/, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('block_index')).toBe('eq.123');
+        return HttpResponse.json([
+          {
             block_index: 123,
-            block_hash: '0xabc',
-            transactions: [
-              {
-                tx_hash: '0xtest',
-                block_index: 123,
-                opcodes: [
-                  {
-                    contract_hash: '0xaaaa',
-                    opcode: 'PUSH1',
-                    gas_consumed: 100000000,
-                    stack_depth: 2,
-                    order: 1,
-                  },
-                ],
-                syscalls: [
-                  {
-                    contract_hash: '0xaaaa',
-                    syscall_name: 'System.Storage.Get',
-                    gas_cost: 4000000,
-                    order: 1,
-                  },
-                ],
-                contract_calls: [
-                  {
-                    caller_hash: null,
-                    callee_hash: '0xbbbb',
-                    method_name: 'deploy',
-                    call_depth: 0,
-                    gas_consumed: 500000000,
-                  },
-                ],
-              },
-            ],
+            tx_hash: '0xtest',
+            contract_hash: '0xaaaa',
+            instruction_pointer: 0,
+            opcode: 1,
+            opcode_name: 'PUSH1',
+            operand_base64: null,
+            gas_consumed: 100000000,
+            stack_depth: 2,
+            trace_order: 1,
           },
-        });
+        ]);
+      }),
+      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/syscall_traces.*/, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('block_index')).toBe('eq.123');
+        return HttpResponse.json([
+          {
+            block_index: 123,
+            tx_hash: '0xtest',
+            contract_hash: '0xaaaa',
+            syscall_name: 'System.Storage.Get',
+            syscall_hash: '0x01',
+            gas_cost: 4000000,
+            trace_order: 1,
+          },
+        ]);
+      }),
+      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/contract_calls.*/, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('block_index')).toBe('eq.123');
+        return HttpResponse.json([
+          {
+            block_index: 123,
+            tx_hash: '0xtest',
+            caller_hash: null,
+            callee_hash: '0xbbbb',
+            method_name: 'deploy',
+            call_depth: 0,
+            trace_order: 1,
+            gas_consumed: 500000000,
+            success: true,
+          },
+        ]);
       })
     );
 
-    ensureTraceEnv();
     const api = await vi.importActual<typeof import('../services/api')>('../services/api');
     const result = await api.fetchBlockTrace(123);
     expect(result.transactions).toHaveLength(1);
@@ -406,33 +398,36 @@ describe('Trace API service with MSW', () => {
 
   it('fetchTransactionTrace returns normalized single transaction result', async () => {
     server.use(
-      http.post('http://localhost:10332', async ({ request }) => {
-        const body = await request.json();
-        expect(body.method).toBe('gettransactiontrace');
-        expect(body.params).toEqual(['0xtx2']);
-        return HttpResponse.json({
-          jsonrpc: '2.0',
-          id: 2,
-          result: {
-            tx_hash: '0xtx2',
+      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/opcode_traces.*/, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('tx_hash')).toBe('eq.0xtx2');
+        return HttpResponse.json([
+          {
             block_index: 321,
-            opcodes: [
-              {
-                contract_hash: '0xcccc',
-                opcode: 5,
-                opcode_name: 'PUSH2',
-                gas_consumed: 9000000,
-                stack_depth: 1,
-              },
-            ],
-            syscalls: [],
-            contract_calls: [],
+            tx_hash: '0xtx2',
+            contract_hash: '0xcccc',
+            instruction_pointer: 0,
+            opcode: 5,
+            opcode_name: 'PUSH2',
+            operand_base64: null,
+            gas_consumed: 9000000,
+            stack_depth: 1,
+            trace_order: 1,
           },
-        });
+        ]);
+      }),
+      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/syscall_traces.*/, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('tx_hash')).toBe('eq.0xtx2');
+        return HttpResponse.json([]);
+      }),
+      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/contract_calls.*/, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('tx_hash')).toBe('eq.0xtx2');
+        return HttpResponse.json([]);
       })
     );
 
-    ensureTraceEnv();
     const api = await vi.importActual<typeof import('../services/api')>('../services/api');
     const result = await api.fetchTransactionTrace('0xtx2');
     expect(result.txHash).toBe('0xtx2');
