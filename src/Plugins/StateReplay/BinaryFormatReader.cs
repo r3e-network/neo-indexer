@@ -74,15 +74,31 @@ namespace StateReplay
             {
                 // ContractHash: 20 bytes
                 var contractHashBytes = reader.ReadBytes(20);
+                if (contractHashBytes.Length != 20)
+                {
+                    throw new InvalidDataException("Unexpected end of file while reading contract hash.");
+                }
                 var contractHash = new UInt160(contractHashBytes);
 
                 // Key
                 var keyLength = reader.ReadUInt16();
                 var keyBytes = reader.ReadBytes(keyLength);
+                if (keyBytes.Length != keyLength)
+                {
+                    throw new InvalidDataException("Unexpected end of file while reading key bytes.");
+                }
 
                 // Value
                 var valueLength = reader.ReadInt32();
+                if (valueLength < 0)
+                {
+                    throw new InvalidDataException($"Invalid value length: {valueLength}.");
+                }
                 var valueBytes = reader.ReadBytes(valueLength);
+                if (valueBytes.Length != valueLength)
+                {
+                    throw new InvalidDataException("Unexpected end of file while reading value bytes.");
+                }
 
                 // ReadOrder
                 var readOrder = reader.ReadInt32();

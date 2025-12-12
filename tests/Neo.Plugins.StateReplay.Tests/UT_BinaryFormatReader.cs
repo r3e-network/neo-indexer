@@ -171,6 +171,79 @@ namespace StateReplay.Tests
         }
 
         [TestMethod]
+        public void Read_TruncatedContractHash_ThrowsInvalidDataException()
+        {
+            using var ms = new MemoryStream();
+            using var writer = new BinaryWriter(ms, Encoding.UTF8);
+
+            writer.Write((byte)'N');
+            writer.Write((byte)'S');
+            writer.Write((byte)'B');
+            writer.Write((byte)'R');
+            writer.Write((ushort)1);
+            writer.Write(0u);
+            writer.Write(1); // one entry
+
+            // Only 10 bytes instead of 20 for contract hash
+            writer.Write(new byte[10]);
+
+            var path = Path.GetTempFileName();
+            File.WriteAllBytes(path, ms.ToArray());
+
+            Assert.ThrowsExactly<InvalidDataException>(() => BinaryFormatReader.Read(path));
+        }
+
+        [TestMethod]
+        public void Read_TruncatedKey_ThrowsInvalidDataException()
+        {
+            using var ms = new MemoryStream();
+            using var writer = new BinaryWriter(ms, Encoding.UTF8);
+
+            writer.Write((byte)'N');
+            writer.Write((byte)'S');
+            writer.Write((byte)'B');
+            writer.Write((byte)'R');
+            writer.Write((ushort)1);
+            writer.Write(0u);
+            writer.Write(1); // one entry
+
+            writer.Write(new byte[20]); // full contract hash
+            writer.Write((ushort)5);    // key length says 5
+            writer.Write(new byte[2]);  // but only 2 bytes provided
+
+            var path = Path.GetTempFileName();
+            File.WriteAllBytes(path, ms.ToArray());
+
+            Assert.ThrowsExactly<InvalidDataException>(() => BinaryFormatReader.Read(path));
+        }
+
+        [TestMethod]
+        public void Read_TruncatedValue_ThrowsInvalidDataException()
+        {
+            using var ms = new MemoryStream();
+            using var writer = new BinaryWriter(ms, Encoding.UTF8);
+
+            writer.Write((byte)'N');
+            writer.Write((byte)'S');
+            writer.Write((byte)'B');
+            writer.Write((byte)'R');
+            writer.Write((ushort)1);
+            writer.Write(0u);
+            writer.Write(1); // one entry
+
+            writer.Write(new byte[20]); // full contract hash
+            writer.Write((ushort)2);
+            writer.Write(new byte[] { 0x01, 0x02 });
+            writer.Write(4);            // value length says 4
+            writer.Write(new byte[1]);  // but only 1 byte provided
+
+            var path = Path.GetTempFileName();
+            File.WriteAllBytes(path, ms.ToArray());
+
+            Assert.ThrowsExactly<InvalidDataException>(() => BinaryFormatReader.Read(path));
+        }
+
+        [TestMethod]
         public void IsBinaryFormat_ValidFile_ReturnsTrue()
         {
             var bytes = CreateValidBinaryFile(1u);
