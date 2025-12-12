@@ -67,6 +67,9 @@ Returns opcode, syscall, and contract‑call traces for a given block.
 }
 ```
 
+Response rows may include `syscallHash`, `category`, and `gasBase` when the `syscall_names`
+reference table is populated.
+
 ### Example Response
 
 ```json
@@ -251,13 +254,16 @@ Or a single options object:
   "limit": 100,
   "offset": 0,
   "total": 2,
-  "stats": [
-    {
-      "syscallName": "System.Storage.Get",
-      "callCount": 340,
-      "totalGasCost": 11141120,
-      "averageGasCost": 32768,
-      "minGasCost": 32768,
+	  "stats": [
+	    {
+	      "syscallHash": "31E85D92",
+	      "syscallName": "System.Storage.Get",
+	      "category": "Storage",
+	      "callCount": 340,
+	      "gasBase": 32768,
+	      "totalGasCost": 11141120,
+	      "averageGasCost": 32768,
+	      "minGasCost": 32768,
       "maxGasCost": 32768,
       "firstBlock": 10,
       "lastBlock": 999
