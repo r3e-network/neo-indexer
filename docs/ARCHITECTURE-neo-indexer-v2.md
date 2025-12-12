@@ -328,6 +328,8 @@ SELECT * FROM prune_trace_partitions(1000000);
 
 On mainnet you should run pruning on a schedule (for example weekly) using a Supabase
 scheduled SQL job. Choose `retention_blocks` based on your storage budget.
+These functions are admin-only; execute them as `postgres` or with the service role key
+via the Supabase SQL editor/cron. They are not exposed to anon/authenticated users.
 
 ### 6.3 Automatic Partition Rotation
 

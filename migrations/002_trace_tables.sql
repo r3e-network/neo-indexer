@@ -502,6 +502,25 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================
+-- Function Privileges (Supabase)
+-- ============================================
+-- Partition management functions are admin-only. By default Postgres grants
+-- EXECUTE to PUBLIC, which would expose these as PostgREST RPC endpoints.
+-- Revoke public access and grant only to service roles.
+
+REVOKE ALL ON FUNCTION create_trace_partition(TEXT, INTEGER, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ensure_trace_partitions(INTEGER, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION prune_old_partitions(TEXT, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION prune_trace_partitions(INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION get_partition_stats(TEXT) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION create_trace_partition(TEXT, INTEGER, INTEGER) TO service_role, postgres;
+GRANT EXECUTE ON FUNCTION ensure_trace_partitions(INTEGER, INTEGER) TO service_role, postgres;
+GRANT EXECUTE ON FUNCTION prune_old_partitions(TEXT, INTEGER) TO service_role, postgres;
+GRANT EXECUTE ON FUNCTION prune_trace_partitions(INTEGER) TO service_role, postgres;
+GRANT EXECUTE ON FUNCTION get_partition_stats(TEXT) TO service_role, postgres;
+
+-- ============================================
 -- Comments
 -- ============================================
 COMMENT ON TABLE opcode_traces IS 'Stores OpCode execution traces for each transaction';
