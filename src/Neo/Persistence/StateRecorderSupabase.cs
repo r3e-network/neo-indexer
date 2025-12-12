@@ -16,6 +16,7 @@ using Neo.IO;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -328,7 +329,7 @@ namespace Neo.Persistence
             foreach (var entry in entries)
             {
                 var blockIndex = recorder.BlockIndex;
-                var contractId = entry.Key.Id >= 0 ? entry.Key.Id.ToString() : string.Empty;
+                var contractId = entry.Key.Id.ToString(CultureInfo.InvariantCulture);
                 var contractHash = entry.ContractHash.ToString();
                 var manifestName = entry.ManifestName ?? string.Empty;
                 var keyBase64 = Convert.ToBase64String(entry.Key.ToArray());
