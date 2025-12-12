@@ -3,12 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import {
   fetchBlockTrace,
   fetchContractCalls,
+  fetchOpCodeStats,
   fetchSyscallStats,
   fetchTransactionTrace,
 } from '../services/api';
 import { OpCodeViewer } from '../components/traces/OpCodeViewer';
 import { SyscallTimeline } from '../components/traces/SyscallTimeline';
 import { CallGraph } from '../components/traces/CallGraph';
+import { OpCodeStatsTable } from '../components/traces/OpCodeStatsTable';
 import type { ContractCallTraceEntry, SyscallStat, TransactionTraceResult } from '../types';
 
 const tabs = [
@@ -35,6 +37,7 @@ export default function TraceBrowser() {
   const [statsInput, setStatsInput] = useState({ start: '', end: '' });
   const [statsParams, setStatsParams] = useState<{ start?: number; end?: number }>({});
   const [statsValidationError, setStatsValidationError] = useState<string | null>(null);
+  const [opcodeStatsParams, setOpcodeStatsParams] = useState<{ start?: number; end?: number }>({});
 
   const blockTraceQuery = useQuery({
     queryKey: ['block-trace', submittedBlock],
@@ -63,6 +66,13 @@ export default function TraceBrowser() {
     queryKey: ['syscall-stats', statsParams.start, statsParams.end],
     queryFn: () => fetchSyscallStats(statsParams.start!, statsParams.end!),
     enabled: typeof statsParams.start === 'number' && typeof statsParams.end === 'number',
+    staleTime: 300_000,
+  });
+
+  const opcodeStatsQuery = useQuery({
+    queryKey: ['opcode-stats', opcodeStatsParams.start, opcodeStatsParams.end],
+    queryFn: () => fetchOpCodeStats(opcodeStatsParams.start!, opcodeStatsParams.end!),
+    enabled: typeof opcodeStatsParams.start === 'number' && typeof opcodeStatsParams.end === 'number',
     staleTime: 300_000,
   });
 
@@ -144,16 +154,28 @@ export default function TraceBrowser() {
     setContractQueryHash(contractHashInput.trim() || null);
   }, [contractHashInput]);
 
-  const handleStatsLoad = useCallback(() => {
+  const validateStatsRange = useCallback(() => {
     const start = Number(statsInput.start);
     const end = Number(statsInput.end);
     if (Number.isNaN(start) || Number.isNaN(end) || start < 0 || end < start) {
-      setStatsValidationError('Enter a valid block range for syscall stats.');
-      return;
+      setStatsValidationError('Enter a valid block range.');
+      return null;
     }
     setStatsValidationError(null);
-    setStatsParams({ start, end });
+    return { start, end };
   }, [statsInput]);
+
+  const handleStatsLoad = useCallback(() => {
+    const range = validateStatsRange();
+    if (!range) return;
+    setStatsParams(range);
+  }, [validateStatsRange]);
+
+  const handleOpcodeStatsLoad = useCallback(() => {
+    const range = validateStatsRange();
+    if (!range) return;
+    setOpcodeStatsParams(range);
+  }, [validateStatsRange]);
 
   const isTraceLoading =
     mode === 'block'
@@ -164,6 +186,7 @@ export default function TraceBrowser() {
   const txTraceError = transactionTraceQuery.error as Error | null;
   const contractError = contractCallsQuery.error as Error | null;
   const statsError = syscallStatsQuery.error as Error | null;
+  const opcodeStatsError = opcodeStatsQuery.error as Error | null;
 
   const blockTransactions = blockTraceQuery.data?.transactions ?? [];
 
@@ -180,6 +203,7 @@ export default function TraceBrowser() {
   }, [currentTrace]);
 
   const activeSyscallStats: SyscallStat[] = syscallStatsQuery.data ?? [];
+  const activeOpcodeStats = opcodeStatsQuery.data ?? [];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 text-white">
@@ -307,7 +331,7 @@ export default function TraceBrowser() {
               {contractError && <p className="mt-2 text-xs text-rose-300">Contract graph error: {contractError.message}</p>}
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Syscall stats range</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Stats range</p>
               <div className="mt-3 flex flex-col gap-2 text-sm text-slate-300">
                 <div className="flex gap-2">
                   <input
@@ -330,10 +354,20 @@ export default function TraceBrowser() {
                   onClick={handleStatsLoad}
                   className="rounded-xl bg-slate-800/80 px-4 py-2 text-sm text-white transition hover:bg-slate-700"
                 >
-                  Fetch stats
+                  Fetch syscall stats
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpcodeStatsLoad}
+                  className="rounded-xl bg-slate-800/80 px-4 py-2 text-sm text-white transition hover:bg-slate-700"
+                >
+                  Fetch opcode stats
                 </button>
                 {statsValidationError && <p className="text-xs text-rose-300">{statsValidationError}</p>}
                 {statsError && <p className="text-xs text-rose-300">Stats error: {statsError.message}</p>}
+                {opcodeStatsError && (
+                  <p className="text-xs text-rose-300">Opcode stats error: {opcodeStatsError.message}</p>
+                )}
               </div>
             </div>
           </div>
@@ -416,11 +450,18 @@ export default function TraceBrowser() {
           </div>
 
           {activeTab === 'opcodes' && (
-            <OpCodeViewer
-              traces={filteredOpcodes}
-              isLoading={isTraceLoading}
-              emptyMessage={currentTrace ? 'No opcodes match the current filters.' : 'Load a trace to begin.'}
-            />
+            <div className="space-y-4">
+              <OpCodeViewer
+                traces={filteredOpcodes}
+                isLoading={isTraceLoading}
+                emptyMessage={currentTrace ? 'No opcodes match the current filters.' : 'Load a trace to begin.'}
+              />
+              <OpCodeStatsTable
+                stats={activeOpcodeStats}
+                isLoading={opcodeStatsQuery.isLoading || opcodeStatsQuery.isFetching}
+                error={opcodeStatsError?.message ?? null}
+              />
+            </div>
           )}
 
           {activeTab === 'syscalls' && (

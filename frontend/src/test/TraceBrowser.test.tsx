@@ -11,11 +11,13 @@ const {
   mockFetchTransactionTrace,
   mockFetchContractCalls,
   mockFetchSyscallStats,
+  mockFetchOpCodeStats,
 } = vi.hoisted(() => ({
   mockFetchBlockTrace: vi.fn(),
   mockFetchTransactionTrace: vi.fn(),
   mockFetchContractCalls: vi.fn(),
   mockFetchSyscallStats: vi.fn(),
+  mockFetchOpCodeStats: vi.fn(),
 }));
 
 const opViewerSpy = vi.fn();
@@ -58,6 +60,7 @@ vi.mock('../services/api', () => ({
   fetchTransactionTrace: mockFetchTransactionTrace,
   fetchContractCalls: mockFetchContractCalls,
   fetchSyscallStats: mockFetchSyscallStats,
+  fetchOpCodeStats: mockFetchOpCodeStats,
 }));
 
 const server = setupServer();
@@ -307,7 +310,7 @@ describe('TraceBrowser validation and error states', () => {
   it('validates syscall stats filter inputs', async () => {
     renderTraceBrowser();
 
-    const fetchButton = screen.getByRole('button', { name: /fetch stats/i });
+    const fetchButton = screen.getByRole('button', { name: /fetch syscall stats/i });
     const startInput = screen.getByPlaceholderText(/start block/i);
     const endInput = screen.getByPlaceholderText(/end block/i);
 
