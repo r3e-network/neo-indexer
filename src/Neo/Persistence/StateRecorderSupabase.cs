@@ -524,7 +524,8 @@ namespace Neo.Persistence
                 read_key_count = block.ReadKeyCount
             });
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/rest/v1/blocks")
+            // Use on_conflict explicitly for robustness (legacy schemas may not have block_index as PK).
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/rest/v1/blocks?on_conflict=block_index")
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             };
@@ -550,7 +551,8 @@ namespace Neo.Persistence
 
             var json = JsonSerializer.Serialize(jsonArray);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/rest/v1/contracts")
+            // Use on_conflict explicitly for robustness (contracts are keyed by contract_id).
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/rest/v1/contracts?on_conflict=contract_id")
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             };
@@ -1242,7 +1244,8 @@ ON CONFLICT (block_index) DO UPDATE SET
                     stats.NotificationCount);
 
                 var payload = JsonSerializer.Serialize(new[] { row });
-                await SendTraceRequestWithRetryAsync($"{baseUrl}/rest/v1/block_stats", apiKey, payload, "block stats").ConfigureAwait(false);
+                // Explicit on_conflict for robustness.
+                await SendTraceRequestWithRetryAsync($"{baseUrl}/rest/v1/block_stats?on_conflict=block_index", apiKey, payload, "block stats").ConfigureAwait(false);
 
                 Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
                     $"Block stats upsert successful for block {stats.BlockIndex}");

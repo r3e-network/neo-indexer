@@ -90,6 +90,22 @@ CREATE TABLE IF NOT EXISTS contracts (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure contract_id has a unique constraint for ON CONFLICT upserts.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint c
+        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+        WHERE c.conrelid = 'public.contracts'::regclass
+          AND c.contype IN ('p', 'u')
+          AND a.attname = 'contract_id'
+    ) THEN
+        ALTER TABLE contracts ADD CONSTRAINT contracts_contract_id_unique UNIQUE (contract_id);
+    END IF;
+END;
+$$;
+
 -- Create index on contract_hash for lookups
 CREATE INDEX IF NOT EXISTS idx_contracts_hash ON contracts(contract_hash);
 
