@@ -16,6 +16,7 @@ using Neo.SmartContract;
 using Neo.SmartContract.Native;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace Neo.Persistence
@@ -35,6 +36,9 @@ namespace Neo.Persistence
 
     public sealed class BlockReadRecorder
     {
+        private static readonly IReadOnlyDictionary<int, ContractMetadata> NativeContractsById =
+            NativeContract.Contracts.ToDictionary(c => c.Id, c => new ContractMetadata(c.Hash, c.Name));
+
         private readonly List<BlockReadEntry> _entries = [];
         private readonly HashSet<StorageKey> _readKeys = [];
         private readonly object _entryLock = new();
@@ -87,8 +91,13 @@ namespace Neo.Persistence
 
         private ContractMetadata GetContractMetadata(IReadOnlyStore? store, int contractId)
         {
-            // Native contracts have negative IDs, return empty metadata
-            if (contractId < 0) return ContractMetadata.Empty;
+            // Native contracts have negative IDs. Resolve from in-memory native contract list.
+            if (contractId < 0)
+            {
+                if (NativeContractsById.TryGetValue(contractId, out var nativeMetadata))
+                    return nativeMetadata;
+                return ContractMetadata.Empty;
+            }
 
             lock (_contractMetadataLock)
             {

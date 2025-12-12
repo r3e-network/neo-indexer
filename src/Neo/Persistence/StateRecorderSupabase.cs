@@ -388,7 +388,7 @@ namespace Neo.Persistence
             var reads = new List<StorageReadRecord>(entries.Length);
             foreach (var entry in entries)
             {
-                var contractId = entry.Key.Id >= 0 ? entry.Key.Id : (int?)null;
+                var contractId = entry.Key.Id;
                 reads.Add(new StorageReadRecord(
                     blockIndex,
                     contractId,
@@ -408,7 +408,6 @@ namespace Neo.Persistence
             foreach (var entry in entries)
             {
                 var contractId = entry.Key.Id;
-                if (contractId < 0) continue; // Skip native contracts
                 if (!seen.Add(contractId)) continue; // Skip duplicates in this block
                 if (ContractCache.ContainsKey(contractId)) continue; // Skip already cached
 
