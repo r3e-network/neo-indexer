@@ -16,12 +16,14 @@ $$;
 -- Syscall stats RPC (range/limit caps)
 -- ============================================
 
+DROP FUNCTION IF EXISTS get_syscall_stats(INTEGER, INTEGER, TEXT, TEXT, TEXT, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION get_syscall_stats(
     start_block INTEGER,
     end_block INTEGER,
-    contract_hash TEXT DEFAULT NULL,
-    transaction_hash TEXT DEFAULT NULL,
-    syscall_name TEXT DEFAULT NULL,
+    p_contract_hash TEXT DEFAULT NULL,
+    p_transaction_hash TEXT DEFAULT NULL,
+    p_syscall_name TEXT DEFAULT NULL,
     limit_rows INTEGER DEFAULT 100,
     offset_rows INTEGER DEFAULT 0
 )
@@ -73,7 +75,7 @@ BEGIN
             t.syscall_name,
             n.category,
             COUNT(*) AS call_count,
-            COALESCE(SUM(t.gas_cost), 0) AS total_gas_cost,
+            COALESCE(SUM(t.gas_cost), 0)::BIGINT AS total_gas_cost,
             AVG(t.gas_cost)::DOUBLE PRECISION AS avg_gas_cost,
             MIN(t.gas_cost) AS min_gas_cost,
             MAX(t.gas_cost) AS max_gas_cost,
@@ -84,9 +86,9 @@ BEGIN
         LEFT JOIN syscall_names n ON n.hash = t.syscall_hash
         WHERE t.block_index >= start_block
           AND t.block_index <= end_block
-          AND (contract_hash IS NULL OR t.contract_hash = contract_hash)
-          AND (transaction_hash IS NULL OR t.tx_hash = transaction_hash)
-          AND (syscall_name IS NULL OR t.syscall_name = syscall_name)
+          AND (p_contract_hash IS NULL OR t.contract_hash = p_contract_hash)
+          AND (p_transaction_hash IS NULL OR t.tx_hash = p_transaction_hash)
+          AND (p_syscall_name IS NULL OR t.syscall_name = p_syscall_name)
         GROUP BY t.syscall_hash, t.syscall_name, n.category, n.gas_base
     )
     SELECT aggregated.*, COUNT(*) OVER() AS total_rows
@@ -104,13 +106,15 @@ GRANT EXECUTE ON FUNCTION get_syscall_stats(INTEGER, INTEGER, TEXT, TEXT, TEXT, 
 -- Opcode stats RPC (range/limit caps)
 -- ============================================
 
+DROP FUNCTION IF EXISTS get_opcode_stats(INTEGER, INTEGER, TEXT, TEXT, INTEGER, TEXT, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION get_opcode_stats(
     start_block INTEGER,
     end_block INTEGER,
-    contract_hash TEXT DEFAULT NULL,
-    transaction_hash TEXT DEFAULT NULL,
-    opcode INTEGER DEFAULT NULL,
-    opcode_name TEXT DEFAULT NULL,
+    p_contract_hash TEXT DEFAULT NULL,
+    p_transaction_hash TEXT DEFAULT NULL,
+    p_opcode INTEGER DEFAULT NULL,
+    p_opcode_name TEXT DEFAULT NULL,
     limit_rows INTEGER DEFAULT 100,
     offset_rows INTEGER DEFAULT 0
 )
@@ -159,7 +163,7 @@ BEGIN
             t.opcode::INTEGER AS opcode,
             t.opcode_name,
             COUNT(*) AS call_count,
-            COALESCE(SUM(t.gas_consumed), 0) AS total_gas_consumed,
+            COALESCE(SUM(t.gas_consumed), 0)::BIGINT AS total_gas_consumed,
             AVG(t.gas_consumed)::DOUBLE PRECISION AS avg_gas_consumed,
             MIN(t.gas_consumed) AS min_gas_consumed,
             MAX(t.gas_consumed) AS max_gas_consumed,
@@ -168,10 +172,10 @@ BEGIN
         FROM opcode_traces t
         WHERE t.block_index >= start_block
           AND t.block_index <= end_block
-          AND (contract_hash IS NULL OR t.contract_hash = contract_hash)
-          AND (transaction_hash IS NULL OR t.tx_hash = transaction_hash)
-          AND (opcode IS NULL OR t.opcode = opcode)
-          AND (opcode_name IS NULL OR t.opcode_name = opcode_name)
+          AND (p_contract_hash IS NULL OR t.contract_hash = p_contract_hash)
+          AND (p_transaction_hash IS NULL OR t.tx_hash = p_transaction_hash)
+          AND (p_opcode IS NULL OR t.opcode = p_opcode)
+          AND (p_opcode_name IS NULL OR t.opcode_name = p_opcode_name)
         GROUP BY t.opcode, t.opcode_name
     )
     SELECT aggregated.*, COUNT(*) OVER() AS total_rows
@@ -247,7 +251,7 @@ BEGIN
             COUNT(*) AS call_count,
             SUM(CASE WHEN t.success THEN 1 ELSE 0 END) AS success_count,
             SUM(CASE WHEN NOT t.success THEN 1 ELSE 0 END) AS failure_count,
-            COALESCE(SUM(t.gas_consumed), 0) AS total_gas_consumed,
+            COALESCE(SUM(t.gas_consumed), 0)::BIGINT AS total_gas_consumed,
             AVG(t.gas_consumed)::DOUBLE PRECISION AS avg_gas_consumed,
             MIN(t.block_index) AS first_block,
             MAX(t.block_index) AS last_block
@@ -269,4 +273,3 @@ $$;
 
 REVOKE ALL ON FUNCTION get_contract_call_stats(INTEGER, INTEGER, TEXT, TEXT, TEXT, INTEGER, INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_contract_call_stats(INTEGER, INTEGER, TEXT, TEXT, TEXT, INTEGER, INTEGER) TO anon, authenticated, service_role;
-
