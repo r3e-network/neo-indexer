@@ -4,6 +4,20 @@
 -- Description: Align Supabase schema with StateRecorderSupabase.cs expectations
 
 -- ============================================================================
+-- STEP 0: Ensure blocks table exists (fresh Supabase projects)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS blocks (
+    block_index INTEGER PRIMARY KEY,
+    hash TEXT NOT NULL,
+    timestamp_ms BIGINT,
+    tx_count INTEGER NOT NULL DEFAULT 0,
+    read_key_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
 -- STEP 1: Modify existing blocks table to match code expectations
 -- ============================================================================
 
@@ -20,14 +34,42 @@ ALTER TABLE blocks ADD COLUMN IF NOT EXISTS timestamp_ms BIGINT;
 ALTER TABLE blocks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE blocks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
--- Migrate data from 'index' to 'block_index'
-UPDATE blocks SET block_index = index WHERE block_index IS NULL;
+-- Migrate legacy data if prior schema used different columns.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'blocks' AND column_name = 'index'
+    ) THEN
+        UPDATE blocks SET block_index = "index" WHERE block_index IS NULL;
+    END IF;
 
--- Migrate data from 'timestamp' to 'timestamp_ms' (assuming timestamp is in seconds)
-UPDATE blocks SET timestamp_ms = timestamp * 1000 WHERE timestamp_ms IS NULL AND timestamp IS NOT NULL;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'blocks' AND column_name = 'timestamp'
+    ) THEN
+        UPDATE blocks
+        SET timestamp_ms = timestamp * 1000
+        WHERE timestamp_ms IS NULL AND timestamp IS NOT NULL;
+    END IF;
+END;
+$$;
 
--- Create index on block_index for efficient lookups
-CREATE INDEX IF NOT EXISTS idx_blocks_block_index ON blocks(block_index);
+-- Ensure block_index has a unique constraint for ON CONFLICT upserts.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint c
+        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+        WHERE c.conrelid = 'public.blocks'::regclass
+          AND c.contype IN ('p', 'u')
+          AND a.attname = 'block_index'
+    ) THEN
+        ALTER TABLE blocks ADD CONSTRAINT blocks_block_index_unique UNIQUE (block_index);
+    END IF;
+END;
+$$;
 
 -- Create index on timestamp_ms for time-range queries
 CREATE INDEX IF NOT EXISTS idx_blocks_timestamp_ms ON blocks(timestamp_ms);
