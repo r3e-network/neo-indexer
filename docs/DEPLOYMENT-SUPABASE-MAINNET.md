@@ -138,3 +138,7 @@ Because RLS allows public SELECT only, the anon key is safe to embed in the fron
 - **Replay snapshots**:
   - default RestApi mode stores all queryable data.
   - set `UPLOAD_MODE=Both` only if you want `.bin` snapshots for offline replay/export.
+- **Replay tooling** (optional):
+  - Enable the `StateReplay` plugin and set Supabase credentials in `plugins/StateReplay/StateReplay.json`.
+  - `replay supabase <blockIndex>` replays using `storage_reads` from Supabase Postgres (no per-block storage files required).
+  - `replay download <blockIndex>` downloads `block-<N>.bin` from Supabase Storage (requires binary uploads).
