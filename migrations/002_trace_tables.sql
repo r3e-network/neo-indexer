@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS opcode_traces_200000_300000
     PARTITION OF opcode_traces
     FOR VALUES FROM (200000) TO (300000);
 
+-- Default partition catches all higher block ranges (required for mainnet)
+CREATE TABLE IF NOT EXISTS opcode_traces_default
+    PARTITION OF opcode_traces DEFAULT;
+
 -- Indexes for opcode_traces
 CREATE INDEX IF NOT EXISTS idx_opcode_traces_tx_hash ON opcode_traces(tx_hash);
 CREATE INDEX IF NOT EXISTS idx_opcode_traces_contract ON opcode_traces(contract_hash);
@@ -65,6 +69,10 @@ CREATE TABLE IF NOT EXISTS syscall_traces_100000_200000
 CREATE TABLE IF NOT EXISTS syscall_traces_200000_300000
     PARTITION OF syscall_traces
     FOR VALUES FROM (200000) TO (300000);
+
+-- Default partition catches all higher block ranges (required for mainnet)
+CREATE TABLE IF NOT EXISTS syscall_traces_default
+    PARTITION OF syscall_traces DEFAULT;
 
 -- Indexes for syscall_traces
 CREATE INDEX IF NOT EXISTS idx_syscall_traces_tx_hash ON syscall_traces(tx_hash);
@@ -101,6 +109,10 @@ CREATE TABLE IF NOT EXISTS contract_calls_200000_300000
     PARTITION OF contract_calls
     FOR VALUES FROM (200000) TO (300000);
 
+-- Default partition catches all higher block ranges (required for mainnet)
+CREATE TABLE IF NOT EXISTS contract_calls_default
+    PARTITION OF contract_calls DEFAULT;
+
 -- Indexes for contract_calls
 CREATE INDEX IF NOT EXISTS idx_contract_calls_tx_hash ON contract_calls(tx_hash);
 CREATE INDEX IF NOT EXISTS idx_contract_calls_caller ON contract_calls(caller_hash);
@@ -135,6 +147,10 @@ CREATE TABLE IF NOT EXISTS storage_writes_200000_300000
     PARTITION OF storage_writes
     FOR VALUES FROM (200000) TO (300000);
 
+-- Default partition catches all higher block ranges (required for mainnet)
+CREATE TABLE IF NOT EXISTS storage_writes_default
+    PARTITION OF storage_writes DEFAULT;
+
 -- Indexes for storage_writes
 CREATE INDEX IF NOT EXISTS idx_storage_writes_tx_hash ON storage_writes(tx_hash);
 CREATE INDEX IF NOT EXISTS idx_storage_writes_contract ON storage_writes(contract_id);
@@ -165,6 +181,10 @@ CREATE TABLE IF NOT EXISTS notifications_100000_200000
 CREATE TABLE IF NOT EXISTS notifications_200000_300000
     PARTITION OF notifications
     FOR VALUES FROM (200000) TO (300000);
+
+-- Default partition catches all higher block ranges (required for mainnet)
+CREATE TABLE IF NOT EXISTS notifications_default
+    PARTITION OF notifications DEFAULT;
 
 -- Indexes for notifications
 CREATE INDEX IF NOT EXISTS idx_notifications_tx_hash ON notifications(tx_hash);
