@@ -11,6 +11,11 @@ There are two ways to consume traces:
    - `get_opcode_stats(start_block, end_block, ...)`
    - `get_contract_call_stats(start_block, end_block, ...)`
 
+   Optional filter parameters for Supabase RPC are prefixed with `p_` (to avoid PL/pgSQL name collisions), e.g.:
+   - `get_syscall_stats(..., p_contract_hash, p_transaction_hash, p_syscall_name, limit_rows, offset_rows)`
+   - `get_opcode_stats(..., p_contract_hash, p_transaction_hash, p_opcode, p_opcode_name, limit_rows, offset_rows)`
+   - `get_contract_call_stats(..., p_callee_hash, p_caller_hash, p_method_name, limit_rows, offset_rows)`
+
    **Guardrails:** when called with public `anon` / `authenticated` keys, all stats RPCs enforce:
    - max block range of **500,000 blocks per request**
    - `limit_rows` clamped to **1000**
