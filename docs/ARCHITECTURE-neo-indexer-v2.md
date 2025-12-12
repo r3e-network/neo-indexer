@@ -326,6 +326,9 @@ SELECT prune_old_partitions('notifications', 1000000);
 SELECT * FROM prune_trace_partitions(1000000);
 ```
 
+On mainnet you should run pruning on a schedule (for example weekly) using a Supabase
+scheduled SQL job. Choose `retention_blocks` based on your storage budget.
+
 ### 6.3 Automatic Partition Rotation
 
 The migrations also define `ensure_trace_partitions(partition_size, lookahead_blocks)` which
