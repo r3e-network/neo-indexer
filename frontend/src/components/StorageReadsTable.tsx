@@ -83,7 +83,7 @@ export function StorageReadsTable({ block }: StorageReadsTableProps) {
         setExporting(false);
       }
     },
-    [block]
+    [block, hasBinary, hasCsv, hasJson]
   );
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
