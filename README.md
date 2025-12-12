@@ -1,3 +1,15 @@
+## Neo Indexer (Supabase)
+
+This repository is a fork of `neo-project/neo` used to run a Neo node + indexing plugins that write block/trace data into **Supabase Postgres**.
+
+- **Indexer writes**: Supabase `service_role` key (bypasses RLS)
+- **Frontend reads**: Supabase `anon` key with strict RLS read-only access
+
+Quick links:
+- `docs/DEPLOYMENT-SUPABASE-MAINNET.md`
+- `docs/ARCHITECTURE-neo-indexer-v2.md`
+- `docs/RPC-TRACES-API.md`
+
 <p align="center">
   <a href="https://neo.org/">
       <img
