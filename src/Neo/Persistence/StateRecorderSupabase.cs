@@ -51,7 +51,7 @@ namespace Neo.Persistence
         private const string TraceBatchSizeEnvVar = "NEO_STATE_RECORDER__TRACE_BATCH_SIZE";
         private const string TraceUploadConcurrencyEnvVar = "NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY";
         // Global Supabase REST/Storage throttle to avoid 429 on mainnet.
-        // Despite the legacy name, this semaphore gates all HTTPS uploads (reads, traces, stats).
+        // Despite the legacy name, this semaphore gates all HTTPS uploads (snapshots, reads, traces, stats).
         private static readonly SemaphoreSlim TraceUploadSemaphore = new(GetTraceUploadConcurrency());
 
         /// <summary>
@@ -166,6 +166,9 @@ namespace Neo.Persistence
 
         private static async Task UploadBinaryAsync(BlockReadRecorder recorder, StateRecorderSettings settings)
         {
+            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
             var orderedEntries = GetOrderedEntries(recorder);
             var payload = BuildBinaryPayload(recorder, orderedEntries);
 
@@ -189,6 +192,11 @@ namespace Neo.Persistence
 
             Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
                 $"Binary upload successful for block {recorder.BlockIndex}: {orderedEntries.Length} entries, {payload.Buffer.Length} bytes");
+            }
+            finally
+            {
+                TraceUploadSemaphore.Release();
+            }
         }
 
         /// <summary>
@@ -242,6 +250,9 @@ namespace Neo.Persistence
 
         private static async Task UploadJsonAsync(BlockReadRecorder recorder, StateRecorderSettings settings)
         {
+            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
             var entries = GetOrderedEntries(recorder);
             var jsonPayload = BuildJsonPayload(recorder, entries);
 
@@ -263,10 +274,18 @@ namespace Neo.Persistence
 
             Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
                 $"JSON upload successful for block {recorder.BlockIndex}: {entries.Length} entries");
+            }
+            finally
+            {
+                TraceUploadSemaphore.Release();
+            }
         }
 
         private static async Task UploadCsvAsync(BlockReadRecorder recorder, StateRecorderSettings settings)
         {
+            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
             var entries = GetOrderedEntries(recorder);
             var csvPayload = BuildCsvPayload(recorder, entries);
 
@@ -288,6 +307,11 @@ namespace Neo.Persistence
 
             Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
                 $"CSV upload successful for block {recorder.BlockIndex}: {entries.Length} entries");
+            }
+            finally
+            {
+                TraceUploadSemaphore.Release();
+            }
         }
 
         private static (string Content, string Path) BuildJsonPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)

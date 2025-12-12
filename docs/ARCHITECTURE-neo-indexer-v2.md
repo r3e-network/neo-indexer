@@ -380,7 +380,7 @@ NEO_STATE_RECORDER__TRACE_LEVEL=OpCodes,Syscalls,ContractCalls,Storage,Notificat
 
 # Performance / throttling
 NEO_STATE_RECORDER__TRACE_BATCH_SIZE=1000
-# Caps concurrent HTTPS uploads to Supabase (reads, traces, stats)
+# Caps concurrent HTTPS uploads to Supabase (snapshots, reads, traces, stats)
 NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
 ```
 
