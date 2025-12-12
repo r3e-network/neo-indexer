@@ -50,6 +50,8 @@ namespace Neo.Persistence
         private const int MaxTraceBatchSize = 5000;
         private const string TraceBatchSizeEnvVar = "NEO_STATE_RECORDER__TRACE_BATCH_SIZE";
         private const string TraceUploadConcurrencyEnvVar = "NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY";
+        // Global Supabase REST/Storage throttle to avoid 429 on mainnet.
+        // Despite the legacy name, this semaphore gates all HTTPS uploads (reads, traces, stats).
         private static readonly SemaphoreSlim TraceUploadSemaphore = new(GetTraceUploadConcurrency());
 
         /// <summary>
