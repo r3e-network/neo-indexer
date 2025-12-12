@@ -92,3 +92,35 @@ This README provides an explanation for each field in the JSON configuration fil
       - `seed5t5.neo.org:20333`
 
 This configuration file is essential for setting up and running a Neo node, ensuring proper logging, storage, network connectivity, and consensus protocol parameters.
+
+---
+
+## Block State Indexer v2 Setup
+
+This fork includes the Block State Indexer v2 plugins (`BlockStateIndexer` and `RecordingStore`) plus trace RPC extensions. To enable indexing:
+
+1. Copy `.env.example` to `.env` and fill out Supabase settings.
+2. Configure Neo to use the read‑recording storage wrapper by setting `Storage.Engine`:
+
+```json
+"Storage": {
+  "Engine": "RecordingStore",
+  "Path": "Data_LevelDB_{0}"
+}
+```
+
+3. Enable the BlockStateIndexer plugin via its config file (installed under `plugins/BlockStateIndexer/BlockStateIndexer.json` when running `neo-cli`):
+
+```json
+{
+  "PluginConfiguration": {
+    "Enabled": true,
+    "Network": 0,
+    "MinTransactionCount": 1,
+    "UploadMode": "Both",
+    "ExceptionPolicy": "StopPlugin"
+  }
+}
+```
+
+`UploadMode` here acts as an extra filter on top of `NEO_STATE_RECORDER__UPLOAD_MODE`.

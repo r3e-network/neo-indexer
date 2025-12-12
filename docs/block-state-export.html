@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neo Block State Export</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap');
+    :root {
+      --bg: #0b1220;
+      --panel: #121b2c;
+      --accent: #43e0b7;
+      --text: #e6eefc;
+      --muted: #8aa2c2;
+      --border: #1f2b42;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      --radius: 14px;
+    }
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", "DM Mono", "SFMono-Regular", Consolas, monospace;
+      background: radial-gradient(circle at 20% 20%, rgba(67, 224, 183, 0.08), transparent 30%),
+                  radial-gradient(circle at 80% 0%, rgba(67, 224, 183, 0.08), transparent 28%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+    .card {
+      width: min(720px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      letter-spacing: 0.6px;
+    }
+    p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.2px;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0d1626;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .row {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 2fr 1fr 1fr;
+      margin-bottom: 16px;
+    }
+    button {
+      background: linear-gradient(120deg, var(--accent), #3bb4ff);
+      color: #0a0f1a;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+      width: 100%;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 14px 32px rgba(67, 224, 183, 0.35); }
+    button:active { transform: translateY(1px); }
+    .result {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #0f1828;
+      border: 1px solid var(--border);
+      display: none;
+    }
+    .result a { color: var(--accent); word-break: break-all; }
+    .muted { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Block State Export</h1>
+    <p>Fetch the download URL for initial key-value reads captured by the state recorder (via RPC method <code>getblockstateexport</code>). Choose binary NSBR (<code>.bin</code>), JSON, or CSV (base64 fields). Recorder uploads must be enabled and in Binary/Both mode for files to exist.</p>
+
+    <label for="endpoint">RPC Endpoint (JSON-RPC over HTTP)</label>
+    <input id="endpoint" type="text" placeholder="http://localhost:10332">
+
+    <div class="row">
+      <div>
+        <label for="height">Block Height</label>
+        <input id="height" type="number" min="0" placeholder="e.g. 123456">
+      </div>
+      <div>
+        <label for="format">Format</label>
+        <select id="format">
+          <option value="bin">Binary (.bin)</option>
+          <option value="json">JSON</option>
+          <option value="csv">CSV</option>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; justify-content:flex-end; gap:8px;">
+        <button id="fetch">Fetch URL</button>
+        <div id="actions" style="display:none; gap:6px;">
+          <button id="download" style="background:#19263c; color:var(--text); box-shadow:none;">Download</button>
+          <button id="preview" style="background:#19263c; color:var(--text); box-shadow:none; display:none;">Preview (JSON/CSV)</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="result" class="result"></div>
+    <div id="error" class="result" style="border-color:#ff5c7a; color:#ffb5c4;"></div>
+    <div class="muted">Note: bucket must be public for the public URL; otherwise use the auth URL with a service key.</div>
+  </div>
+
+  <script>
+    const endpoint = document.getElementById('endpoint');
+    const height = document.getElementById('height');
+    const format = document.getElementById('format');
+    const fetchBtn = document.getElementById('fetch');
+    const resultBox = document.getElementById('result');
+    const errorBox = document.getElementById('error');
+    const actions = document.getElementById('actions');
+    const downloadBtn = document.getElementById('download');
+    let lastAuthUrl = null;
+    let lastFormat = 'bin';
+
+    function showResult(text) {
+      resultBox.style.display = 'block';
+      errorBox.style.display = 'none';
+      resultBox.innerHTML = text;
+      actions.style.display = 'flex';
+    }
+    function showError(text) {
+      errorBox.style.display = 'block';
+      resultBox.style.display = 'none';
+      errorBox.textContent = text;
+      actions.style.display = 'none';
+    }
+
+    fetchBtn.onclick = async () => {
+      const url = endpoint.value.trim();
+      const h = parseInt(height.value, 10);
+      if (!url || Number.isNaN(h)) {
+        showError('Please provide endpoint and height.');
+        return;
+      }
+      try {
+        const body = {
+          jsonrpc: "2.0",
+          method: "getblockstateexport",
+          params: [h, format.value],
+          id: 1
+        };
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message || 'RPC error');
+        const r = json.result;
+        const link = `<div><strong>Block #${r.height} (${r.hash})</strong></div>
+                      <div>Format: ${r.format}</div>
+                      <div>Public URL: <a href="${r.publicUrl}" target="_blank">${r.publicUrl}</a></div>
+                      <div>Auth URL: <code>${r.authUrl}</code></div>
+                      <div>Object path: <code>${r.bucket}/${r.path}</code></div>`;
+        showResult(link);
+        lastAuthUrl = r.authUrl;
+        lastFormat = r.format;
+        previewBtn.style.display = (r.format === 'json' || r.format === 'csv') ? 'inline-flex' : 'none';
+      } catch (err) {
+        showError(err.message || String(err));
+      }
+    };
+
+    downloadBtn.onclick = () => {
+      if (!lastAuthUrl) {
+        showError('No URL yet. Fetch first.');
+        return;
+      }
+      window.open(lastAuthUrl, '_blank');
+    };
+
+    previewBtn.onclick = async () => {
+      if (!lastAuthUrl) {
+        showError('No URL yet. Fetch first.');
+        return;
+      }
+      if (lastFormat === 'bin') {
+        showError('Preview not available for binary format.');
+        return;
+      }
+      try {
+        const res = await fetch(lastAuthUrl);
+        const text = await res.text();
+        let display = text;
+        if (lastFormat === 'json') {
+          const limited = text.length > 2000 ? text.slice(0, 2000) + '... (truncated)' : text;
+          display = `<pre style="white-space:pre-wrap;max-height:240px;overflow:auto;">${limited.replace(/</g,'&lt;')}</pre>`;
+        } else {
+          const lines = text.split(/\r?\n/).slice(0, 50).join('\n');
+          const limited = lines.length > 2000 ? lines.slice(0, 2000) + '... (truncated)' : lines;
+          display = `<pre style="white-space:pre;max-height:240px;overflow:auto;">${limited.replace(/</g,'&lt;')}</pre>`;
+        }
+        showResult(display);
+      } catch (err) {
+        showError(err.message || String(err));
+      }
+    };
+  </script>
+</body>
+</html>
