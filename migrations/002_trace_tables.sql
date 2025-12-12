@@ -378,6 +378,7 @@ BEGIN
         EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
         EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (caller_hash)', partition_name || '_caller_hash_idx', partition_name);
         EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (callee_hash)', partition_name || '_callee_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (method_name)', partition_name || '_method_name_idx', partition_name);
     ELSIF table_name = 'storage_writes' THEN
         EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
         EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (contract_id)', partition_name || '_contract_id_idx', partition_name);
