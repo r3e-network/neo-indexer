@@ -70,7 +70,6 @@ export function useQuery<TData>(options: QueryOptions<TData>): QueryResult<TData
     return () => {
       isActive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keySignature, enabled]);
 
   return state;
