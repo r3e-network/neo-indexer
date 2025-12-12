@@ -324,6 +324,11 @@ describe('TraceBrowser validation and error states', () => {
     fireEvent.click(fetchButton);
     await waitFor(() => expect(screen.queryByText(/Enter a valid block range/i)).not.toBeInTheDocument());
 
+    fireEvent.change(startInput, { target: { value: '0' } });
+    fireEvent.change(endInput, { target: { value: '600000' } });
+    fireEvent.click(fetchButton);
+    await waitFor(() => expect(screen.getByText(/Block range too large/i)).toBeInTheDocument());
+
     fireEvent.change(startInput, { target: { value: '5' } });
     fireEvent.change(endInput, { target: { value: '3' } });
     fireEvent.click(fetchButton);

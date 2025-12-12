@@ -21,6 +21,8 @@ const tabs = [
 
 type TraceTab = (typeof tabs)[number]['id'];
 
+const MAX_STATS_RANGE = 500_000;
+
 export default function TraceBrowser() {
   const [mode, setMode] = useState<'block' | 'transaction'>('block');
   const [blockInput, setBlockInput] = useState('');
@@ -159,6 +161,10 @@ export default function TraceBrowser() {
     const end = Number(statsInput.end);
     if (Number.isNaN(start) || Number.isNaN(end) || start < 0 || end < start) {
       setStatsValidationError('Enter a valid block range.');
+      return null;
+    }
+    if (end - start > MAX_STATS_RANGE) {
+      setStatsValidationError(`Block range too large (max ${MAX_STATS_RANGE} blocks).`);
       return null;
     }
     setStatsValidationError(null);
