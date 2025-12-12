@@ -321,6 +321,9 @@ SELECT prune_old_partitions('syscall_traces', 1000000);
 SELECT prune_old_partitions('contract_calls', 1000000);
 SELECT prune_old_partitions('storage_writes', 1000000);
 SELECT prune_old_partitions('notifications', 1000000);
+
+-- Or prune all trace tables at once:
+SELECT * FROM prune_trace_partitions(1000000);
 ```
 
 ### 6.3 Automatic Partition Rotation
