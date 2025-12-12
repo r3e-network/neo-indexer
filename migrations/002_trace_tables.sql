@@ -416,6 +416,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Convenience wrapper to prune all trace tables in one call.
+-- Returns how many partitions were dropped per table.
+CREATE OR REPLACE FUNCTION prune_trace_partitions(
+    retention_blocks INTEGER
+) RETURNS TABLE (
+    table_name TEXT,
+    dropped_partitions INTEGER
+) AS $$
+DECLARE
+    t TEXT;
+    tables TEXT[] := ARRAY['opcode_traces','syscall_traces','contract_calls','storage_writes','notifications'];
+BEGIN
+    FOREACH t IN ARRAY tables LOOP
+        table_name := t;
+        dropped_partitions := prune_old_partitions(t, retention_blocks);
+        RETURN NEXT;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Function to get partition statistics
 CREATE OR REPLACE FUNCTION get_partition_stats(table_name TEXT)
 RETURNS TABLE (
