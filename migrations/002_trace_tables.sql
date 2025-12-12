@@ -335,6 +335,10 @@ BEGIN
         end_block
     );
 
+    -- Ensure RLS is enabled on the partition so public read policies apply even
+    -- if the partition is queried directly.
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', partition_name);
+
     -- Ensure per-partition indexes exist for fast queries.
     -- New partitions created after parent indexes are defined do NOT automatically get indexes.
     IF table_name = 'opcode_traces' THEN
