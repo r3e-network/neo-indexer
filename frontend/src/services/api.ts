@@ -304,7 +304,7 @@ export async function fetchContractCalls(contractHash: string): Promise<Contract
 
 export async function fetchSyscallStats(startBlock: number, endBlock: number): Promise<SyscallStat[]> {
   const supabase = getSupabase();
-  const { data, error } = await supabase.rpc<RawSyscallStat>('get_syscall_stats', {
+  const { data, error } = await supabase.rpc('get_syscall_stats', {
     start_block: startBlock,
     end_block: endBlock,
   });
@@ -313,12 +313,13 @@ export async function fetchSyscallStats(startBlock: number, endBlock: number): P
     throw new Error(`Failed to fetch syscall stats: ${error.message}`);
   }
 
-  return (data ?? []).map((entry) => normalizeSyscallStat(entry));
+  const entries = (data as RawSyscallStat[] | null) ?? [];
+  return entries.map((entry) => normalizeSyscallStat(entry));
 }
 
 export async function fetchOpCodeStats(startBlock: number, endBlock: number): Promise<OpCodeStat[]> {
   const supabase = getSupabase();
-  const { data, error } = await supabase.rpc<RawOpCodeStat>('get_opcode_stats', {
+  const { data, error } = await supabase.rpc('get_opcode_stats', {
     start_block: startBlock,
     end_block: endBlock,
   });
@@ -327,5 +328,6 @@ export async function fetchOpCodeStats(startBlock: number, endBlock: number): Pr
     throw new Error(`Failed to fetch opcode stats: ${error.message}`);
   }
 
-  return (data ?? []).map((entry) => normalizeOpCodeStat(entry));
+  const entries = (data as RawOpCodeStat[] | null) ?? [];
+  return entries.map((entry) => normalizeOpCodeStat(entry));
 }
