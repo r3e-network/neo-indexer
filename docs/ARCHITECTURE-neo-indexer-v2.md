@@ -365,6 +365,10 @@ public sealed class StateRecorderSettings
 }
 ```
 
+Effective default: when `NEO_STATE_RECORDER__ENABLED=true` and Supabase `URL/KEY` are set but
+`NEO_STATE_RECORDER__UPLOAD_MODE` is omitted, the recorder automatically defaults to `RestApi`
+to ensure traces/reads are persisted in Supabase Postgres.
+
 ### 7.2 Environment Variables
 
 ```bash
