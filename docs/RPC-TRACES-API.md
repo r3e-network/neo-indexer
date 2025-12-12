@@ -1,8 +1,18 @@
 # Trace RPC API
 
-This document describes the execution-trace RPC extensions added by the Block State Indexer v2. These methods query trace tables in Supabase (or any PostgREST‑compatible backend) and return normalized JSON suitable for the frontend trace browser.
+This document describes the execution‑trace query surfaces added by Block State Indexer v2.
 
-All methods are exposed via the standard Neo JSON‑RPC endpoint. Method names are lowercase versions of the C# handlers.
+There are two ways to consume traces:
+
+1. **Supabase‑only (recommended / used by the frontend)**  
+   The web UI reads trace tables directly from Supabase Postgres and calls two Supabase RPC
+   functions for aggregated stats:
+   - `get_syscall_stats(start_block, end_block, ...)`
+   - `get_opcode_stats(start_block, end_block, ...)`
+2. **Neo JSON‑RPC proxy (optional)**  
+   The `RpcServer.Traces` plugin exposes `getblocktrace`, `gettransactiontrace`,
+   `getcontractcalls`, `getsyscallstats`, and `getopcodestats`. These are thin HTTPS
+   proxies to Supabase PostgREST and are useful for non‑browser clients.
 
 ## Common Concepts
 
@@ -312,4 +322,3 @@ Errors follow the standard Neo RPC error format. Common errors include:
 - `UnknownBlock`: block does not exist (for index/hash lookups).
 - `UnknownTransaction`: transaction not found.
 - `InternalServerError`: Supabase query failed or trace storage is not configured.
-

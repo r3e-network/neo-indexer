@@ -47,11 +47,17 @@ interface RawContractCallTrace {
 }
 
 interface RawSyscallStat {
+  syscall_hash?: string;
   syscall_name: string;
   call_count: number;
-  total_gas?: number;
-  total_gas_cost?: number;
-  category?: string;
+  total_gas_cost?: number | null;
+  avg_gas_cost?: number | null;
+  min_gas_cost?: number | null;
+  max_gas_cost?: number | null;
+  first_block?: number | null;
+  last_block?: number | null;
+  gas_base?: number | null;
+  category?: string | null;
 }
 
 interface RawOpCodeStat {
@@ -64,47 +70,6 @@ interface RawOpCodeStat {
   max_gas_consumed?: number;
   first_block?: number;
   last_block?: number;
-}
-
-const restUrl =
-  (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL : undefined) ??
-  (typeof globalThis !== 'undefined' && (globalThis as Record<string, any>).__vitest_env__
-    ? (globalThis as Record<string, any>).__vitest_env__.VITE_SUPABASE_URL
-    : undefined);
-
-const restKey =
-  (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_ANON_KEY : undefined) ??
-  (typeof globalThis !== 'undefined' && (globalThis as Record<string, any>).__vitest_env__
-    ? (globalThis as Record<string, any>).__vitest_env__.VITE_SUPABASE_ANON_KEY
-    : undefined);
-
-async function fetchRest<T>(resource: string, queryParams: Array<[string, string]>): Promise<T[]> {
-  if (!restUrl || !restKey) {
-    throw new Error('Missing Supabase configuration. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
-  }
-
-  const qs = new URLSearchParams();
-  for (const [key, value] of queryParams) {
-    qs.append(key, value);
-  }
-  const url = `${restUrl.replace(/\/$/, '')}/rest/v1/${resource}?${qs.toString()}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      apikey: restKey,
-      Authorization: `Bearer ${restKey}`,
-      Prefer: 'count=exact',
-    },
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Supabase request failed (${response.status}): ${text}`);
-  }
-
-  const data = (await response.json()) as T[];
-  return data ?? [];
 }
 
 function normalizeOpCodeTrace(raw: RawOpCodeTrace, fallbackTxHash: string, fallbackBlockIndex: number): OpCodeTraceEntry {
@@ -177,7 +142,7 @@ function normalizeSyscallStat(raw: RawSyscallStat): SyscallStat {
   return {
     syscallName: raw.syscall_name,
     callCount: raw.call_count,
-    totalGas: raw.total_gas ?? raw.total_gas_cost ?? 0,
+    totalGas: raw.total_gas_cost ?? 0,
     category: normalizeSyscallCategory(categoryHint),
   };
 }
@@ -338,29 +303,29 @@ export async function fetchContractCalls(contractHash: string): Promise<Contract
 }
 
 export async function fetchSyscallStats(startBlock: number, endBlock: number): Promise<SyscallStat[]> {
-  const select =
-    'syscall_name,call_count:count(*),total_gas:sum(gas_cost),avg_gas:avg(gas_cost),min_gas:min(gas_cost),max_gas:max(gas_cost),first_block:min(block_index),last_block:max(block_index)';
+  const supabase = getSupabase();
+  const { data, error } = await supabase.rpc<RawSyscallStat>('get_syscall_stats', {
+    start_block: startBlock,
+    end_block: endBlock,
+  });
 
-  const rows = await fetchRest<RawSyscallStat>('syscall_traces', [
-    ['select', select],
-    ['order', 'call_count.desc'],
-    ['block_index', `gte.${startBlock}`],
-    ['block_index', `lte.${endBlock}`],
-  ]);
+  if (error) {
+    throw new Error(`Failed to fetch syscall stats: ${error.message}`);
+  }
 
-  return rows.map((entry) => normalizeSyscallStat(entry));
+  return (data ?? []).map((entry) => normalizeSyscallStat(entry));
 }
 
 export async function fetchOpCodeStats(startBlock: number, endBlock: number): Promise<OpCodeStat[]> {
-  const select =
-    'opcode,opcode_name,call_count:count(*),total_gas_consumed:sum(gas_consumed),avg_gas_consumed:avg(gas_consumed),min_gas_consumed:min(gas_consumed),max_gas_consumed:max(gas_consumed),first_block:min(block_index),last_block:max(block_index)';
+  const supabase = getSupabase();
+  const { data, error } = await supabase.rpc<RawOpCodeStat>('get_opcode_stats', {
+    start_block: startBlock,
+    end_block: endBlock,
+  });
 
-  const rows = await fetchRest<RawOpCodeStat>('opcode_traces', [
-    ['select', select],
-    ['order', 'call_count.desc'],
-    ['block_index', `gte.${startBlock}`],
-    ['block_index', `lte.${endBlock}`],
-  ]);
+  if (error) {
+    throw new Error(`Failed to fetch opcode stats: ${error.message}`);
+  }
 
-  return rows.map((entry) => normalizeOpCodeStat(entry));
+  return (data ?? []).map((entry) => normalizeOpCodeStat(entry));
 }
