@@ -17,14 +17,16 @@ Run the SQL files in order in the Supabase SQL editor:
 
 1. `migrations/001_schema_alignment.sql`
 2. `migrations/002_trace_tables.sql`
-3. `migrations/004_public_read_policies.sql`
-4. `migrations/005_stats_functions.sql`
-5. `migrations/006_contract_call_stats.sql`
-6. `migrations/007_stats_range_caps.sql`
-7. `migrations/008_partition_management_security_definer.sql`
+3. `migrations/003_syscall_names.sql`
+4. `migrations/004_public_read_policies.sql`
+5. `migrations/005_stats_functions.sql`
+6. `migrations/006_contract_call_stats.sql`
+7. `migrations/007_stats_range_caps.sql`
+8. `migrations/008_partition_management_security_definer.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
+- `003_syscall_names.sql` seeds the `syscall_names` reference table (safe to re-run; uses upsert).
 - `004_public_read_policies.sql` enables RLS + public read policies, and restricts writes to service role only.
 
 ## 3. Create Storage Bucket
