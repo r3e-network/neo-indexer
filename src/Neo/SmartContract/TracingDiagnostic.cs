@@ -71,15 +71,36 @@ namespace Neo.SmartContract
         /// </summary>
         public void Disposed()
         {
-            if (_engine is not null)
+            var engine = _engine;
+            if (engine is null)
             {
-                _recorder.TotalGasConsumed = _engine.FeeConsumed;
+                _callStack.Clear();
+                _lastOpCodeTrace = null;
+                return;
             }
+
+            _recorder.TotalGasConsumed = engine.FeeConsumed;
+
+            // If the engine terminates between PreExecuteInstruction and PostExecuteInstruction,
+            // finalize the last pending opcode trace using the current FeeConsumed.
+            if (_lastOpCodeTrace is not null)
+            {
+                var delta = engine.FeeConsumed - _lastFeeConsumed;
+                _lastOpCodeTrace.GasConsumed = delta < 0 ? 0 : delta;
+                _lastFeeConsumed = engine.FeeConsumed;
+                _lastOpCodeTrace = null;
+            }
+
+            var faulted = engine.State == VMState.FAULT || engine.FaultException is not null;
 
             // Mark any remaining calls as completed (abnormal termination)
             while (_callStack.Count > 0)
             {
-                _callStack.Pop();
+                var (trace, gasStart) = _callStack.Pop();
+                var gasConsumed = engine.FeeConsumed - gasStart;
+                trace.GasConsumed = gasConsumed < 0 ? 0 : gasConsumed;
+                if (faulted)
+                    trace.Success = false;
             }
 
             _engine = null;

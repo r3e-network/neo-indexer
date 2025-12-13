@@ -78,9 +78,8 @@ namespace Neo.Plugins.BlockStateIndexer
 
             public bool Contains(byte[] key)
             {
-                var exists = _inner.Contains(key);
                 if (!StateReadRecorder.IsRecording)
-                    return exists;
+                    return _inner.Contains(key);
 
                 if (_inner.TryGet(key, out var value) && value != null)
                 {
@@ -204,9 +203,8 @@ namespace Neo.Plugins.BlockStateIndexer
 
             public bool Contains(byte[] key)
             {
-                var exists = _inner.Contains(key);
                 if (!StateReadRecorder.IsRecording)
-                    return exists;
+                    return _inner.Contains(key);
 
                 if (_inner.TryGet(key, out var value) && value != null)
                 {
