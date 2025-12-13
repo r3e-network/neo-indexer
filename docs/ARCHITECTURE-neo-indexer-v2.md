@@ -403,6 +403,14 @@ NEO_STATE_RECORDER__TRACE_BATCH_SIZE=1000
 # Caps concurrent HTTPS uploads to Supabase (snapshots, reads, traces, stats)
 NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
 
+# Optional: bounded upload queue (avoids unbounded background work when Supabase is slow/down)
+# High priority lane: reads + block_stats
+NEO_STATE_RECORDER__UPLOAD_QUEUE_CAPACITY=2048
+# Low priority lane: per-transaction trace uploads
+NEO_STATE_RECORDER__TRACE_UPLOAD_QUEUE_CAPACITY=16384
+# Worker pool size (defaults to TRACE_UPLOAD_CONCURRENCY when unset)
+NEO_STATE_RECORDER__UPLOAD_QUEUE_WORKERS=4
+
 # Optional: cap storage reads captured per block (0 = unlimited)
 NEO_STATE_RECORDER__MAX_STORAGE_READS_PER_BLOCK=0
 

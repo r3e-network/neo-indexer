@@ -17,7 +17,6 @@ using Neo.Persistence;
 using Neo.SmartContract;
 using Neo.Plugins;
 using System;
-using System.Threading.Tasks;
 using static System.IO.Path;
 
 namespace Neo.Plugins.BlockStateIndexer
@@ -201,18 +200,7 @@ namespace Neo.Plugins.BlockStateIndexer
             {
                 foreach (var recorder in recorders)
                 {
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await StateRecorderSupabase.UploadBlockTraceAsync(block.Index, recorder).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            Utility.Log(Name, LogLevel.Warning,
-                                $"Block {block.Index}: Trace upload failed for tx {recorder.TxHash}: {ex.Message}");
-                        }
-                    });
+                    StateRecorderSupabase.TryQueueTraceUpload(block.Index, recorder);
                 }
             }
             else if (recorders.Count > 0 && block.Transactions.Length < Settings.Default.MinTransactionCount)
@@ -254,18 +242,7 @@ namespace Neo.Plugins.BlockStateIndexer
 
             if (allowRestApiUploads)
             {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await StateRecorderSupabase.UploadBlockStatsAsync(blockStats).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        Utility.Log(Name, LogLevel.Warning,
-                            $"Block {block.Index}: Block stats upload failed: {ex.Message}");
-                    }
-                });
+                StateRecorderSupabase.TryQueueBlockStatsUpload(blockStats);
             }
 
             Utility.Log(Name, LogLevel.Info,
@@ -283,6 +260,9 @@ namespace Neo.Plugins.BlockStateIndexer
             ConsoleHelper.Info($"  - StateRecorder Enabled: {StateRecorderSettings.Current.Enabled}");
             ConsoleHelper.Info($"  - Supabase URL: {(string.IsNullOrEmpty(StateRecorderSettings.Current.SupabaseUrl) ? "(not set)" : StateRecorderSettings.Current.SupabaseUrl)}");
             ConsoleHelper.Info($"  - MaxStorageReadsPerBlock: {(StateRecorderSettings.Current.MaxStorageReadsPerBlock <= 0 ? "(unlimited)" : StateRecorderSettings.Current.MaxStorageReadsPerBlock)}");
+            var queueStats = StateRecorderSupabase.GetUploadQueueStats();
+            ConsoleHelper.Info($"  - UploadQueue Pending: high={queueStats.PendingHighPriority}, low={queueStats.PendingLowPriority}");
+            ConsoleHelper.Info($"  - UploadQueue Dropped: high={queueStats.DroppedHighPriority}, low={queueStats.DroppedLowPriority}");
         }
     }
 }

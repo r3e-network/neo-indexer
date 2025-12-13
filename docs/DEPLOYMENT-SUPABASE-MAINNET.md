@@ -86,6 +86,11 @@ NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=false
 # Throttle concurrent HTTPS writes
 NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
 
+# Optional: bounded background upload queues (avoid unbounded memory growth if Supabase is slow/down)
+# NEO_STATE_RECORDER__UPLOAD_QUEUE_CAPACITY=2048
+# NEO_STATE_RECORDER__TRACE_UPLOAD_QUEUE_CAPACITY=16384
+# NEO_STATE_RECORDER__UPLOAD_QUEUE_WORKERS=4
+
 # Optional: cap storage_reads per block (0 = unlimited)
 # NEO_STATE_RECORDER__MAX_STORAGE_READS_PER_BLOCK=0
 ```
@@ -159,6 +164,10 @@ Because RLS allows public SELECT only, the anon key is safe to embed in the fron
 - **Rate limits**: if you see Supabase 429s, lower:
   - `NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY`
   - `NEO_STATE_RECORDER__TRACE_BATCH_SIZE`
+- **Backpressure**: if Supabase is slow/down and memory grows, tune:
+  - `NEO_STATE_RECORDER__UPLOAD_QUEUE_CAPACITY` (reads + block_stats)
+  - `NEO_STATE_RECORDER__TRACE_UPLOAD_QUEUE_CAPACITY` (per-tx traces)
+  - `NEO_STATE_RECORDER__UPLOAD_QUEUE_WORKERS`
 - **Storage read volume**: to protect memory/DB on mainnet, consider setting:
   - `NEO_STATE_RECORDER__MAX_STORAGE_READS_PER_BLOCK` (0 = unlimited)
 - **Replay snapshots**:

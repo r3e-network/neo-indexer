@@ -25,6 +25,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 #if NET9_0_OR_GREATER
 using Npgsql;
@@ -50,9 +51,24 @@ namespace Neo.Persistence
         private const int MaxTraceBatchSize = 5000;
         private const string TraceBatchSizeEnvVar = "NEO_STATE_RECORDER__TRACE_BATCH_SIZE";
         private const string TraceUploadConcurrencyEnvVar = "NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY";
+        private const string UploadQueueWorkersEnvVar = "NEO_STATE_RECORDER__UPLOAD_QUEUE_WORKERS";
+        private const string UploadQueueCapacityEnvVar = "NEO_STATE_RECORDER__UPLOAD_QUEUE_CAPACITY";
+        private const string TraceUploadQueueCapacityEnvVar = "NEO_STATE_RECORDER__TRACE_UPLOAD_QUEUE_CAPACITY";
         // Global Supabase REST/Storage throttle to avoid 429 on mainnet.
         // Despite the legacy name, this semaphore gates all HTTPS uploads (snapshots, reads, traces, stats).
         private static readonly SemaphoreSlim TraceUploadSemaphore = new(GetTraceUploadConcurrency());
+        private static readonly UploadWorkQueue UploadQueue = new();
+
+        public readonly record struct UploadQueueStats(
+            int PendingHighPriority,
+            int PendingLowPriority,
+            long DroppedHighPriority,
+            long DroppedLowPriority)
+        {
+            public int TotalPending => PendingHighPriority + PendingLowPriority;
+        }
+
+        public static UploadQueueStats GetUploadQueueStats() => UploadQueue.GetStats();
 
         /// <summary>
         /// Trigger upload of recorded block state based on configured mode.
@@ -67,22 +83,31 @@ namespace Neo.Persistence
 
             if (IsBinaryMode(effectiveMode) && settings.UploadEnabled)
             {
-                _ = Task.Run(() => ExecuteWithRetryAsync(
-                    () => UploadBinaryAsync(recorder, settings),
+                UploadQueue.TryEnqueueHigh(
+                    recorder.BlockIndex,
                     "binary upload",
-                    recorder.BlockIndex));
+                    () => ExecuteWithRetryAsync(
+                        () => UploadBinaryAsync(recorder, settings),
+                        "binary upload",
+                        recorder.BlockIndex));
 
                 if (settings.UploadAuxFormats)
                 {
-                    _ = Task.Run(() => ExecuteWithRetryAsync(
-                        () => UploadJsonAsync(recorder, settings),
+                    UploadQueue.TryEnqueueHigh(
+                        recorder.BlockIndex,
                         "json upload",
-                        recorder.BlockIndex));
+                        () => ExecuteWithRetryAsync(
+                            () => UploadJsonAsync(recorder, settings),
+                            "json upload",
+                            recorder.BlockIndex));
 
-                    _ = Task.Run(() => ExecuteWithRetryAsync(
-                        () => UploadCsvAsync(recorder, settings),
+                    UploadQueue.TryEnqueueHigh(
+                        recorder.BlockIndex,
                         "csv upload",
-                        recorder.BlockIndex));
+                        () => ExecuteWithRetryAsync(
+                            () => UploadCsvAsync(recorder, settings),
+                            "csv upload",
+                            recorder.BlockIndex));
                 }
             }
 
@@ -93,34 +118,46 @@ namespace Neo.Persistence
             {
                 if (!string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
                 {
-                    _ = Task.Run(() => ExecuteWithRetryAsync(
-                        () => UploadPostgresAsync(recorder, settings),
+                    UploadQueue.TryEnqueueHigh(
+                        recorder.BlockIndex,
                         "PostgreSQL upsert",
-                        recorder.BlockIndex));
+                        () => ExecuteWithRetryAsync(
+                            () => UploadPostgresAsync(recorder, settings),
+                            "PostgreSQL upsert",
+                            recorder.BlockIndex));
                 }
                 else if (settings.UploadEnabled)
                 {
-                    _ = Task.Run(() => ExecuteWithRetryAsync(
-                        () => UploadRestApiAsync(recorder, settings),
+                    UploadQueue.TryEnqueueHigh(
+                        recorder.BlockIndex,
                         "REST API upsert",
-                        recorder.BlockIndex));
+                        () => ExecuteWithRetryAsync(
+                            () => UploadRestApiAsync(recorder, settings),
+                            "REST API upsert",
+                            recorder.BlockIndex));
                 }
             }
             else if (IsRestApiMode(effectiveMode))
             {
                 if (settings.UploadEnabled)
                 {
-                    _ = Task.Run(() => ExecuteWithRetryAsync(
-                        () => UploadRestApiAsync(recorder, settings),
+                    UploadQueue.TryEnqueueHigh(
+                        recorder.BlockIndex,
                         "REST API upsert",
-                        recorder.BlockIndex));
+                        () => ExecuteWithRetryAsync(
+                            () => UploadRestApiAsync(recorder, settings),
+                            "REST API upsert",
+                            recorder.BlockIndex));
                 }
                 else if (!string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
                 {
-                    _ = Task.Run(() => ExecuteWithRetryAsync(
-                        () => UploadPostgresAsync(recorder, settings),
+                    UploadQueue.TryEnqueueHigh(
+                        recorder.BlockIndex,
                         "PostgreSQL upsert",
-                        recorder.BlockIndex));
+                        () => ExecuteWithRetryAsync(
+                            () => UploadPostgresAsync(recorder, settings),
+                            "PostgreSQL upsert",
+                            recorder.BlockIndex));
                 }
             }
         }
@@ -160,6 +197,193 @@ namespace Neo.Persistence
                     delay += delay; // Exponential backoff: 1s, 2s, 4s
                 }
             }
+        }
+
+        /// <summary>
+        /// Queue a transaction trace upload (low priority). Returns false if the queue is full and the work was dropped.
+        /// </summary>
+        public static bool TryQueueTraceUpload(uint blockIndex, ExecutionTraceRecorder recorder)
+        {
+            if (recorder is null) throw new ArgumentNullException(nameof(recorder));
+            if (!recorder.HasTraces) return true;
+
+            var txHash = recorder.TxHash?.ToString() ?? "(unknown)";
+            return UploadQueue.TryEnqueueLow(
+                blockIndex,
+                $"trace upload (tx={txHash})",
+                () => ExecuteWithRetryAsync(
+                    () => UploadBlockTraceAsync(blockIndex, recorder),
+                    "trace upload",
+                    blockIndex));
+        }
+
+        /// <summary>
+        /// Queue a block stats upload (high priority). Returns false if the queue is full and the work was dropped.
+        /// </summary>
+        public static bool TryQueueBlockStatsUpload(BlockStats stats)
+        {
+            if (stats is null) throw new ArgumentNullException(nameof(stats));
+
+            return UploadQueue.TryEnqueueHigh(
+                stats.BlockIndex,
+                "block stats upload",
+                () => ExecuteWithRetryAsync(
+                    () => UploadBlockStatsAsync(stats),
+                    "block stats upload",
+                    stats.BlockIndex));
+        }
+
+        private sealed class UploadWorkQueue
+        {
+            private const int DefaultHighPriorityCapacity = 2048;
+            private const int DefaultLowPriorityCapacity = 16384;
+
+            private readonly Channel<UploadWorkItem> _highPriority;
+            private readonly Channel<UploadWorkItem> _lowPriority;
+            private readonly int _highPriorityCapacity;
+            private readonly int _lowPriorityCapacity;
+
+            private int _pendingHighPriority;
+            private int _pendingLowPriority;
+            private long _droppedHighPriority;
+            private long _droppedLowPriority;
+
+            public UploadWorkQueue()
+            {
+                _highPriorityCapacity = GetPositiveEnvIntOrDefault(UploadQueueCapacityEnvVar, DefaultHighPriorityCapacity);
+                _lowPriorityCapacity = GetPositiveEnvIntOrDefault(TraceUploadQueueCapacityEnvVar, DefaultLowPriorityCapacity);
+
+                _highPriority = Channel.CreateBounded<UploadWorkItem>(new BoundedChannelOptions(_highPriorityCapacity)
+                {
+                    SingleReader = false,
+                    SingleWriter = false,
+                    FullMode = BoundedChannelFullMode.Wait
+                });
+
+                _lowPriority = Channel.CreateBounded<UploadWorkItem>(new BoundedChannelOptions(_lowPriorityCapacity)
+                {
+                    SingleReader = false,
+                    SingleWriter = false,
+                    FullMode = BoundedChannelFullMode.Wait
+                });
+
+                var workers = GetUploadQueueWorkers();
+                for (var i = 0; i < workers; i++)
+                {
+                    _ = Task.Run(WorkerLoopAsync);
+                }
+            }
+
+            public UploadQueueStats GetStats()
+            {
+                return new UploadQueueStats(
+                    PendingHighPriority: Volatile.Read(ref _pendingHighPriority),
+                    PendingLowPriority: Volatile.Read(ref _pendingLowPriority),
+                    DroppedHighPriority: Interlocked.Read(ref _droppedHighPriority),
+                    DroppedLowPriority: Interlocked.Read(ref _droppedLowPriority));
+            }
+
+            public bool TryEnqueueHigh(uint blockIndex, string description, Func<Task> work)
+            {
+                return TryEnqueue(
+                    _highPriority.Writer,
+                    blockIndex,
+                    description,
+                    work,
+                    isHighPriority: true);
+            }
+
+            public bool TryEnqueueLow(uint blockIndex, string description, Func<Task> work)
+            {
+                return TryEnqueue(
+                    _lowPriority.Writer,
+                    blockIndex,
+                    description,
+                    work,
+                    isHighPriority: false);
+            }
+
+            private bool TryEnqueue(
+                ChannelWriter<UploadWorkItem> writer,
+                uint blockIndex,
+                string description,
+                Func<Task> work,
+                bool isHighPriority)
+            {
+                if (work is null) throw new ArgumentNullException(nameof(work));
+
+                if (isHighPriority)
+                    Interlocked.Increment(ref _pendingHighPriority);
+                else
+                    Interlocked.Increment(ref _pendingLowPriority);
+
+                var item = new UploadWorkItem(blockIndex, description, work, isHighPriority);
+                if (writer.TryWrite(item))
+                    return true;
+
+                if (isHighPriority)
+                    Interlocked.Decrement(ref _pendingHighPriority);
+                else
+                    Interlocked.Decrement(ref _pendingLowPriority);
+
+                var dropped = isHighPriority
+                    ? Interlocked.Increment(ref _droppedHighPriority)
+                    : Interlocked.Increment(ref _droppedLowPriority);
+
+                if (dropped == 1 || dropped % 100 == 0)
+                {
+                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
+                        $"Supabase upload queue full; dropped {(isHighPriority ? "high" : "low")} priority work. " +
+                        $"pending_high={Volatile.Read(ref _pendingHighPriority)}/{_highPriorityCapacity}, " +
+                        $"pending_low={Volatile.Read(ref _pendingLowPriority)}/{_lowPriorityCapacity}, " +
+                        $"dropped_high={Interlocked.Read(ref _droppedHighPriority)}, dropped_low={Interlocked.Read(ref _droppedLowPriority)}. " +
+                        $"Last dropped item: {description} (block {blockIndex}).");
+                }
+
+                return false;
+            }
+
+            private async Task WorkerLoopAsync()
+            {
+                while (true)
+                {
+                    if (_highPriority.Reader.TryRead(out var item) || _lowPriority.Reader.TryRead(out item))
+                    {
+                        await ProcessAsync(item).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    var highWait = _highPriority.Reader.WaitToReadAsync(CancellationToken.None).AsTask();
+                    var lowWait = _lowPriority.Reader.WaitToReadAsync(CancellationToken.None).AsTask();
+                    await Task.WhenAny(highWait, lowWait).ConfigureAwait(false);
+                }
+            }
+
+            private async Task ProcessAsync(UploadWorkItem item)
+            {
+                try
+                {
+                    await item.Work().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
+                        $"Supabase queued {item.Description} failed for block {item.BlockIndex}: {ex.Message}");
+                }
+                finally
+                {
+                    if (item.IsHighPriority)
+                        Interlocked.Decrement(ref _pendingHighPriority);
+                    else
+                        Interlocked.Decrement(ref _pendingLowPriority);
+                }
+            }
+
+            private readonly record struct UploadWorkItem(
+                uint BlockIndex,
+                string Description,
+                Func<Task> Work,
+                bool IsHighPriority);
         }
 
         #region Binary Upload
@@ -1456,6 +1680,22 @@ ON CONFLICT (block_index) DO UPDATE SET
             {
                 return null;
             }
+        }
+
+        private static int GetUploadQueueWorkers()
+        {
+            var raw = Environment.GetEnvironmentVariable(UploadQueueWorkersEnvVar);
+            if (!string.IsNullOrWhiteSpace(raw) && int.TryParse(raw, out var parsed) && parsed > 0)
+                return parsed;
+            return GetTraceUploadConcurrency();
+        }
+
+        private static int GetPositiveEnvIntOrDefault(string envVar, int defaultValue)
+        {
+            var raw = Environment.GetEnvironmentVariable(envVar);
+            if (!string.IsNullOrWhiteSpace(raw) && int.TryParse(raw, out var parsed) && parsed > 0)
+                return parsed;
+            return defaultValue;
         }
 
         private static int GetTraceUploadBatchSize()
