@@ -73,22 +73,43 @@ namespace Neo.Persistence
         {
             if (_isFull) return false;
 
-            int order;
+            int order = 0;
+            bool accepted = false;
+            bool shouldLogCapped = false;
             // First-read deduplication: check if key already recorded
             lock (_entryLock)
             {
                 if (_maxEntries > 0 && _order >= _maxEntries)
                 {
-                    _isFull = true;
-                    _droppedEntries++;
-                    return false;
-                }
+                    if (!_isFull)
+                    {
+                        _isFull = true;
+                        shouldLogCapped = true;
+                    }
 
-                if (!_readKeys.Add(key)) return false;
-                order = ++_order;
-                if (_maxEntries > 0 && _order >= _maxEntries)
-                    _isFull = true;
+                    _droppedEntries++;
+                }
+                else
+                {
+                    if (!_readKeys.Add(key)) return false;
+                    order = ++_order;
+                    accepted = true;
+                    if (_maxEntries > 0 && _order >= _maxEntries && !_isFull)
+                    {
+                        _isFull = true;
+                        shouldLogCapped = true;
+                    }
+                }
             }
+
+            if (shouldLogCapped)
+            {
+                Utility.Log(nameof(BlockReadRecorder), LogLevel.Warning,
+                    $"Block {BlockIndex}: storage read recording reached cap ({_maxEntries}). Further reads will be ignored.");
+            }
+
+            if (!accepted)
+                return false;
 
             // Resolve contract metadata (outside lock to avoid blocking)
             var metadata = GetContractMetadata(store, key.Id);
