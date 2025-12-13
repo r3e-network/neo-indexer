@@ -63,26 +63,26 @@ namespace Neo.Persistence
 	        public int Order { get; init; }
 	}
 
-    /// <summary>
-    /// Represents a syscall invocation trace entry.
-    /// Captured via ApplicationEngine.OnSysCall override.
-    /// </summary>
-    public sealed class SyscallTrace
-    {
+	/// <summary>
+	/// Represents a syscall invocation trace entry.
+	/// Captured via ApplicationEngine.OnSysCall override.
+	/// </summary>
+	public readonly record struct SyscallTrace
+	{
         /// <summary>
         /// The contract hash invoking this syscall.
         /// </summary>
-        public UInt160 ContractHash { get; init; } = UInt160.Zero;
+	        public UInt160 ContractHash { get; init; }
 
         /// <summary>
         /// The syscall hash (uint32 as hex string).
         /// </summary>
-        public string SyscallHash { get; init; } = string.Empty;
+	        public string SyscallHash { get; init; }
 
         /// <summary>
         /// Human-readable syscall name (e.g., "System.Storage.Get").
         /// </summary>
-        public string SyscallName { get; init; } = string.Empty;
+	        public string SyscallName { get; init; }
 
         /// <summary>
         /// GAS cost of this syscall (in datoshi).
@@ -95,11 +95,11 @@ namespace Neo.Persistence
         public int Order { get; init; }
     }
 
-    /// <summary>
-    /// Represents a contract-to-contract call trace entry.
-    /// Captured via IDiagnostic.ContextLoaded/ContextUnloaded.
-    /// </summary>
-    public sealed class ContractCallTrace
+	/// <summary>
+	/// Represents a contract-to-contract call trace entry.
+	/// Captured via IDiagnostic.ContextLoaded/ContextUnloaded.
+	/// </summary>
+	public sealed class ContractCallTrace
     {
         /// <summary>
         /// The calling contract hash (null for entry point).
@@ -137,11 +137,11 @@ namespace Neo.Persistence
         public long GasConsumed { get; set; }
     }
 
-    /// <summary>
-    /// Represents a storage write operation trace entry.
-    /// </summary>
-    public sealed class StorageWriteTrace
-    {
+	/// <summary>
+	/// Represents a storage write operation trace entry.
+	/// </summary>
+	public readonly record struct StorageWriteTrace
+	{
         /// <summary>
         /// The contract ID performing the write.
         /// </summary>
@@ -150,7 +150,7 @@ namespace Neo.Persistence
         /// <summary>
         /// The contract hash performing the write.
         /// </summary>
-        public UInt160 ContractHash { get; init; } = UInt160.Zero;
+	        public UInt160 ContractHash { get; init; }
 
         /// <summary>
         /// The storage key being written.
@@ -173,20 +173,20 @@ namespace Neo.Persistence
         public int Order { get; init; }
     }
 
-    /// <summary>
-    /// Represents a notification event trace entry.
-    /// </summary>
-    public sealed class NotificationTrace
-    {
+	/// <summary>
+	/// Represents a notification event trace entry.
+	/// </summary>
+	public readonly record struct NotificationTrace
+	{
         /// <summary>
         /// The contract hash emitting the notification.
         /// </summary>
-        public UInt160 ContractHash { get; init; } = UInt160.Zero;
+	        public UInt160 ContractHash { get; init; }
 
         /// <summary>
         /// The event name.
         /// </summary>
-        public string EventName { get; init; } = string.Empty;
+	        public string EventName { get; init; }
 
         /// <summary>
         /// The notification state as JSON.
