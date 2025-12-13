@@ -14,6 +14,7 @@
 using Neo.Extensions;
 using Neo.IO;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -248,10 +249,10 @@ namespace Neo.Persistence
             private long _droppedHighPriority;
             private long _droppedLowPriority;
 
-            public UploadWorkQueue()
-            {
-                _highPriorityCapacity = GetPositiveEnvIntOrDefault(UploadQueueCapacityEnvVar, DefaultHighPriorityCapacity);
-                _lowPriorityCapacity = GetPositiveEnvIntOrDefault(TraceUploadQueueCapacityEnvVar, DefaultLowPriorityCapacity);
+	            public UploadWorkQueue()
+	            {
+	                _highPriorityCapacity = GetPositiveEnvIntOrDefault(UploadQueueCapacityEnvVar, DefaultHighPriorityCapacity);
+	                _lowPriorityCapacity = GetPositiveEnvIntOrDefault(TraceUploadQueueCapacityEnvVar, DefaultLowPriorityCapacity);
 
                 _highPriority = Channel.CreateBounded<UploadWorkItem>(new BoundedChannelOptions(_highPriorityCapacity)
                 {
@@ -265,14 +266,24 @@ namespace Neo.Persistence
                     SingleReader = false,
                     SingleWriter = false,
                     FullMode = BoundedChannelFullMode.Wait
-                });
+	                });
 
-                var workers = GetUploadQueueWorkers();
-                for (var i = 0; i < workers; i++)
-                {
-                    _ = Task.Run(WorkerLoopAsync);
-                }
-            }
+	                var workers = GetUploadQueueWorkers();
+	                if (workers <= 1)
+	                {
+	                    _ = Task.Run(() => WorkerLoopAsync(allowLowPriority: true));
+	                }
+	                else
+	                {
+	                    // Ensure high-priority uploads always have at least one dedicated worker,
+	                    // even when low-priority trace uploads are slow.
+	                    _ = Task.Run(() => WorkerLoopAsync(allowLowPriority: false));
+	                    for (var i = 1; i < workers; i++)
+	                    {
+	                        _ = Task.Run(() => WorkerLoopAsync(allowLowPriority: true));
+	                    }
+	                }
+	            }
 
             public UploadQueueStats GetStats()
             {
@@ -343,21 +354,27 @@ namespace Neo.Persistence
                 return false;
             }
 
-            private async Task WorkerLoopAsync()
-            {
-                while (true)
-                {
-                    if (_highPriority.Reader.TryRead(out var item) || _lowPriority.Reader.TryRead(out item))
-                    {
-                        await ProcessAsync(item).ConfigureAwait(false);
-                        continue;
-                    }
+	            private async Task WorkerLoopAsync(bool allowLowPriority)
+	            {
+	                while (true)
+	                {
+	                    if (_highPriority.Reader.TryRead(out var item) || (allowLowPriority && _lowPriority.Reader.TryRead(out item)))
+	                    {
+	                        await ProcessAsync(item).ConfigureAwait(false);
+	                        continue;
+	                    }
 
-                    var highWait = _highPriority.Reader.WaitToReadAsync(CancellationToken.None).AsTask();
-                    var lowWait = _lowPriority.Reader.WaitToReadAsync(CancellationToken.None).AsTask();
-                    await Task.WhenAny(highWait, lowWait).ConfigureAwait(false);
-                }
-            }
+	                    if (!allowLowPriority)
+	                    {
+	                        await _highPriority.Reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false);
+	                        continue;
+	                    }
+
+	                    var highWait = _highPriority.Reader.WaitToReadAsync(CancellationToken.None).AsTask();
+	                    var lowWait = _lowPriority.Reader.WaitToReadAsync(CancellationToken.None).AsTask();
+	                    await Task.WhenAny(highWait, lowWait).ConfigureAwait(false);
+	                }
+	            }
 
             private async Task ProcessAsync(UploadWorkItem item)
             {
@@ -428,10 +445,11 @@ namespace Neo.Persistence
         /// Header: [Magic: 4 bytes "NSBR"] [Version: 2 bytes] [Block Index: 4 bytes] [Entry Count: 4 bytes]
         /// Entries: Array of [ContractHash: 20 bytes] [Key Length: 2 bytes] [Key: variable] [Value Length: 4 bytes] [Value: variable] [ReadOrder: 4 bytes]
         /// </summary>
-        private static (byte[] Buffer, string Path) BuildBinaryPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)
-        {
-            using var stream = new MemoryStream();
-            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+	        private static (byte[] Buffer, string Path) BuildBinaryPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)
+	        {
+	            using var stream = new MemoryStream();
+	            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+	            Span<byte> contractIdBuffer = stackalloc byte[sizeof(int)];
 
             // Header
             writer.Write(BinaryMagic);
@@ -439,30 +457,32 @@ namespace Neo.Persistence
             writer.Write(recorder.BlockIndex);
             writer.Write(entries.Length);
 
-            // Entries
-            foreach (var entry in entries)
-            {
-                // ContractHash: 20 bytes
-                writer.Write(entry.ContractHash.ToArray());
+	            // Entries
+	            foreach (var entry in entries)
+	            {
+	                // ContractHash: 20 bytes
+	                writer.Write(entry.ContractHash.GetSpan());
 
-                // Key
-                var keyBytes = entry.Key.ToArray();
-                if (keyBytes.Length > ushort.MaxValue)
-                {
-                    throw new InvalidOperationException(
-                        $"Key length {keyBytes.Length} exceeds max {ushort.MaxValue} for contract {entry.Key.Id}.");
-                }
-                writer.Write((ushort)keyBytes.Length);
-                writer.Write(keyBytes);
+	                // Key
+	                var keyLength = sizeof(int) + entry.Key.Key.Length;
+	                if (keyLength > ushort.MaxValue)
+	                {
+	                    throw new InvalidOperationException(
+	                        $"Key length {keyLength} exceeds max {ushort.MaxValue} for contract {entry.Key.Id}.");
+	                }
+	                writer.Write((ushort)keyLength);
+	                BinaryPrimitives.WriteInt32LittleEndian(contractIdBuffer, entry.Key.Id);
+	                writer.Write(contractIdBuffer);
+	                writer.Write(entry.Key.Key.Span);
 
-                // Value
-                var valueBytes = entry.Value.Value.ToArray();
-                writer.Write(valueBytes.Length);
-                writer.Write(valueBytes);
+	                // Value
+	                var valueBytes = entry.Value.Value.Span;
+	                writer.Write(valueBytes.Length);
+	                writer.Write(valueBytes);
 
-                // ReadOrder
-                writer.Write(entry.Order);
-            }
+	                // ReadOrder
+	                writer.Write(entry.Order);
+	            }
 
             writer.Flush();
             return (stream.ToArray(), $"block-{recorder.BlockIndex}.bin");
@@ -538,21 +558,20 @@ namespace Neo.Persistence
             }
         }
 
-        private static (string Content, string Path) BuildJsonPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)
-        {
-            var keys = new List<object>(entries.Length);
-            foreach (var entry in entries)
-            {
-                var keyBytes = entry.Key.ToArray();
-                var valueBytes = entry.Value.Value.ToArray();
-                keys.Add(new
-                {
-                    key = Convert.ToBase64String(keyBytes),
-                    value = Convert.ToBase64String(valueBytes),
-                    readOrder = entry.Order,
-                    contractId = entry.Key.Id,
-                    contractHash = entry.ContractHash.ToString(),
-                    manifestName = entry.ManifestName,
+	        private static (string Content, string Path) BuildJsonPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)
+	        {
+	            var keys = new List<object>(entries.Length);
+	            foreach (var entry in entries)
+	            {
+	                var keyBytes = entry.Key.ToArray();
+	                keys.Add(new
+	                {
+	                    key = Convert.ToBase64String(keyBytes),
+	                    value = Convert.ToBase64String(entry.Value.Value.Span),
+	                    readOrder = entry.Order,
+	                    contractId = entry.Key.Id,
+	                    contractHash = entry.ContractHash.ToString(),
+	                    manifestName = entry.ManifestName,
                     txHash = entry.TxHash?.ToString(),
                     source = entry.Source
                 });
@@ -572,21 +591,21 @@ namespace Neo.Persistence
             return (json, $"block-{recorder.BlockIndex}.json");
         }
 
-        private static (string Content, string Path) BuildCsvPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("block_index,contract_id,contract_hash,manifest_name,key_base64,value_base64,read_order,tx_hash,source");
-            foreach (var entry in entries)
+	        private static (string Content, string Path) BuildCsvPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)
+	        {
+	            var sb = new StringBuilder();
+	            sb.AppendLine("block_index,contract_id,contract_hash,manifest_name,key_base64,value_base64,read_order,tx_hash,source");
+	            foreach (var entry in entries)
             {
                 var blockIndex = recorder.BlockIndex;
-                var contractId = entry.Key.Id.ToString(CultureInfo.InvariantCulture);
-                var contractHash = entry.ContractHash.ToString();
-                var manifestName = entry.ManifestName ?? string.Empty;
-                var keyBase64 = Convert.ToBase64String(entry.Key.ToArray());
-                var valueBase64 = Convert.ToBase64String(entry.Value.Value.ToArray());
-                var readOrder = entry.Order.ToString();
-                var txHash = entry.TxHash?.ToString() ?? string.Empty;
-                var source = entry.Source ?? string.Empty;
+	                var contractId = entry.Key.Id.ToString(CultureInfo.InvariantCulture);
+	                var contractHash = entry.ContractHash.ToString();
+	                var manifestName = entry.ManifestName ?? string.Empty;
+	                var keyBase64 = Convert.ToBase64String(entry.Key.ToArray());
+	                var valueBase64 = Convert.ToBase64String(entry.Value.Value.Span);
+	                var readOrder = entry.Order.ToString();
+	                var txHash = entry.TxHash?.ToString() ?? string.Empty;
+	                var source = entry.Source ?? string.Empty;
 
                 sb.Append(blockIndex).Append(',')
                   .Append(contractId).Append(',')
