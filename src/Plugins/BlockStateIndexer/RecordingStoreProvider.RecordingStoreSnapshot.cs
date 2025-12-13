@@ -1,6 +1,6 @@
 // Copyright (C) 2015-2025 The Neo Project.
 //
-// RecordingStoreProvider.RecordingStore.cs file belongs to the neo project and is free
+// RecordingStoreProvider.RecordingStoreSnapshot.cs file belongs to the neo project and is free
 // software distributed under the MIT software license, see the
 // accompanying file LICENSE in the main directory of the
 // repository or http://www.opensource.org/licenses/mit-license.php
@@ -22,14 +22,16 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class RecordingStoreProvider
     {
-        private sealed class RecordingStore : IStore, IReadOnlyStore
+        private sealed class RecordingStoreSnapshot : IStoreSnapshot, IReadOnlyStore
         {
-            private readonly IStore _inner;
+            private readonly IStoreSnapshot _inner;
 
-            public RecordingStore(IStore inner)
+            public RecordingStoreSnapshot(IStoreSnapshot inner)
             {
                 _inner = inner ?? throw new ArgumentNullException(nameof(inner));
             }
+
+            public IStore Store => _inner.Store;
 
             #region IReadOnlyStore<byte[], byte[]>
 
@@ -77,12 +79,9 @@ namespace Neo.Plugins.BlockStateIndexer
 
             public void Delete(byte[] key) => _inner.Delete(key);
 
-            #endregion
+            public void Commit() => _inner.Commit();
 
-            public IStoreSnapshot GetSnapshot()
-            {
-                return new RecordingStoreSnapshot(_inner.GetSnapshot());
-            }
+            #endregion
 
             public void Dispose()
             {
@@ -146,3 +145,4 @@ namespace Neo.Plugins.BlockStateIndexer
         }
     }
 }
+
