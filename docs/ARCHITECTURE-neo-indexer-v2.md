@@ -282,7 +282,7 @@ public record ContractCall
 
 ### 6.1 Partitioning Strategy
 
-Tables are partitioned by block_index ranges (100K blocks per partition):
+Trace tables are partitioned by block_index ranges (100K blocks per partition):
 
 ```sql
 -- Create parent table
@@ -331,6 +331,13 @@ scheduled SQL job. Choose `retention_blocks` based on your storage budget.
 These functions are admin-only; execute them as `postgres` or with the service role key
 via the Supabase SQL editor/cron. They are not exposed to anon/authenticated users.
 
+Note: `storage_reads` is not partitioned. For retention on read capture, use:
+
+```sql
+-- Deletes old rows (not instant; may require VACUUM planning)
+SELECT prune_storage_reads(1000000);
+```
+
 ### 6.3 Automatic Partition Rotation
 
 The migrations also define `ensure_trace_partitions(partition_size, lookahead_blocks)` which
@@ -362,6 +369,9 @@ public sealed class StateRecorderSettings
 
     // Trace level flags (OpCodes, Syscalls, ContractCalls, Storage, Notifications)
     public ExecutionTraceLevel TraceLevel { get; init; } = ExecutionTraceLevel.All;
+
+    // Optional safety cap for mainnet operation
+    public int MaxStorageReadsPerBlock { get; init; }
 }
 ```
 
@@ -388,6 +398,13 @@ NEO_STATE_RECORDER__TRACE_LEVEL=OpCodes,Syscalls,ContractCalls,Storage,Notificat
 NEO_STATE_RECORDER__TRACE_BATCH_SIZE=1000
 # Caps concurrent HTTPS uploads to Supabase (snapshots, reads, traces, stats)
 NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
+
+# Optional: cap storage reads captured per block (0 = unlimited)
+NEO_STATE_RECORDER__MAX_STORAGE_READS_PER_BLOCK=0
+
+# Optional: RPC trace proxy guardrails (when Neo JSON-RPC is public)
+# NEO_RPC_TRACES__SUPABASE_KEY=your-anon-key
+# NEO_RPC_TRACES__MAX_CONCURRENCY=16
 ```
 
 ## 8. API Extensions

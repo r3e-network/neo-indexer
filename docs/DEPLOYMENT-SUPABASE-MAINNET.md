@@ -146,6 +146,8 @@ Because RLS allows public SELECT only, the anon key is safe to embed in the fron
 ## 8. Operational Tips
 
 - **Key safety**: never expose the service role key outside the indexer host.
+- **Public JSON-RPC**: if you expose trace RPC endpoints to untrusted clients, set:
+  - `NEO_RPC_TRACES__SUPABASE_KEY=<anon_key>` and consider lowering `NEO_RPC_TRACES__MAX_CONCURRENCY`.
 - **Rate limits**: if you see Supabase 429s, lower:
   - `NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY`
   - `NEO_STATE_RECORDER__TRACE_BATCH_SIZE`
