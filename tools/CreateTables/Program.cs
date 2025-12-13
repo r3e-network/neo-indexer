@@ -100,8 +100,8 @@ static void PrintUsage()
     Console.WriteLine("                                  Create missing trace partitions (see migrations/008).");
     Console.WriteLine("  prune-trace-partitions <retention_blocks>");
     Console.WriteLine("                                  Drop old trace partitions and return counts.");
-    Console.WriteLine("  prune-storage-reads <retention_blocks>");
-    Console.WriteLine("                                  Delete old rows from storage_reads (see migrations/010).");
+    Console.WriteLine("  prune-storage-reads <retention_blocks> [batch_size] [max_batches]");
+    Console.WriteLine("                                  Delete old rows from storage_reads (see migrations/010, 011).");
     Console.WriteLine("  partition-stats <table_name>    List partition row/size stats for a trace table.");
     Console.WriteLine();
     Console.WriteLine("Environment:");
@@ -161,6 +161,13 @@ static int ParsePositiveInt(string raw, string name)
     return parsed;
 }
 
+static int ParseNonNegativeInt(string raw, string name)
+{
+    if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) || parsed < 0)
+        throw new ArgumentException($"{name} must be a non-negative integer.");
+    return parsed;
+}
+
 static async Task EnsureTracePartitionsAsync(NpgsqlConnection connection, string[] args)
 {
     if (args.Length < 3)
@@ -203,16 +210,41 @@ static async Task PruneTracePartitionsAsync(NpgsqlConnection connection, string[
 static async Task PruneStorageReadsAsync(NpgsqlConnection connection, string[] args)
 {
     if (args.Length < 2)
-        throw new ArgumentException("prune-storage-reads requires <retention_blocks>.");
+        throw new ArgumentException("prune-storage-reads requires <retention_blocks> [batch_size] [max_batches].");
+    if (args.Length > 4)
+        throw new ArgumentException("prune-storage-reads takes at most 3 args: <retention_blocks> [batch_size] [max_batches].");
 
     var retentionBlocks = ParsePositiveInt(args[1], "retention_blocks");
+    var batchSize = args.Length >= 3 ? ParsePositiveInt(args[2], "batch_size") : 50000;
+    var maxBatches = args.Length >= 4 ? ParseNonNegativeInt(args[3], "max_batches") : 0;
 
-    Console.WriteLine($"Pruning storage_reads (retention_blocks={retentionBlocks})...");
-    await using var command = connection.CreateCommand();
-    command.CommandText = "SELECT prune_storage_reads(@retention_blocks);";
-    command.Parameters.AddWithValue("retention_blocks", retentionBlocks);
-    var deleted = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
-    Console.WriteLine($"Deleted rows: {deleted}");
+    Console.WriteLine($"Pruning storage_reads (retention_blocks={retentionBlocks}, batch_size={batchSize}, max_batches={maxBatches})...");
+    if (maxBatches == 0)
+        Console.WriteLine("  Note: max_batches=0 runs until complete.");
+
+    try
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT prune_storage_reads(@retention_blocks, @batch_size, @max_batches);";
+        command.Parameters.AddWithValue("retention_blocks", retentionBlocks);
+        command.Parameters.AddWithValue("batch_size", batchSize);
+        command.Parameters.AddWithValue("max_batches", maxBatches);
+        var deleted = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+        Console.WriteLine($"Deleted rows: {deleted}");
+    }
+    catch (PostgresException ex) when (ex.SqlState == "42883")
+    {
+        if (args.Length >= 3)
+        {
+            Console.WriteLine("  Note: batched pruning is unavailable (missing migration 011). Falling back to prune_storage_reads(retention_blocks) and ignoring batch args.");
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT prune_storage_reads(@retention_blocks);";
+        command.Parameters.AddWithValue("retention_blocks", retentionBlocks);
+        var deleted = (long)(await command.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+        Console.WriteLine($"Deleted rows: {deleted}");
+    }
 }
 
 static async Task GetPartitionStatsAsync(NpgsqlConnection connection, string[] args)

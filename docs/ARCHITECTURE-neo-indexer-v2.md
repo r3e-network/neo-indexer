@@ -336,6 +336,10 @@ Note: `storage_reads` is not partitioned. For retention on read capture, use:
 ```sql
 -- Deletes old rows (not instant; may require VACUUM planning)
 SELECT prune_storage_reads(1000000);
+
+-- Optional: incremental pruning (see migrations/011_prune_storage_reads_batched.sql)
+-- max_batches=0 runs until complete
+SELECT prune_storage_reads(1000000, 50000, 10);
 ```
 
 ### 6.3 Automatic Partition Rotation

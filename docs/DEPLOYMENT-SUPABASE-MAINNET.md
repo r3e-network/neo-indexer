@@ -25,6 +25,7 @@ Run the SQL files in order in the Supabase SQL editor:
 8. `migrations/008_partition_management_security_definer.sql`
 9. `migrations/009_trace_delete_policies_and_indexes.sql`
 10. `migrations/010_prune_storage_reads.sql`
+11. `migrations/011_prune_storage_reads_batched.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -32,6 +33,7 @@ Notes:
 - `004_public_read_policies.sql` enables RLS + public read policies, and restricts writes to service role only.
 - `009_trace_delete_policies_and_indexes.sql` adds service-role DELETE policies for trace tables and an index for method name filters.
 - `010_prune_storage_reads.sql` adds `prune_storage_reads(retention_blocks)` for retention on the non-partitioned `storage_reads` table.
+- `011_prune_storage_reads_batched.sql` adds optional batched pruning (`batch_size`, `max_batches`) and makes the 1-arg function use batching internally.
 
 Optional automation (runs migrations using a direct Postgres connection string):
 
@@ -164,11 +166,12 @@ Because RLS allows public SELECT only, the anon key is safe to embed in the fron
   - set `UPLOAD_MODE=Both` only if you want `.bin` snapshots for offline replay/export.
 - **Pruning / retention**:
   - Trace tables are partitioned; use `prune_trace_partitions(retention_blocks)` to drop old partitions quickly.
-  - `storage_reads` is not partitioned; use `prune_storage_reads(retention_blocks)` (migration `010_prune_storage_reads.sql`) to delete old rows.
+  - `storage_reads` is not partitioned; use `prune_storage_reads(retention_blocks)` (migrations `010`, `011`) to delete old rows.
+    - For incremental pruning, call `prune_storage_reads(retention_blocks, batch_size, max_batches)` where `max_batches=0` runs until complete.
   - Both are intended for `service_role`/admin use (scheduled jobs). For large deletes, expect table bloat and plan VACUUM during low traffic.
   - Optional automation (same connection string as above):
     - `dotnet run -c Release --project tools/CreateTables prune-trace-partitions <retention_blocks>`
-    - `dotnet run -c Release --project tools/CreateTables prune-storage-reads <retention_blocks>`
+    - `dotnet run -c Release --project tools/CreateTables prune-storage-reads <retention_blocks> [batch_size] [max_batches]`
 - **Replay tooling** (optional):
   - Enable the `StateReplay` plugin and set Supabase credentials in `plugins/StateReplay/StateReplay.json`.
   - `replay supabase <blockIndex>` replays using `storage_reads` from Supabase Postgres (no per-block storage files required).
