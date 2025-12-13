@@ -14,20 +14,9 @@
 using Neo;
 using Neo.Extensions;
 using Neo.Json;
-using Neo.Persistence;
 using Neo.Plugins.RpcServer.Model;
-using Neo.SmartContract.Native;
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Neo.Plugins.RpcServer
 {
@@ -307,76 +296,6 @@ namespace Neo.Plugins.RpcServer
             if (!UInt256.TryParse(raw, out var hash))
                 throw new RpcException(RpcError.InvalidParams.WithData($"invalid {parameterName}: {raw}"));
             return (hash, hash.ToString());
-        }
-
-        private sealed class TraceRequestOptions
-        {
-            public int Limit { get; set; } = DefaultTraceLimit;
-            public int Offset { get; set; }
-            public string? TransactionHash { get; set; }
-        }
-
-        private enum ContractCallRole
-        {
-            Any,
-            Caller,
-            Callee
-        }
-
-        private sealed class ContractCallQueryOptions
-        {
-            public int Limit { get; set; } = DefaultTraceLimit;
-            public int Offset { get; set; }
-            public uint? StartBlock { get; set; }
-            public uint? EndBlock { get; set; }
-            public string? TransactionHash { get; set; }
-            public ContractCallRole Role { get; set; } = ContractCallRole.Any;
-        }
-
-        private sealed class SyscallStatsQueryOptions
-        {
-            public int Limit { get; set; } = DefaultTraceLimit;
-            public int Offset { get; set; }
-            public uint? StartBlock { get; set; }
-            public uint? EndBlock { get; set; }
-            public string? ContractHash { get; set; }
-            public string? TransactionHash { get; set; }
-            public string? SyscallName { get; set; }
-        }
-
-        private sealed class OpCodeStatsQueryOptions
-        {
-            public int Limit { get; set; } = DefaultTraceLimit;
-            public int Offset { get; set; }
-            public uint? StartBlock { get; set; }
-            public uint? EndBlock { get; set; }
-            public string? ContractHash { get; set; }
-            public string? TransactionHash { get; set; }
-            public int? OpCode { get; set; }
-            public string? OpCodeName { get; set; }
-        }
-
-        private sealed class ContractCallStatsQueryOptions
-        {
-            public int Limit { get; set; } = DefaultTraceLimit;
-            public int Offset { get; set; }
-            public uint? StartBlock { get; set; }
-            public uint? EndBlock { get; set; }
-            public string? CalleeHash { get; set; }
-            public string? CallerHash { get; set; }
-            public string? MethodName { get; set; }
-        }
-
-        private sealed class SupabaseResponse<T>
-        {
-            public SupabaseResponse(IReadOnlyList<T> items, int totalCount)
-            {
-                Items = items;
-                TotalCount = totalCount;
-            }
-
-            public IReadOnlyList<T> Items { get; }
-            public int? TotalCount { get; }
         }
     }
 }
