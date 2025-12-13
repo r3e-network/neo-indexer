@@ -135,6 +135,8 @@ Because RLS allows public SELECT only, the anon key is safe to embed in the fron
 - **Rate limits**: if you see Supabase 429s, lower:
   - `NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY`
   - `NEO_STATE_RECORDER__TRACE_BATCH_SIZE`
+- **Storage read volume**: to protect memory/DB on mainnet, consider setting:
+  - `NEO_STATE_RECORDER__MAX_STORAGE_READS_PER_BLOCK` (0 = unlimited)
 - **Replay snapshots**:
   - default RestApi mode stores all queryable data.
   - set `UPLOAD_MODE=Both` only if you want `.bin` snapshots for offline replay/export.

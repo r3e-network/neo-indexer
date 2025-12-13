@@ -16,6 +16,7 @@ using Neo.SmartContract;
 using Neo.SmartContract.Native;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 
@@ -44,18 +45,24 @@ namespace Neo.Persistence
         private readonly object _entryLock = new();
         private readonly Dictionary<int, ContractMetadata> _contractMetadataCache = new();
         private readonly object _contractMetadataLock = new();
+        private readonly int _maxEntries;
+        private int _droppedEntries;
+        private bool _isFull;
         private int _order;
 
         public uint BlockIndex { get; }
         public UInt256 BlockHash { get; }
         public ulong Timestamp { get; }
         public IReadOnlyCollection<BlockReadEntry> Entries => _entries;
+        public bool IsFull => _isFull;
+        public int DroppedEntries => _droppedEntries;
 
-        public BlockReadRecorder(Block block)
+        public BlockReadRecorder(Block block, int maxEntries = 0)
         {
             BlockIndex = block.Index;
             BlockHash = block.Hash;
             Timestamp = block.Timestamp;
+            _maxEntries = maxEntries;
         }
 
         /// <summary>
@@ -64,10 +71,23 @@ namespace Neo.Persistence
         /// </summary>
         public bool TryAdd(IReadOnlyStore? store, StorageKey key, StorageItem value, string? source, UInt256? txHash)
         {
+            if (_isFull) return false;
+
+            int order;
             // First-read deduplication: check if key already recorded
             lock (_entryLock)
             {
+                if (_maxEntries > 0 && _order >= _maxEntries)
+                {
+                    _isFull = true;
+                    _droppedEntries++;
+                    return false;
+                }
+
                 if (!_readKeys.Add(key)) return false;
+                order = ++_order;
+                if (_maxEntries > 0 && _order >= _maxEntries)
+                    _isFull = true;
             }
 
             // Resolve contract metadata (outside lock to avoid blocking)
@@ -75,7 +95,7 @@ namespace Neo.Persistence
             var entry = new BlockReadEntry(
                 key,
                 value.Clone(),
-                Interlocked.Increment(ref _order),
+                order,
                 source,
                 metadata.ContractHash,
                 metadata.ManifestName,
@@ -180,12 +200,13 @@ namespace Neo.Persistence
         /// True when a recorder scope is active on this async context and recording isn't suppressed.
         /// Useful for avoiding unnecessary work (e.g., decoding keys/values) when no recorder is present.
         /// </summary>
-        public static bool IsRecording => !IsRecordingSuppressed && Current != null;
+        public static bool IsRecording => !IsRecordingSuppressed && Current is { IsFull: false };
 
         public static BlockReadRecorderScope? TryBegin(Block block)
         {
             if (!Enabled) return null;
-            var recorder = new BlockReadRecorder(block);
+            var maxEntries = StateRecorderSettings.Current.MaxStorageReadsPerBlock;
+            var recorder = new BlockReadRecorder(block, maxEntries);
             return new BlockReadRecorderScope(recorder, Current);
         }
 
@@ -205,7 +226,7 @@ namespace Neo.Persistence
         {
             if (IsRecordingSuppressed) return;
             var recorder = Current;
-            if (recorder is null) return;
+            if (recorder is null || recorder.IsFull) return;
 
             txHash ??= TransactionHash;
             recorder.TryAdd(store, key, value, source, txHash);
@@ -270,6 +291,11 @@ namespace Neo.Persistence
         /// Disabled by default to avoid creating large numbers of files.
         /// </summary>
         public bool UploadAuxFormats { get; init; }
+        /// <summary>
+        /// Optional cap on the number of unique storage keys recorded per block. 0 disables the cap.
+        /// Useful to avoid unbounded memory growth and huge inserts when indexing public mainnet.
+        /// </summary>
+        public int MaxStorageReadsPerBlock { get; init; }
         public bool UploadEnabled => Enabled && !string.IsNullOrWhiteSpace(SupabaseUrl) && !string.IsNullOrWhiteSpace(SupabaseApiKey);
 
         public static StateRecorderSettings Current => Load();
@@ -302,7 +328,8 @@ namespace Neo.Persistence
                 SupabaseConnectionString = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_CONNECTION_STRING") ?? string.Empty,
                 Mode = mode,
                 TraceLevel = ParseTraceLevel(Environment.GetEnvironmentVariable($"{Prefix}TRACE_LEVEL")),
-                UploadAuxFormats = GetEnvBool("UPLOAD_AUX_FORMATS")
+                UploadAuxFormats = GetEnvBool("UPLOAD_AUX_FORMATS"),
+                MaxStorageReadsPerBlock = GetEnvInt("MAX_STORAGE_READS_PER_BLOCK")
             };
         }
 
@@ -339,6 +366,13 @@ namespace Neo.Persistence
         {
             var value = Environment.GetEnvironmentVariable($"{Prefix}{name}");
             return value != null && bool.TryParse(value, out var result) ? result : false;
+        }
+
+        private static int GetEnvInt(string name)
+        {
+            var value = Environment.GetEnvironmentVariable($"{Prefix}{name}");
+            if (value is null) return 0;
+            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? Math.Max(0, result) : 0;
         }
     }
 }

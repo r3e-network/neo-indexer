@@ -81,5 +81,29 @@ namespace Neo.UnitTests.Persistence
             var settings = StateRecorderSettings.Current;
             Assert.AreEqual(StateRecorderSettings.UploadMode.Binary, settings.Mode);
         }
+
+        [TestMethod]
+        public void Load_ParsesMaxStorageReadsPerBlock()
+        {
+            SetEnv("ENABLED", "true");
+            SetEnv("SUPABASE_URL", "https://example.supabase.co");
+            SetEnv("SUPABASE_KEY", "service-role-key");
+            SetEnv("MAX_STORAGE_READS_PER_BLOCK", "123");
+
+            var settings = StateRecorderSettings.Current;
+            Assert.AreEqual(123, settings.MaxStorageReadsPerBlock);
+        }
+
+        [TestMethod]
+        public void Load_ClampsInvalidMaxStorageReadsPerBlockToZero()
+        {
+            SetEnv("ENABLED", "true");
+            SetEnv("SUPABASE_URL", "https://example.supabase.co");
+            SetEnv("SUPABASE_KEY", "service-role-key");
+            SetEnv("MAX_STORAGE_READS_PER_BLOCK", "-1");
+
+            var settings = StateRecorderSettings.Current;
+            Assert.AreEqual(0, settings.MaxStorageReadsPerBlock);
+        }
     }
 }

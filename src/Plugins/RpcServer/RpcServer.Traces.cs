@@ -769,7 +769,8 @@ namespace Neo.Plugins.RpcServer
                     SupabaseConnectionString = settings.SupabaseConnectionString,
                     Mode = settings.Mode,
                     TraceLevel = settings.TraceLevel,
-                    UploadAuxFormats = settings.UploadAuxFormats
+                    UploadAuxFormats = settings.UploadAuxFormats,
+                    MaxStorageReadsPerBlock = settings.MaxStorageReadsPerBlock
                 };
             }
             return settings;
