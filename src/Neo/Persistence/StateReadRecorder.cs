@@ -18,28 +18,6 @@ using System.Threading;
 
 namespace Neo.Persistence
 {
-    public sealed class BlockReadRecorderScope : IDisposable
-    {
-        private readonly BlockReadRecorder? _previous;
-        private readonly UInt256? _previousTransactionHash;
-        public BlockReadRecorder Recorder { get; }
-
-        public BlockReadRecorderScope(BlockReadRecorder recorder, BlockReadRecorder? previous)
-        {
-            Recorder = recorder;
-            _previous = previous;
-            _previousTransactionHash = StateReadRecorder.TransactionHash;
-            StateReadRecorder.TransactionHash = null;
-            StateReadRecorder.Current = recorder;
-        }
-
-        public void Dispose()
-        {
-            StateReadRecorder.Current = _previous;
-            StateReadRecorder.TransactionHash = _previousTransactionHash;
-        }
-    }
-
     public static class StateReadRecorder
     {
         private static readonly AsyncLocal<BlockReadRecorder?> CurrentRecorder = new();

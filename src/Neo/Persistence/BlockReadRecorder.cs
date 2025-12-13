@@ -13,31 +13,13 @@
 
 using Neo.Network.P2P.Payloads;
 using Neo.SmartContract;
-using Neo.SmartContract.Native;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Neo.Persistence
 {
-    /// <summary>
-    /// Record of a single storage read during block execution.
-    /// Captures the initial value at first read - subsequent reads of the same key are ignored.
-    /// </summary>
-    public sealed record BlockReadEntry(
-        StorageKey Key,
-        StorageItem Value,
-        int Order,
-        string? Source,
-        UInt160 ContractHash,
-        string? ManifestName,
-        UInt256? TxHash);
-
-    public sealed class BlockReadRecorder
+    public sealed partial class BlockReadRecorder
     {
-        private static readonly IReadOnlyDictionary<int, ContractMetadata> NativeContractsById =
-            NativeContract.Contracts.ToDictionary(c => c.Id, c => new ContractMetadata(c.Hash, c.Name));
-
         private readonly List<BlockReadEntry> _entries = [];
         private readonly HashSet<StorageKey> _readKeys = [];
         private readonly object _entryLock = new();
@@ -128,48 +110,6 @@ namespace Neo.Persistence
             }
 
             return true;
-        }
-
-        private ContractMetadata GetContractMetadata(IReadOnlyStore? store, int contractId)
-        {
-            // Native contracts have negative IDs. Resolve from in-memory native contract list.
-            if (contractId < 0)
-            {
-                if (NativeContractsById.TryGetValue(contractId, out var nativeMetadata))
-                    return nativeMetadata;
-                return ContractMetadata.Empty;
-            }
-
-            lock (_contractMetadataLock)
-            {
-                if (_contractMetadataCache.TryGetValue(contractId, out var cached))
-                    return cached;
-            }
-
-            if (store is null) return ContractMetadata.Empty;
-
-            ContractState? contractState = null;
-            // Suppress recording to avoid recursive capture when querying contract metadata
-            using (StateReadRecorder.SuppressRecordingScope())
-            {
-                contractState = NativeContract.ContractManagement.GetContractById(store, contractId);
-            }
-
-            var metadata = contractState is null
-                ? ContractMetadata.Empty
-                : new ContractMetadata(contractState.Hash, contractState.Manifest?.Name);
-
-            lock (_contractMetadataLock)
-            {
-                _contractMetadataCache[contractId] = metadata;
-            }
-
-            return metadata;
-        }
-
-        private sealed record ContractMetadata(UInt160 ContractHash, string? ManifestName)
-        {
-            public static readonly ContractMetadata Empty = new(UInt160.Zero, null);
         }
     }
 }
