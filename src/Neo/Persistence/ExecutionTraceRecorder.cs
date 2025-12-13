@@ -25,6 +25,8 @@ namespace Neo.Persistence
     /// </summary>
 	    public sealed class ExecutionTraceRecorder
 	    {
+	        private static readonly ConcurrentDictionary<uint, string> SyscallHashStringCache = new();
+
 	        private readonly ConcurrentQueue<OpCodeTrace> _opCodeTraces = new();
 	        private readonly ConcurrentQueue<SyscallTrace> _syscallTraces = new();
 	        private readonly ConcurrentQueue<ContractCallTrace> _contractCalls = new();
@@ -41,6 +43,15 @@ namespace Neo.Persistence
 	        private int _contractCallCount;
 	        private int _storageWriteCount;
 	        private int _notificationCount;
+
+	        private static string GetSyscallHashString(uint syscallHash)
+	        {
+	            if (SyscallHashStringCache.TryGetValue(syscallHash, out var cached))
+	                return cached;
+
+	            var formatted = syscallHash.ToString("X8");
+	            return SyscallHashStringCache.GetOrAdd(syscallHash, formatted);
+	        }
 
         /// <summary>
         /// The block index this recorder is associated with.
@@ -125,7 +136,7 @@ namespace Neo.Persistence
             var trace = new SyscallTrace
             {
                 ContractHash = contractHash,
-                SyscallHash = syscallHash.ToString("X8"),
+                SyscallHash = GetSyscallHashString(syscallHash),
                 SyscallName = syscallName,
                 GasCost = gasCost,
                 Order = Interlocked.Increment(ref _syscallOrder) - 1
