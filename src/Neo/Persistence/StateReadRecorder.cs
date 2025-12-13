@@ -53,6 +53,7 @@ namespace Neo.Persistence
         public uint BlockIndex { get; }
         public UInt256 BlockHash { get; }
         public ulong Timestamp { get; }
+        public int TransactionCount { get; }
         public IReadOnlyCollection<BlockReadEntry> Entries => _entries;
         public bool IsFull => _isFull;
         public int DroppedEntries => _droppedEntries;
@@ -62,6 +63,7 @@ namespace Neo.Persistence
             BlockIndex = block.Index;
             BlockHash = block.Hash;
             Timestamp = block.Timestamp;
+            TransactionCount = block.Transactions.Length;
             _maxEntries = maxEntries;
         }
 

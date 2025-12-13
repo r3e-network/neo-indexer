@@ -684,21 +684,12 @@ namespace Neo.Persistence
 
         private static BlockRecord BuildBlockRecord(BlockReadRecorder recorder, BlockReadEntry[] entries)
         {
-            var txHashes = new HashSet<UInt256>();
-            foreach (var entry in entries)
-            {
-                if (entry.TxHash is { } txHash)
-                {
-                    txHashes.Add(txHash);
-                }
-            }
-
             var timestamp = recorder.Timestamp <= long.MaxValue ? (long)recorder.Timestamp : long.MaxValue;
             return new BlockRecord(
                 checked((int)recorder.BlockIndex),
                 recorder.BlockHash.ToString(),
                 timestamp,
-                txHashes.Count,
+                recorder.TransactionCount,
                 entries.Length);
         }
 
