@@ -635,24 +635,26 @@ namespace Neo.Persistence
                 entries.Length);
         }
 
-        private static List<StorageReadRecord> BuildStorageReadRecords(BlockReadRecorder recorder, BlockReadEntry[] entries)
-        {
-            var blockIndex = checked((int)recorder.BlockIndex);
-            var reads = new List<StorageReadRecord>(entries.Length);
-            foreach (var entry in entries)
-            {
-                var contractId = entry.Key.Id;
-                reads.Add(new StorageReadRecord(
-                    blockIndex,
-                    contractId,
-                    Convert.ToBase64String(entry.Key.Key.ToArray()),
-                    Convert.ToBase64String(entry.Value.Value.ToArray()),
-                    entry.Order,
-                    entry.TxHash?.ToString(),
-                    entry.Source));
-            }
-            return reads;
-        }
+	        private static List<StorageReadRecord> BuildStorageReadRecords(BlockReadRecorder recorder, BlockReadEntry[] entries)
+	        {
+	            var blockIndex = checked((int)recorder.BlockIndex);
+	            var reads = new List<StorageReadRecord>(entries.Length);
+	            foreach (var entry in entries)
+	            {
+	                var contractId = entry.Key.Id;
+	                var keyBase64 = Convert.ToBase64String(entry.Key.Key.Span);
+	                var valueBase64 = Convert.ToBase64String(entry.Value.Value.Span);
+	                reads.Add(new StorageReadRecord(
+	                    blockIndex,
+	                    contractId,
+	                    keyBase64,
+	                    valueBase64,
+	                    entry.Order,
+	                    entry.TxHash?.ToString(),
+	                    entry.Source));
+	            }
+	            return reads;
+	        }
 
         private static List<ContractRecord> BuildContractRecords(BlockReadEntry[] entries)
         {
