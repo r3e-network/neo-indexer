@@ -37,7 +37,7 @@ Optional automation (runs migrations using a direct Postgres connection string):
 
 ```bash
 export NEO_STATE_RECORDER__SUPABASE_CONNECTION_STRING='postgresql://...'
-dotnet run -c Release --project tools/CreateTables
+dotnet run -c Release --project tools/CreateTables migrate
 ```
 
 ## 3. Create Storage Bucket
@@ -58,6 +58,12 @@ select ensure_trace_partitions(100000, 200000);
 ```
 
 You can rerun this periodically (monthly/quarterly) as height grows.
+
+Optional automation (same connection string as above):
+
+```bash
+dotnet run -c Release --project tools/CreateTables ensure-trace-partitions 100000 200000
+```
 
 ## 5. Configure the Indexer Node
 
@@ -160,6 +166,9 @@ Because RLS allows public SELECT only, the anon key is safe to embed in the fron
   - Trace tables are partitioned; use `prune_trace_partitions(retention_blocks)` to drop old partitions quickly.
   - `storage_reads` is not partitioned; use `prune_storage_reads(retention_blocks)` (migration `010_prune_storage_reads.sql`) to delete old rows.
   - Both are intended for `service_role`/admin use (scheduled jobs). For large deletes, expect table bloat and plan VACUUM during low traffic.
+  - Optional automation (same connection string as above):
+    - `dotnet run -c Release --project tools/CreateTables prune-trace-partitions <retention_blocks>`
+    - `dotnet run -c Release --project tools/CreateTables prune-storage-reads <retention_blocks>`
 - **Replay tooling** (optional):
   - Enable the `StateReplay` plugin and set Supabase credentials in `plugins/StateReplay/StateReplay.json`.
   - `replay supabase <blockIndex>` replays using `storage_reads` from Supabase Postgres (no per-block storage files required).
