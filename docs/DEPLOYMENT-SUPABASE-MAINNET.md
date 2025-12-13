@@ -23,11 +23,22 @@ Run the SQL files in order in the Supabase SQL editor:
 6. `migrations/006_contract_call_stats.sql`
 7. `migrations/007_stats_range_caps.sql`
 8. `migrations/008_partition_management_security_definer.sql`
+9. `migrations/009_trace_delete_policies_and_indexes.sql`
+10. `migrations/010_prune_storage_reads.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
 - `003_syscall_names.sql` seeds the `syscall_names` reference table (safe to re-run; uses upsert).
 - `004_public_read_policies.sql` enables RLS + public read policies, and restricts writes to service role only.
+- `009_trace_delete_policies_and_indexes.sql` adds service-role DELETE policies for trace tables and an index for method name filters.
+- `010_prune_storage_reads.sql` adds `prune_storage_reads(retention_blocks)` for retention on the non-partitioned `storage_reads` table.
+
+Optional automation (runs migrations using a direct Postgres connection string):
+
+```bash
+export NEO_STATE_RECORDER__SUPABASE_CONNECTION_STRING='postgresql://...'
+dotnet run -c Release --project tools/CreateTables
+```
 
 ## 3. Create Storage Bucket
 
@@ -66,6 +77,9 @@ NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=false
 
 # Throttle concurrent HTTPS writes
 NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
+
+# Optional: cap storage_reads per block (0 = unlimited)
+# NEO_STATE_RECORDER__MAX_STORAGE_READS_PER_BLOCK=0
 ```
 
 2. Ensure your Neo `config.json` uses the recording wrapper:

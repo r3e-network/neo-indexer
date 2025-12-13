@@ -64,6 +64,7 @@ namespace Neo.Plugins.BlockStateIndexer
             var recorderSettings = StateRecorderSettings.Current;
             ConsoleHelper.Info($"  - Recorder Enabled: {recorderSettings.Enabled}");
             ConsoleHelper.Info($"  - Recorder Upload Mode (env): {recorderSettings.Mode}");
+            ConsoleHelper.Info($"  - MaxStorageReadsPerBlock: {(recorderSettings.MaxStorageReadsPerBlock <= 0 ? "(unlimited)" : recorderSettings.MaxStorageReadsPerBlock)}");
 
             if (recorderSettings.Enabled && !recorderSettings.UploadEnabled)
             {
@@ -281,6 +282,7 @@ namespace Neo.Plugins.BlockStateIndexer
             ConsoleHelper.Info($"  - UploadMode: {Settings.Default.UploadMode}");
             ConsoleHelper.Info($"  - StateRecorder Enabled: {StateRecorderSettings.Current.Enabled}");
             ConsoleHelper.Info($"  - Supabase URL: {(string.IsNullOrEmpty(StateRecorderSettings.Current.SupabaseUrl) ? "(not set)" : StateRecorderSettings.Current.SupabaseUrl)}");
+            ConsoleHelper.Info($"  - MaxStorageReadsPerBlock: {(StateRecorderSettings.Current.MaxStorageReadsPerBlock <= 0 ? "(unlimited)" : StateRecorderSettings.Current.MaxStorageReadsPerBlock)}");
         }
     }
 }
