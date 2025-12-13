@@ -1621,6 +1621,19 @@ ON CONFLICT (block_index) DO UPDATE SET
             return UploadTraceBatchRestApiAsync(baseUrl, apiKey, "notifications", "notification traces", rows, batchSize);
         }
 
+        private static string? GetTraceUpsertConflictTarget(string tableName)
+        {
+            return tableName switch
+            {
+                "opcode_traces" => "block_index,tx_hash,trace_order",
+                "syscall_traces" => "block_index,tx_hash,trace_order",
+                "contract_calls" => "block_index,tx_hash,trace_order",
+                "storage_writes" => "block_index,tx_hash,write_order",
+                "notifications" => "block_index,tx_hash,notification_order",
+                _ => null
+            };
+        }
+
         private static async Task UploadTraceBatchRestApiAsync<T>(
             string baseUrl,
             string apiKey,
@@ -1633,6 +1646,10 @@ ON CONFLICT (block_index) DO UPDATE SET
                 return;
 
             var effectiveBatchSize = batchSize > 0 ? Math.Min(batchSize, MaxTraceBatchSize) : DefaultTraceBatchSize;
+            var conflictTarget = GetTraceUpsertConflictTarget(tableName);
+            var requestUri = conflictTarget is null
+                ? $"{baseUrl}/rest/v1/{tableName}"
+                : $"{baseUrl}/rest/v1/{tableName}?on_conflict={conflictTarget}";
 
             for (var offset = 0; offset < rows.Count; offset += effectiveBatchSize)
             {
@@ -1645,7 +1662,7 @@ ON CONFLICT (block_index) DO UPDATE SET
 
                 var payload = JsonSerializer.Serialize(buffer);
                 await SendTraceRequestWithRetryAsync(
-                    $"{baseUrl}/rest/v1/{tableName}",
+                    requestUri,
                     apiKey,
                     payload,
                     entityName).ConfigureAwait(false);
