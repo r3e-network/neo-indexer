@@ -34,11 +34,11 @@ using NpgsqlTypes;
 #endif
 
 
-namespace Neo.Persistence
-{
-	public static partial class StateRecorderSupabase
+	namespace Neo.Persistence
 	{
-		#region Trace REST API
+		public static partial class StateRecorderSupabase
+		{
+			#region Trace REST API
         private static Task UploadOpCodeTracesRestApiAsync(string baseUrl, string apiKey, IReadOnlyList<OpCodeTraceRow> rows, int batchSize)
         {
             return UploadTraceBatchRestApiAsync(baseUrl, apiKey, "opcode_traces", "opcode traces", rows, batchSize);
@@ -77,57 +77,10 @@ namespace Neo.Persistence
 	            };
 	        }
 
-	        private static string? GetTraceOrderColumn(string tableName)
-	        {
-	            return tableName switch
-	            {
-	                "opcode_traces" => "trace_order",
-	                "syscall_traces" => "trace_order",
-	                "contract_calls" => "trace_order",
-	                "storage_writes" => "write_order",
-	                "notifications" => "notification_order",
-	                _ => null
-	            };
-	        }
-
-	        private static async Task UploadAndMaybeTrimTraceTableRestApiAsync<T>(
-	            string baseUrl,
-	            string apiKey,
-	            string tableName,
-	            string entityName,
-	            IReadOnlyList<T> rows,
-	            int batchSize,
-	            int blockIndex,
-	            string txHash,
-	            bool trimStaleRows)
-	        {
-	            if (rows.Count > 0)
-	            {
-	                await UploadTraceBatchRestApiAsync(baseUrl, apiKey, tableName, entityName, rows, batchSize).ConfigureAwait(false);
-	            }
-
-	            if (!trimStaleRows)
-	                return;
-
-	            var orderColumn = GetTraceOrderColumn(tableName);
-	            if (orderColumn is null)
-	                return;
-
-	            await DeleteTraceTailRestApiAsync(
-	                baseUrl,
-	                apiKey,
-	                tableName,
-	                entityName,
-	                blockIndex,
-	                txHash,
-	                orderColumn,
-	                keepCount: rows.Count).ConfigureAwait(false);
-	        }
-
-	        private static async Task UploadTraceBatchRestApiAsync<T>(
-	            string baseUrl,
-	            string apiKey,
-	            string tableName,
+		        private static async Task UploadTraceBatchRestApiAsync<T>(
+		            string baseUrl,
+		            string apiKey,
+		            string tableName,
             string entityName,
             IReadOnlyList<T> rows,
             int batchSize)
@@ -151,67 +104,12 @@ namespace Neo.Persistence
 		                    apiKey,
 		                    payload,
 		                    entityName).ConfigureAwait(false);
-	            }
-	        }
+		            }
+		        }
 
-	        private static async Task DeleteTraceTailRestApiAsync(
-	            string baseUrl,
-	            string apiKey,
-	            string tableName,
-	            string entityName,
-	            int blockIndex,
-	            string txHash,
-	            string orderColumn,
-	            int keepCount)
-	        {
-	            var escapedTxHash = Uri.EscapeDataString(txHash);
-	            var requestUri =
-	                $"{baseUrl}/rest/v1/{tableName}?block_index=eq.{blockIndex}&tx_hash=eq.{escapedTxHash}&{orderColumn}=gte.{keepCount}";
-
-	            var delay = TimeSpan.FromSeconds(1);
-	            const int maxAttempts = 5;
-
-	            for (var attempt = 1; attempt <= maxAttempts; attempt++)
-	            {
-	                using var request = new HttpRequestMessage(HttpMethod.Delete, requestUri);
-	                AddRestApiHeaders(request, apiKey);
-	                request.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
-
-	                using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
-	                if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
-	                    return;
-
-	                if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
-	                {
-	                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
-	                        $"Supabase REST API throttled ({(int)response.StatusCode}) while trimming {entityName} attempt {attempt}/{maxAttempts}. Retrying…");
-
-	                    if (attempt == maxAttempts)
-	                    {
-	                        var finalBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-	                        throw new InvalidOperationException($"REST API {entityName} trim failed after retries: {(int)response.StatusCode} {finalBody}");
-	                    }
-
-	                    await Task.Delay(delay).ConfigureAwait(false);
-	                    delay += delay;
-	                    continue;
-	                }
-
-	                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-	                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden || IsUpsertPermissionError(body))
-	                {
-	                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
-	                        $"Supabase REST API cannot trim stale {entityName} for tx {txHash} @ block {blockIndex}: {(int)response.StatusCode} {body}");
-	                    return;
-	                }
-
-	                throw new InvalidOperationException($"REST API {entityName} trim failed: {(int)response.StatusCode} {body}");
-	            }
-	        }
-
-		        private static async Task SendTraceRequestWithRetryAsync(string requestUri, string apiKey, byte[] jsonPayload, string entityName)
-		        {
-		            var delay = TimeSpan.FromSeconds(1);
+			        private static async Task SendTraceRequestWithRetryAsync(string requestUri, string apiKey, byte[] jsonPayload, string entityName)
+			        {
+			            var delay = TimeSpan.FromSeconds(1);
 		            const int maxAttempts = 5;
 
 	            for (var attempt = 1; attempt <= maxAttempts; attempt++)

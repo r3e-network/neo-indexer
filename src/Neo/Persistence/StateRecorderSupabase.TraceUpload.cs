@@ -36,9 +36,9 @@ using NpgsqlTypes;
 
 namespace Neo.Persistence
 {
-		public static partial class StateRecorderSupabase
-		{
-			#region Trace Upload
+			public static partial class StateRecorderSupabase
+			{
+				#region Trace Upload
 	        /// <summary>
 	        /// Uploads the execution traces captured for a transaction via the Supabase REST API.
 	        /// </summary>
@@ -179,66 +179,13 @@ namespace Neo.Persistence
                 Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
                     $"Trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}");
             }
-	            finally
-	            {
-	                TraceUploadSemaphore.Release();
-	                TraceUploadLaneSemaphore.Release();
-	            }
-	        }
-
-        /// <summary>
-        /// Upload aggregated block statistics via the Supabase REST API.
-        /// </summary>
-        public static async Task UploadBlockStatsAsync(BlockStats stats)
-        {
-            if (stats is null) throw new ArgumentNullException(nameof(stats));
-
-            var settings = StateRecorderSettings.Current;
-            if (!settings.Enabled || !IsRestApiMode(settings.Mode))
-                return;
-
-            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-            try
-            {
-                var useDirectPostgres = settings.Mode == StateRecorderSettings.UploadMode.Postgres || !settings.UploadEnabled;
-                if (useDirectPostgres)
-                {
-                    if (string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
-                        return;
-
-#if NET9_0_OR_GREATER
-                    await UploadBlockStatsPostgresAsync(stats, settings).ConfigureAwait(false);
-#endif
-                    return;
-                }
-
-                var baseUrl = settings.SupabaseUrl.TrimEnd('/');
-                var apiKey = settings.SupabaseApiKey;
-
-                var row = new BlockStatsRow(
-                    checked((int)stats.BlockIndex),
-                    stats.TransactionCount,
-                    stats.TotalGasConsumed,
-                    stats.OpCodeCount,
-                    stats.SyscallCount,
-                    stats.ContractCallCount,
-                    stats.StorageReadCount,
-                    stats.StorageWriteCount,
-                    stats.NotificationCount);
-
-	                var payload = JsonSerializer.SerializeToUtf8Bytes(new[] { row });
-	                // Explicit on_conflict for robustness.
-	                await SendTraceRequestWithRetryAsync($"{baseUrl}/rest/v1/block_stats?on_conflict=block_index", apiKey, payload, "block stats").ConfigureAwait(false);
-
-                Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
-                    $"Block stats upsert successful for block {stats.BlockIndex}");
-            }
-            finally
-            {
-                TraceUploadSemaphore.Release();
-            }
-        }
-		#endregion
-
+		            finally
+		            {
+		                TraceUploadSemaphore.Release();
+		                TraceUploadLaneSemaphore.Release();
+		            }
+		        }
+			#endregion
+	
+		}
 	}
-}
