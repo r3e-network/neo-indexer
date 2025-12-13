@@ -12,9 +12,11 @@
 #nullable enable
 
 using Neo.Persistence;
+using Neo.SmartContract.Manifest;
 using Neo.VM;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Neo.SmartContract
 {
@@ -26,7 +28,8 @@ namespace Neo.SmartContract
     {
         private readonly ExecutionTraceRecorder _recorder;
         private ApplicationEngine? _engine;
-        private long _lastGasConsumed;
+        private long _lastFeeConsumed;
+        private OpCodeTrace? _lastOpCodeTrace;
         private readonly Stack<(ContractCallTrace Trace, long GasStart)> _callStack = new();
 
         /// <summary>
@@ -58,7 +61,8 @@ namespace Neo.SmartContract
         public void Initialized(ApplicationEngine engine)
         {
             _engine = engine;
-            _lastGasConsumed = 0;
+            _lastFeeConsumed = engine.FeeConsumed;
+            _lastOpCodeTrace = null;
             _callStack.Clear();
         }
 
@@ -67,6 +71,11 @@ namespace Neo.SmartContract
         /// </summary>
         public void Disposed()
         {
+            if (_engine is not null)
+            {
+                _recorder.TotalGasConsumed = _engine.FeeConsumed;
+            }
+
             // Mark any remaining calls as completed (abnormal termination)
             while (_callStack.Count > 0)
             {
@@ -87,11 +96,27 @@ namespace Neo.SmartContract
             var callerHash = _engine.CallingScriptHash;
             var callDepth = _engine.InvocationStack.Count;
 
+            string? methodName = null;
+            try
+            {
+                var state = context.GetState<ExecutionContextState>();
+                var contractState = state.Contract;
+                var manifest = contractState?.Manifest;
+                var offset = context.InstructionPointer;
+
+                ContractMethodDescriptor? descriptor = manifest?.Abi?.Methods?.FirstOrDefault(m => m.Offset == offset);
+                methodName = descriptor?.Name;
+            }
+            catch
+            {
+                methodName = null;
+            }
+
             // Record the contract call
             var trace = _recorder.RecordContractCall(
                 callerHash,
                 calleeHash,
-                methodName: null, // Method name not easily available here
+                methodName: methodName,
                 callDepth);
 
             // Push to call stack for tracking completion
@@ -130,15 +155,14 @@ namespace Neo.SmartContract
             var instructionPointer = currentContext.InstructionPointer;
             var stackDepth = currentContext.EvaluationStack.Count;
 
-            _recorder.RecordOpCode(
+            _lastFeeConsumed = _engine.FeeConsumed;
+            _lastOpCodeTrace = _recorder.RecordOpCode(
                 contractHash,
                 instructionPointer,
                 instruction.OpCode,
                 instruction.Operand,
-                _engine.FeeConsumed,
+                gasConsumed: 0,
                 stackDepth);
-
-            _lastGasConsumed = _engine.FeeConsumed;
         }
 
         /// <summary>
@@ -146,9 +170,15 @@ namespace Neo.SmartContract
         /// </summary>
         public void PostExecuteInstruction(Instruction instruction)
         {
-            // GAS consumed by this instruction = current - last
-            // This could be used to update the trace with actual GAS cost
-            // For now, we record the cumulative GAS in PreExecuteInstruction
+            if (!TraceOpCodes || _engine == null) return;
+
+            var trace = _lastOpCodeTrace;
+            if (trace is null) return;
+
+            var delta = _engine.FeeConsumed - _lastFeeConsumed;
+            trace.GasConsumed = delta < 0 ? 0 : delta;
+            _lastFeeConsumed = _engine.FeeConsumed;
+            _lastOpCodeTrace = null;
         }
     }
 }

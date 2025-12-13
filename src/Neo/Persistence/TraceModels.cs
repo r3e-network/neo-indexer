@@ -48,7 +48,7 @@ namespace Neo.Persistence
         public ReadOnlyMemory<byte> Operand { get; init; }
 
         /// <summary>
-        /// GAS consumed up to and including this instruction (in datoshi).
+        /// GAS consumed by this instruction (in datoshi).
         /// </summary>
         public long GasConsumed { get; set; }
 

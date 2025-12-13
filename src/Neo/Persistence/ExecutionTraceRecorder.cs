@@ -48,6 +48,11 @@ namespace Neo.Persistence
         public UInt256? TxHash { get; set; }
 
         /// <summary>
+        /// Total GAS consumed by the transaction (in datoshi), captured from the engine at completion when available.
+        /// </summary>
+        public long? TotalGasConsumed { get; set; }
+
+        /// <summary>
         /// Whether tracing is enabled.
         /// </summary>
         public bool IsEnabled { get; set; } = true;
@@ -276,12 +281,42 @@ namespace Neo.Persistence
         /// </summary>
         public BlockStats GetStats()
         {
+            var opCodeTraces = GetOpCodeTraces();
+            long resolvedTotalGasConsumed;
+            if (TotalGasConsumed.HasValue)
+            {
+                resolvedTotalGasConsumed = TotalGasConsumed.Value;
+            }
+            else if (opCodeTraces.Count == 0)
+            {
+                resolvedTotalGasConsumed = 0;
+            }
+            else
+            {
+                bool looksCumulative = true;
+                long previous = opCodeTraces[0].GasConsumed;
+                for (int i = 1; i < opCodeTraces.Count; i++)
+                {
+                    var current = opCodeTraces[i].GasConsumed;
+                    if (current < previous)
+                    {
+                        looksCumulative = false;
+                        break;
+                    }
+                    previous = current;
+                }
+
+                resolvedTotalGasConsumed = looksCumulative
+                    ? opCodeTraces[^1].GasConsumed
+                    : opCodeTraces.Sum(t => t.GasConsumed);
+            }
+
             return new BlockStats
             {
                 BlockIndex = BlockIndex,
                 TransactionCount = 1,
-                TotalGasConsumed = _opCodeTraces.LastOrDefault()?.GasConsumed ?? 0,
-                OpCodeCount = _opCodeTraces.Count,
+                TotalGasConsumed = resolvedTotalGasConsumed,
+                OpCodeCount = opCodeTraces.Count,
                 SyscallCount = _syscallTraces.Count,
                 ContractCallCount = _contractCalls.Count,
                 StorageReadCount = 0, // Filled by BlockReadRecorder
