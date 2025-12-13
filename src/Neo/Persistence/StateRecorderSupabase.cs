@@ -474,14 +474,30 @@ namespace Neo.Persistence
 
         /// <summary>
         /// Build binary payload according to spec:
-        /// Header: [Magic: 4 bytes "NSBR"] [Version: 2 bytes] [Block Index: 4 bytes] [Entry Count: 4 bytes]
-        /// Entries: Array of [ContractHash: 20 bytes] [Key Length: 2 bytes] [Key: variable] [Value Length: 4 bytes] [Value: variable] [ReadOrder: 4 bytes]
-        /// </summary>
-	        private static (byte[] Buffer, string Path) BuildBinaryPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)
-	        {
-	            using var stream = new MemoryStream();
-	            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
-	            Span<byte> contractIdBuffer = stackalloc byte[sizeof(int)];
+	        /// Header: [Magic: 4 bytes "NSBR"] [Version: 2 bytes] [Block Index: 4 bytes] [Entry Count: 4 bytes]
+	        /// Entries: Array of [ContractHash: 20 bytes] [Key Length: 2 bytes] [Key: variable] [Value Length: 4 bytes] [Value: variable] [ReadOrder: 4 bytes]
+	        /// </summary>
+		        private static (byte[] Buffer, string Path) BuildBinaryPayload(BlockReadRecorder recorder, BlockReadEntry[] entries)
+		        {
+		            var capacity = 0;
+		            if (entries.Length > 0)
+		            {
+		                // Pre-size the MemoryStream to avoid repeated growth/copies on large blocks.
+		                long estimatedSize = BinaryMagic.Length + sizeof(ushort) + sizeof(uint) + sizeof(int);
+		                foreach (var entry in entries)
+		                {
+		                    estimatedSize += UInt160.Length; // ContractHash
+		                    var keyLength = sizeof(int) + entry.Key.Key.Length;
+		                    estimatedSize += sizeof(ushort) + keyLength;
+		                    estimatedSize += sizeof(int) + entry.Value.Value.Length;
+		                    estimatedSize += sizeof(int); // ReadOrder
+		                }
+		                capacity = estimatedSize > int.MaxValue ? int.MaxValue : (int)estimatedSize;
+		            }
+
+		            using var stream = capacity > 0 ? new MemoryStream(capacity) : new MemoryStream();
+		            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+		            Span<byte> contractIdBuffer = stackalloc byte[sizeof(int)];
 
             // Header
             writer.Write(BinaryMagic);
