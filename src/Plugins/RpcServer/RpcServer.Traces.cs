@@ -33,6 +33,7 @@ namespace Neo.Plugins.RpcServer
     {
         private const int DefaultTraceLimit = 1000;
         private const int MaxTraceLimit = 5000;
+        private const string RpcTracesSupabaseKeyEnvVar = "NEO_RPC_TRACES__SUPABASE_KEY";
         private static readonly HttpClient TraceHttpClient = new();
         private static readonly JsonSerializerOptions TraceSerializerOptions = new()
         {
@@ -748,6 +749,22 @@ namespace Neo.Plugins.RpcServer
                 throw new RpcException(RpcError.InternalServerError.WithData("state recorder not enabled"));
             if (string.IsNullOrWhiteSpace(settings.SupabaseUrl) || string.IsNullOrWhiteSpace(settings.SupabaseApiKey))
                 throw new RpcException(RpcError.InternalServerError.WithData("supabase connection not configured"));
+
+            var overrideKey = Environment.GetEnvironmentVariable(RpcTracesSupabaseKeyEnvVar);
+            if (!string.IsNullOrWhiteSpace(overrideKey) && !string.Equals(overrideKey, settings.SupabaseApiKey, StringComparison.Ordinal))
+            {
+                settings = new StateRecorderSettings
+                {
+                    Enabled = settings.Enabled,
+                    SupabaseUrl = settings.SupabaseUrl,
+                    SupabaseApiKey = overrideKey,
+                    SupabaseBucket = settings.SupabaseBucket,
+                    SupabaseConnectionString = settings.SupabaseConnectionString,
+                    Mode = settings.Mode,
+                    TraceLevel = settings.TraceLevel,
+                    UploadAuxFormats = settings.UploadAuxFormats
+                };
+            }
             return settings;
         }
 
