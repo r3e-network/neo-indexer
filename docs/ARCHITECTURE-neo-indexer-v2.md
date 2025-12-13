@@ -342,6 +342,9 @@ SELECT prune_storage_reads(1000000);
 SELECT prune_storage_reads(1000000, 50000, 10);
 ```
 
+For operational safety, `migrations/012_storage_reads_idempotent_upsert.sql` adds a unique index on
+`(block_index, contract_id, key_base64)` so storage read uploads can be idempotent without per-block deletes.
+
 ### 6.3 Automatic Partition Rotation
 
 The migrations also define `ensure_trace_partitions(partition_size, lookahead_blocks)` which

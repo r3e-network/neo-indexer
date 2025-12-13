@@ -695,22 +695,28 @@ namespace Neo.Persistence
             var baseUrl = settings.SupabaseUrl.TrimEnd('/');
             var apiKey = settings.SupabaseApiKey;
 
-            // Step 1: Delete existing storage_reads for this block (supports re-sync)
-            await DeleteStorageReadsRestApiAsync(baseUrl, apiKey, blockRecord.BlockIndex).ConfigureAwait(false);
-
-            // Step 2: Upsert block record
+            // Step 1: Upsert block record
             await UpsertBlockRestApiAsync(baseUrl, apiKey, blockRecord).ConfigureAwait(false);
 
-            // Step 3: Upsert contracts (if any new ones)
+            // Step 2: Upsert contracts (if any new ones)
             if (contracts.Count > 0)
             {
                 await UpsertContractsRestApiAsync(baseUrl, apiKey, contracts).ConfigureAwait(false);
             }
 
-            // Step 4: Insert storage reads in batches
+            // Step 3: Upsert storage reads in batches (preferred, requires migration 012 unique index).
+            // Falls back to delete+insert for older schemas.
             if (storageReads.Count > 0)
             {
-                await InsertStorageReadsRestApiAsync(baseUrl, apiKey, storageReads).ConfigureAwait(false);
+                var upserted = await TryUpsertStorageReadsRestApiAsync(baseUrl, apiKey, storageReads).ConfigureAwait(false);
+                if (!upserted)
+                {
+                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
+                        $"Block {recorder.BlockIndex}: storage_reads upsert not available (missing unique index). Falling back to delete+insert.");
+
+                    await DeleteStorageReadsRestApiAsync(baseUrl, apiKey, blockRecord.BlockIndex).ConfigureAwait(false);
+                    await InsertStorageReadsRestApiAsync(baseUrl, apiKey, storageReads).ConfigureAwait(false);
+                }
             }
 
             Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
@@ -735,6 +741,49 @@ namespace Neo.Persistence
                 var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 throw new InvalidOperationException($"REST API delete failed: {(int)response.StatusCode} {body}");
             }
+        }
+
+        private static async Task<bool> TryUpsertStorageReadsRestApiAsync(string baseUrl, string apiKey, List<StorageReadRecord> reads)
+        {
+            // Upsert in batches to avoid request size limits.
+            // Requires a unique index covering (block_index, contract_id, key_base64) (migration 012).
+            for (var offset = 0; offset < reads.Count; offset += StorageReadBatchSize)
+            {
+                var batch = reads.Skip(offset).Take(StorageReadBatchSize).ToArray();
+                var jsonArray = batch.Select(r => new
+                {
+                    block_index = r.BlockIndex,
+                    contract_id = r.ContractId,
+                    key_base64 = r.KeyBase64,
+                    value_base64 = r.ValueBase64,
+                    read_order = r.ReadOrder,
+                    tx_hash = r.TxHash,
+                    source = r.Source
+                }).ToArray();
+
+                var json = JsonSerializer.Serialize(jsonArray);
+
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"{baseUrl}/rest/v1/storage_reads?on_conflict=block_index,contract_id,key_base64")
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+                AddRestApiHeaders(request, apiKey);
+                request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
+
+                using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
+                if (response.IsSuccessStatusCode)
+                    continue;
+
+                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (IsMissingUpsertConstraintError(body))
+                    return false;
+
+                throw new InvalidOperationException($"REST API storage_reads upsert failed: {(int)response.StatusCode} {body}");
+            }
+
+            return true;
         }
 
         private static async Task UpsertBlockRestApiAsync(string baseUrl, string apiKey, BlockRecord block)
@@ -831,6 +880,18 @@ namespace Neo.Persistence
             }
         }
 
+        private static bool IsMissingUpsertConstraintError(string? body)
+        {
+            if (string.IsNullOrWhiteSpace(body))
+                return false;
+
+            // PostgREST typically returns: {"code":"42P10",...,"message":"there is no unique or exclusion constraint matching the ON CONFLICT specification"}
+            return body.Contains("42P10", StringComparison.OrdinalIgnoreCase) ||
+                   body.Contains("no unique", StringComparison.OrdinalIgnoreCase) ||
+                   body.Contains("ON CONFLICT", StringComparison.OrdinalIgnoreCase) &&
+                   body.Contains("constraint", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static void AddRestApiHeaders(HttpRequestMessage request, string apiKey)
         {
             request.Headers.TryAddWithoutValidation("apikey", apiKey);
@@ -853,7 +914,6 @@ namespace Neo.Persistence
             await connection.OpenAsync(CancellationToken.None).ConfigureAwait(false);
             await using var transaction = await connection.BeginTransactionAsync(CancellationToken.None).ConfigureAwait(false);
 
-            await DeleteStorageReadsPostgresAsync(connection, transaction, blockRecord.BlockIndex).ConfigureAwait(false);
             await UpsertBlockPostgresAsync(connection, transaction, blockRecord).ConfigureAwait(false);
 
             if (contracts.Count > 0)
@@ -863,7 +923,16 @@ namespace Neo.Persistence
 
             if (storageReads.Count > 0)
             {
-                await InsertStorageReadsPostgresAsync(connection, transaction, storageReads).ConfigureAwait(false);
+                try
+                {
+                    await UpsertStorageReadsPostgresAsync(connection, transaction, storageReads).ConfigureAwait(false);
+                }
+                catch (PostgresException ex) when (ex.SqlState == "42P10")
+                {
+                    // Older schemas (pre migration 012) cannot upsert storage_reads.
+                    await DeleteStorageReadsPostgresAsync(connection, transaction, blockRecord.BlockIndex).ConfigureAwait(false);
+                    await InsertStorageReadsPostgresAsync(connection, transaction, storageReads).ConfigureAwait(false);
+                }
             }
 
             await transaction.CommitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -927,6 +996,41 @@ ON CONFLICT (block_index) DO UPDATE SET
             {
                 ContractCache.TryAdd(contract.ContractId, contract);
             }
+        }
+
+        private static async Task UpsertStorageReadsPostgresAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, List<StorageReadRecord> reads)
+        {
+            var columns = new[]
+            {
+                "block_index",
+                "contract_id",
+                "key_base64",
+                "value_base64",
+                "read_order",
+                "tx_hash",
+                "source"
+            };
+
+            var values = reads.Select(r => new object?[]
+            {
+                r.BlockIndex,
+                r.ContractId,
+                r.KeyBase64,
+                r.ValueBase64,
+                r.ReadOrder,
+                r.TxHash,
+                r.Source
+            }).ToList();
+
+            await UpsertRowsPostgresAsync(
+                connection,
+                transaction,
+                "storage_reads",
+                columns,
+                "block_index, contract_id, key_base64",
+                "value_base64 = EXCLUDED.value_base64, read_order = EXCLUDED.read_order, tx_hash = EXCLUDED.tx_hash, source = EXCLUDED.source",
+                values,
+                StorageReadBatchSize).ConfigureAwait(false);
         }
 
         private static async Task InsertStorageReadsPostgresAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, List<StorageReadRecord> reads)
