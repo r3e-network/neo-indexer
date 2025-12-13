@@ -79,7 +79,7 @@ namespace Neo.Plugins.BlockStateIndexer
             public bool Contains(byte[] key)
             {
                 var exists = _inner.Contains(key);
-                if (!StateReadRecorder.Enabled)
+                if (!StateReadRecorder.IsRecording)
                     return exists;
 
                 if (_inner.TryGet(key, out var value) && value != null)
@@ -159,7 +159,7 @@ namespace Neo.Plugins.BlockStateIndexer
 
             private void RecordReadBytes(byte[] keyBytes, byte[] valueBytes, string source)
             {
-                if (!StateReadRecorder.Enabled)
+                if (!StateReadRecorder.IsRecording)
                     return;
 
                 StorageKey storageKey = keyBytes;
@@ -169,7 +169,7 @@ namespace Neo.Plugins.BlockStateIndexer
 
             private void RecordReadItem(StorageKey key, StorageItem item, string source)
             {
-                if (!StateReadRecorder.Enabled)
+                if (!StateReadRecorder.IsRecording)
                     return;
 
                 StateReadRecorder.Record(this, key, item, source);
@@ -205,7 +205,7 @@ namespace Neo.Plugins.BlockStateIndexer
             public bool Contains(byte[] key)
             {
                 var exists = _inner.Contains(key);
-                if (!StateReadRecorder.Enabled)
+                if (!StateReadRecorder.IsRecording)
                     return exists;
 
                 if (_inner.TryGet(key, out var value) && value != null)
@@ -282,7 +282,7 @@ namespace Neo.Plugins.BlockStateIndexer
 
             private void RecordReadBytes(byte[] keyBytes, byte[] valueBytes, string source)
             {
-                if (!StateReadRecorder.Enabled)
+                if (!StateReadRecorder.IsRecording)
                     return;
 
                 StorageKey storageKey = keyBytes;
@@ -292,7 +292,7 @@ namespace Neo.Plugins.BlockStateIndexer
 
             private void RecordReadItem(StorageKey key, StorageItem item, string source)
             {
-                if (!StateReadRecorder.Enabled)
+                if (!StateReadRecorder.IsRecording)
                     return;
 
                 StateReadRecorder.Record(this, key, item, source);

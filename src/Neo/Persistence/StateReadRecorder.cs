@@ -174,7 +174,13 @@ namespace Neo.Persistence
 
         private static bool IsRecordingSuppressed => RecordingSuppressed.Value > 0;
 
-        public static bool Enabled => StateRecorderSettings.Current.Enabled;
+        public static bool Enabled => Current != null || StateRecorderSettings.Current.Enabled;
+
+        /// <summary>
+        /// True when a recorder scope is active on this async context and recording isn't suppressed.
+        /// Useful for avoiding unnecessary work (e.g., decoding keys/values) when no recorder is present.
+        /// </summary>
+        public static bool IsRecording => !IsRecordingSuppressed && Current != null;
 
         public static BlockReadRecorderScope? TryBegin(Block block)
         {

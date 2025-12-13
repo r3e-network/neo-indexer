@@ -10,6 +10,7 @@
 // modifications are permitted.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Neo.Persistence;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -109,6 +110,36 @@ namespace Neo.Plugins.RpcServer.Tests
                 Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", previousEnabled);
                 Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", previousUrl);
                 Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", previousKey);
+            }
+        }
+
+        [TestMethod]
+        public void EnsureSupabaseTraceSettings_UsesRpcOverrideKeyWhenConfigured()
+        {
+            var previousEnabled = Environment.GetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED");
+            var previousUrl = Environment.GetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL");
+            var previousKey = Environment.GetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY");
+            var previousOverrideKey = Environment.GetEnvironmentVariable("NEO_RPC_TRACES__SUPABASE_KEY");
+
+            try
+            {
+                Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", "true");
+                Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", "https://example.supabase.co");
+                Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", "service-role");
+                Environment.SetEnvironmentVariable("NEO_RPC_TRACES__SUPABASE_KEY", "anon");
+
+                var method = GetPrivateStaticRpcServerMethod("EnsureSupabaseTraceSettings");
+                var result = (StateRecorderSettings)method.Invoke(null, Array.Empty<object>());
+
+                Assert.AreEqual("https://example.supabase.co", result.SupabaseUrl);
+                Assert.AreEqual("anon", result.SupabaseApiKey);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__ENABLED", previousEnabled);
+                Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_URL", previousUrl);
+                Environment.SetEnvironmentVariable("NEO_STATE_RECORDER__SUPABASE_KEY", previousKey);
+                Environment.SetEnvironmentVariable("NEO_RPC_TRACES__SUPABASE_KEY", previousOverrideKey);
             }
         }
     }
