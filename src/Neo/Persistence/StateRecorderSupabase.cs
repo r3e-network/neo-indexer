@@ -777,7 +777,7 @@ namespace Neo.Persistence
                     continue;
 
                 var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                if (IsMissingUpsertConstraintError(body))
+                if (IsMissingUpsertConstraintError(body) || IsUpsertPermissionError(body))
                     return false;
 
                 throw new InvalidOperationException($"REST API storage_reads upsert failed: {(int)response.StatusCode} {body}");
@@ -890,6 +890,18 @@ namespace Neo.Persistence
                    body.Contains("no unique", StringComparison.OrdinalIgnoreCase) ||
                    body.Contains("ON CONFLICT", StringComparison.OrdinalIgnoreCase) &&
                    body.Contains("constraint", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsUpsertPermissionError(string? body)
+        {
+            if (string.IsNullOrWhiteSpace(body))
+                return false;
+
+            // Common PostgREST errors when UPDATE policies are missing:
+            // {"code":"42501",...,"message":"new row violates row-level security policy for table \"storage_reads\""}
+            return body.Contains("42501", StringComparison.OrdinalIgnoreCase) ||
+                   body.Contains("row-level security", StringComparison.OrdinalIgnoreCase) ||
+                   body.Contains("permission denied", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void AddRestApiHeaders(HttpRequestMessage request, string apiKey)

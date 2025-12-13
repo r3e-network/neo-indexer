@@ -27,6 +27,7 @@ Run the SQL files in order in the Supabase SQL editor:
 10. `migrations/010_prune_storage_reads.sql`
 11. `migrations/011_prune_storage_reads_batched.sql`
 12. `migrations/012_storage_reads_idempotent_upsert.sql`
+13. `migrations/013_storage_reads_update_policy.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -36,6 +37,7 @@ Notes:
 - `010_prune_storage_reads.sql` adds `prune_storage_reads(retention_blocks)` for retention on the non-partitioned `storage_reads` table.
 - `011_prune_storage_reads_batched.sql` adds optional batched pruning (`batch_size`, `max_batches`) and makes the 1-arg function use batching internally.
 - `012_storage_reads_idempotent_upsert.sql` adds a unique index on `(block_index, contract_id, key_base64)` so REST/Postgres uploads can upsert reads without per-block deletes.
+- `013_storage_reads_update_policy.sql` allows service_role UPDATE on `storage_reads` so PostgREST upserts can merge duplicates during resync.
 
 Optional automation (runs migrations using a direct Postgres connection string):
 

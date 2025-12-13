@@ -344,6 +344,7 @@ SELECT prune_storage_reads(1000000, 50000, 10);
 
 For operational safety, `migrations/012_storage_reads_idempotent_upsert.sql` adds a unique index on
 `(block_index, contract_id, key_base64)` so storage read uploads can be idempotent without per-block deletes.
+`migrations/013_storage_reads_update_policy.sql` adds a service-role UPDATE policy so PostgREST upserts can merge duplicates.
 
 ### 6.3 Automatic Partition Rotation
 
