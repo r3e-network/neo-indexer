@@ -23,19 +23,24 @@ namespace Neo.Persistence
     /// Aggregates execution trace data for a single transaction.
     /// Thread-safe for concurrent recording from multiple sources.
     /// </summary>
-    public sealed class ExecutionTraceRecorder
-    {
-        private readonly ConcurrentQueue<OpCodeTrace> _opCodeTraces = new();
-        private readonly ConcurrentQueue<SyscallTrace> _syscallTraces = new();
-        private readonly ConcurrentQueue<ContractCallTrace> _contractCalls = new();
-        private readonly ConcurrentQueue<StorageWriteTrace> _storageWrites = new();
-        private readonly ConcurrentQueue<NotificationTrace> _notifications = new();
+	    public sealed class ExecutionTraceRecorder
+	    {
+	        private readonly ConcurrentQueue<OpCodeTrace> _opCodeTraces = new();
+	        private readonly ConcurrentQueue<SyscallTrace> _syscallTraces = new();
+	        private readonly ConcurrentQueue<ContractCallTrace> _contractCalls = new();
+	        private readonly ConcurrentQueue<StorageWriteTrace> _storageWrites = new();
+	        private readonly ConcurrentQueue<NotificationTrace> _notifications = new();
 
-        private int _opCodeOrder;
-        private int _syscallOrder;
-        private int _contractCallOrder;
-        private int _storageWriteOrder;
-        private int _notificationOrder;
+	        private int _opCodeOrder;
+	        private int _syscallOrder;
+	        private int _contractCallOrder;
+	        private int _storageWriteOrder;
+	        private int _notificationOrder;
+	        private int _opCodeCount;
+	        private int _syscallCount;
+	        private int _contractCallCount;
+	        private int _storageWriteCount;
+	        private int _notificationCount;
 
         /// <summary>
         /// The block index this recorder is associated with.
@@ -60,11 +65,12 @@ namespace Neo.Persistence
         /// <summary>
         /// Records an OpCode execution trace.
         /// </summary>
-        public void RecordOpCode(OpCodeTrace trace)
-        {
-            if (!IsEnabled) return;
-            _opCodeTraces.Enqueue(trace);
-        }
+	        public void RecordOpCode(OpCodeTrace trace)
+	        {
+	            if (!IsEnabled) return;
+	            _opCodeTraces.Enqueue(trace);
+	            Interlocked.Increment(ref _opCodeCount);
+	        }
 
         /// <summary>
         /// Creates and records an OpCode trace with auto-incrementing order.
@@ -88,10 +94,11 @@ namespace Neo.Persistence
                 Order = Interlocked.Increment(ref _opCodeOrder) - 1
             };
 
-            if (IsEnabled)
-            {
-                _opCodeTraces.Enqueue(trace);
-            }
+	            if (IsEnabled)
+	            {
+	                _opCodeTraces.Enqueue(trace);
+	                Interlocked.Increment(ref _opCodeCount);
+	            }
 
             return trace;
         }
@@ -99,11 +106,12 @@ namespace Neo.Persistence
         /// <summary>
         /// Records a syscall invocation trace.
         /// </summary>
-        public void RecordSyscall(SyscallTrace trace)
-        {
-            if (!IsEnabled) return;
-            _syscallTraces.Enqueue(trace);
-        }
+	        public void RecordSyscall(SyscallTrace trace)
+	        {
+	            if (!IsEnabled) return;
+	            _syscallTraces.Enqueue(trace);
+	            Interlocked.Increment(ref _syscallCount);
+	        }
 
         /// <summary>
         /// Creates and records a syscall trace with auto-incrementing order.
@@ -123,10 +131,11 @@ namespace Neo.Persistence
                 Order = Interlocked.Increment(ref _syscallOrder) - 1
             };
 
-            if (IsEnabled)
-            {
-                _syscallTraces.Enqueue(trace);
-            }
+	            if (IsEnabled)
+	            {
+	                _syscallTraces.Enqueue(trace);
+	                Interlocked.Increment(ref _syscallCount);
+	            }
 
             return trace;
         }
@@ -134,11 +143,12 @@ namespace Neo.Persistence
         /// <summary>
         /// Records a contract call trace.
         /// </summary>
-        public void RecordContractCall(ContractCallTrace trace)
-        {
-            if (!IsEnabled) return;
-            _contractCalls.Enqueue(trace);
-        }
+	        public void RecordContractCall(ContractCallTrace trace)
+	        {
+	            if (!IsEnabled) return;
+	            _contractCalls.Enqueue(trace);
+	            Interlocked.Increment(ref _contractCallCount);
+	        }
 
         /// <summary>
         /// Creates and records a contract call trace with auto-incrementing order.
@@ -158,10 +168,11 @@ namespace Neo.Persistence
                 Order = Interlocked.Increment(ref _contractCallOrder) - 1
             };
 
-            if (IsEnabled)
-            {
-                _contractCalls.Enqueue(trace);
-            }
+	            if (IsEnabled)
+	            {
+	                _contractCalls.Enqueue(trace);
+	                Interlocked.Increment(ref _contractCallCount);
+	            }
 
             return trace;
         }
@@ -169,11 +180,12 @@ namespace Neo.Persistence
         /// <summary>
         /// Records a storage write trace.
         /// </summary>
-        public void RecordStorageWrite(StorageWriteTrace trace)
-        {
-            if (!IsEnabled) return;
-            _storageWrites.Enqueue(trace);
-        }
+	        public void RecordStorageWrite(StorageWriteTrace trace)
+	        {
+	            if (!IsEnabled) return;
+	            _storageWrites.Enqueue(trace);
+	            Interlocked.Increment(ref _storageWriteCount);
+	        }
 
         /// <summary>
         /// Creates and records a storage write trace with auto-incrementing order.
@@ -195,10 +207,11 @@ namespace Neo.Persistence
                 Order = Interlocked.Increment(ref _storageWriteOrder) - 1
             };
 
-            if (IsEnabled)
-            {
-                _storageWrites.Enqueue(trace);
-            }
+	            if (IsEnabled)
+	            {
+	                _storageWrites.Enqueue(trace);
+	                Interlocked.Increment(ref _storageWriteCount);
+	            }
 
             return trace;
         }
@@ -206,11 +219,12 @@ namespace Neo.Persistence
         /// <summary>
         /// Records a notification trace.
         /// </summary>
-        public void RecordNotification(NotificationTrace trace)
-        {
-            if (!IsEnabled) return;
-            _notifications.Enqueue(trace);
-        }
+	        public void RecordNotification(NotificationTrace trace)
+	        {
+	            if (!IsEnabled) return;
+	            _notifications.Enqueue(trace);
+	            Interlocked.Increment(ref _notificationCount);
+	        }
 
         /// <summary>
         /// Creates and records a notification trace with auto-incrementing order.
@@ -228,10 +242,11 @@ namespace Neo.Persistence
                 Order = Interlocked.Increment(ref _notificationOrder) - 1
             };
 
-            if (IsEnabled)
-            {
-                _notifications.Enqueue(trace);
-            }
+	            if (IsEnabled)
+	            {
+	                _notifications.Enqueue(trace);
+	                Interlocked.Increment(ref _notificationCount);
+	            }
 
             return trace;
         }
@@ -279,56 +294,59 @@ namespace Neo.Persistence
         /// <summary>
         /// Gets aggregated statistics for this transaction.
         /// </summary>
-        public BlockStats GetStats()
-        {
-            var opCodeTraces = GetOpCodeTraces();
-            long resolvedTotalGasConsumed;
-            if (TotalGasConsumed.HasValue)
-            {
-                resolvedTotalGasConsumed = TotalGasConsumed.Value;
-            }
-            else if (opCodeTraces.Count == 0)
-            {
-                resolvedTotalGasConsumed = 0;
-            }
-            else
-            {
-                bool looksCumulative = true;
-                long previous = opCodeTraces[0].GasConsumed;
-                for (int i = 1; i < opCodeTraces.Count; i++)
-                {
-                    var current = opCodeTraces[i].GasConsumed;
-                    if (current < previous)
-                    {
-                        looksCumulative = false;
-                        break;
-                    }
-                    previous = current;
-                }
+	        public BlockStats GetStats()
+	        {
+	            var resolvedTotalGasConsumed = TotalGasConsumed ?? ResolveTotalGasFromOpCodes();
 
-                resolvedTotalGasConsumed = looksCumulative
-                    ? opCodeTraces[^1].GasConsumed
-                    : opCodeTraces.Sum(t => t.GasConsumed);
-            }
+	            return new BlockStats
+	            {
+	                BlockIndex = BlockIndex,
+	                TransactionCount = 1,
+	                TotalGasConsumed = resolvedTotalGasConsumed,
+	                OpCodeCount = Volatile.Read(ref _opCodeCount),
+	                SyscallCount = Volatile.Read(ref _syscallCount),
+	                ContractCallCount = Volatile.Read(ref _contractCallCount),
+	                StorageReadCount = 0, // Filled by BlockReadRecorder
+	                StorageWriteCount = Volatile.Read(ref _storageWriteCount),
+	                NotificationCount = Volatile.Read(ref _notificationCount)
+	            };
+	        }
 
-            return new BlockStats
-            {
-                BlockIndex = BlockIndex,
-                TransactionCount = 1,
-                TotalGasConsumed = resolvedTotalGasConsumed,
-                OpCodeCount = opCodeTraces.Count,
-                SyscallCount = _syscallTraces.Count,
-                ContractCallCount = _contractCalls.Count,
-                StorageReadCount = 0, // Filled by BlockReadRecorder
-                StorageWriteCount = _storageWrites.Count,
-                NotificationCount = _notifications.Count
-            };
-        }
+	        private long ResolveTotalGasFromOpCodes()
+	        {
+	            // Fallback path: TotalGasConsumed is normally filled by TracingDiagnostic.Disposed.
+	            // Avoid materializing/sorting a list here; just scan the recorded opcodes.
+	            long sum = 0;
+	            bool hasAny = false;
+	            bool looksCumulative = true;
+	            long previous = 0;
+	            long last = 0;
 
-        /// <summary>
-        /// Clears all recorded traces.
-        /// </summary>
-        public void Clear()
+	            foreach (var trace in _opCodeTraces)
+	            {
+	                var gas = trace.GasConsumed;
+	                if (!hasAny)
+	                {
+	                    hasAny = true;
+	                }
+	                else if (gas < previous)
+	                {
+	                    looksCumulative = false;
+	                }
+
+	                previous = gas;
+	                last = gas;
+	                sum += gas;
+	            }
+
+	            if (!hasAny) return 0;
+	            return looksCumulative ? last : sum;
+	        }
+
+	        /// <summary>
+	        /// Clears all recorded traces.
+	        /// </summary>
+	        public void Clear()
         {
             while (_opCodeTraces.TryDequeue(out _)) { }
             while (_syscallTraces.TryDequeue(out _)) { }
@@ -336,12 +354,17 @@ namespace Neo.Persistence
             while (_storageWrites.TryDequeue(out _)) { }
             while (_notifications.TryDequeue(out _)) { }
 
-            _opCodeOrder = 0;
-            _syscallOrder = 0;
-            _contractCallOrder = 0;
-            _storageWriteOrder = 0;
-            _notificationOrder = 0;
-        }
+	            _opCodeOrder = 0;
+	            _syscallOrder = 0;
+	            _contractCallOrder = 0;
+	            _storageWriteOrder = 0;
+	            _notificationOrder = 0;
+	            _opCodeCount = 0;
+	            _syscallCount = 0;
+	            _contractCallCount = 0;
+	            _storageWriteCount = 0;
+	            _notificationCount = 0;
+	        }
 
         /// <summary>
         /// Returns true if any traces have been recorded.
