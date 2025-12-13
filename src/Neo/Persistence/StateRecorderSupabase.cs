@@ -1585,9 +1585,9 @@ ON CONFLICT (block_index) DO UPDATE SET
                     stats.StorageWriteCount,
                     stats.NotificationCount);
 
-                var payload = JsonSerializer.Serialize(new[] { row });
-                // Explicit on_conflict for robustness.
-                await SendTraceRequestWithRetryAsync($"{baseUrl}/rest/v1/block_stats?on_conflict=block_index", apiKey, payload, "block stats").ConfigureAwait(false);
+	                var payload = JsonSerializer.SerializeToUtf8Bytes(new[] { row });
+	                // Explicit on_conflict for robustness.
+	                await SendTraceRequestWithRetryAsync($"{baseUrl}/rest/v1/block_stats?on_conflict=block_index", apiKey, payload, "block stats").ConfigureAwait(false);
 
                 Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
                     $"Block stats upsert successful for block {stats.BlockIndex}");
@@ -1662,28 +1662,29 @@ ON CONFLICT (block_index) DO UPDATE SET
                     buffer[i] = rows[offset + i];
                 }
 
-                var payload = JsonSerializer.Serialize(buffer);
-                await SendTraceRequestWithRetryAsync(
-                    requestUri,
-                    apiKey,
-                    payload,
-                    entityName).ConfigureAwait(false);
+	                var payload = JsonSerializer.SerializeToUtf8Bytes(buffer);
+	                await SendTraceRequestWithRetryAsync(
+	                    requestUri,
+	                    apiKey,
+	                    payload,
+	                    entityName).ConfigureAwait(false);
             }
         }
 
-        private static async Task SendTraceRequestWithRetryAsync(string requestUri, string apiKey, string jsonPayload, string entityName)
-        {
-            var delay = TimeSpan.FromSeconds(1);
-            const int maxAttempts = 5;
+	        private static async Task SendTraceRequestWithRetryAsync(string requestUri, string apiKey, byte[] jsonPayload, string entityName)
+	        {
+	            var delay = TimeSpan.FromSeconds(1);
+	            const int maxAttempts = 5;
 
-            for (var attempt = 1; attempt <= maxAttempts; attempt++)
-            {
-                using var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
-                {
-                    Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
-                };
-                AddRestApiHeaders(request, apiKey);
-                request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
+	            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+	            {
+	                using var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
+	                {
+	                    Content = new ByteArrayContent(jsonPayload)
+	                };
+	                request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" };
+	                AddRestApiHeaders(request, apiKey);
+	                request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
 
                 using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
