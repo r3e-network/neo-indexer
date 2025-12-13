@@ -40,15 +40,16 @@ namespace Neo.Persistence
     /// Supports binary uploads to Storage bucket and/or REST API inserts.
     /// Robust design: Supports re-sync by automatically replacing existing block data.
     /// </summary>
-    public static class StateRecorderSupabase
-    {
-        private const int StorageReadBatchSize = 1000;
-        private const ushort BinaryFormatVersion = 1;
-        private static readonly byte[] BinaryMagic = [(byte)'N', (byte)'S', (byte)'B', (byte)'R'];
+	public static class StateRecorderSupabase
+	{
+	    private const int StorageReadBatchSize = 1000;
+	    private const ushort BinaryFormatVersion = 1;
+	    private static readonly byte[] BinaryMagic = [(byte)'N', (byte)'S', (byte)'B', (byte)'R'];
+	    private static readonly string[] OpCodeNameCache = BuildOpCodeNameCache();
 
-        private static readonly HttpClient HttpClient = new();
-        private static readonly ConcurrentDictionary<int, ContractRecord> ContractCache = new();
-        private const int DefaultTraceBatchSize = 1000;
+	    private static readonly HttpClient HttpClient = new();
+	    private static readonly ConcurrentDictionary<int, ContractRecord> ContractCache = new();
+	    private const int DefaultTraceBatchSize = 1000;
         private const int MaxTraceBatchSize = 5000;
         private const string TraceBatchSizeEnvVar = "NEO_STATE_RECORDER__TRACE_BATCH_SIZE";
         private const string TraceUploadConcurrencyEnvVar = "NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY";
@@ -69,7 +70,38 @@ namespace Neo.Persistence
             public int TotalPending => PendingHighPriority + PendingLowPriority;
         }
 
-        public static UploadQueueStats GetUploadQueueStats() => UploadQueue.GetStats();
+	    public static UploadQueueStats GetUploadQueueStats() => UploadQueue.GetStats();
+
+	    private static string[] BuildOpCodeNameCache()
+	    {
+	        var names = new string[256];
+	        foreach (var opCode in (Neo.VM.OpCode[])Enum.GetValues(typeof(Neo.VM.OpCode)))
+	        {
+	            names[(byte)opCode] = opCode.ToString();
+	        }
+	        return names;
+	    }
+
+	    private static string GetOpCodeName(Neo.VM.OpCode opCode)
+	    {
+	        return OpCodeNameCache[(byte)opCode] ?? opCode.ToString();
+	    }
+
+	    private static string GetContractHashString(UInt160 contractHash, Dictionary<UInt160, string> cache)
+	    {
+	        if (!cache.TryGetValue(contractHash, out var value))
+	        {
+	            value = contractHash.ToString();
+	            cache[contractHash] = value;
+	        }
+	        return value;
+	    }
+
+	    private static string? GetContractHashStringOrNull(UInt160? contractHash, Dictionary<UInt160, string> cache)
+	    {
+	        if (contractHash is null) return null;
+	        return GetContractHashString(contractHash, cache);
+	    }
 
         /// <summary>
         /// Trigger upload of recorded block state based on configured mode.
@@ -1491,14 +1523,15 @@ ON CONFLICT (block_index) DO UPDATE SET
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                var blockIndexValue = checked((int)blockIndex);
-                var batchSize = GetTraceUploadBatchSize();
+	                var blockIndexValue = checked((int)blockIndex);
+	                var batchSize = GetTraceUploadBatchSize();
 
-                var opCodeRows = BuildOpCodeTraceRows(blockIndexValue, txHash, recorder.GetOpCodeTraces());
-                var syscallRows = BuildSyscallTraceRows(blockIndexValue, txHash, recorder.GetSyscallTraces());
-                var contractCallRows = BuildContractCallTraceRows(blockIndexValue, txHash, recorder.GetContractCallTraces());
-                var storageWriteRows = BuildStorageWriteTraceRows(blockIndexValue, txHash, recorder.GetStorageWriteTraces());
-                var notificationRows = BuildNotificationTraceRows(blockIndexValue, txHash, recorder.GetNotificationTraces());
+	                var contractHashCache = new Dictionary<UInt160, string>();
+	                var opCodeRows = BuildOpCodeTraceRows(blockIndexValue, txHash, recorder.GetOpCodeTraces(), contractHashCache);
+	                var syscallRows = BuildSyscallTraceRows(blockIndexValue, txHash, recorder.GetSyscallTraces(), contractHashCache);
+	                var contractCallRows = BuildContractCallTraceRows(blockIndexValue, txHash, recorder.GetContractCallTraces(), contractHashCache);
+	                var storageWriteRows = BuildStorageWriteTraceRows(blockIndexValue, txHash, recorder.GetStorageWriteTraces(), contractHashCache);
+	                var notificationRows = BuildNotificationTraceRows(blockIndexValue, txHash, recorder.GetNotificationTraces(), contractHashCache);
 
                 var useDirectPostgres = settings.Mode == StateRecorderSettings.UploadMode.Postgres || !settings.UploadEnabled;
                 if (useDirectPostgres)
@@ -1725,96 +1758,127 @@ ON CONFLICT (block_index) DO UPDATE SET
             }
         }
 
-        private static List<OpCodeTraceRow> BuildOpCodeTraceRows(int blockIndex, string txHash, IReadOnlyList<OpCodeTrace> traces)
-        {
-            var rows = new List<OpCodeTraceRow>(traces.Count);
-            foreach (var trace in traces)
-            {
-                var operand = trace.Operand.IsEmpty ? null : Convert.ToBase64String(trace.Operand.Span);
-                rows.Add(new OpCodeTraceRow(
-                    blockIndex,
-                    txHash,
-                    trace.Order,
-                    trace.ContractHash.ToString(),
-                    trace.InstructionPointer,
-                    (int)trace.OpCode,
-                    trace.OpCodeName,
-                    operand,
-                    trace.GasConsumed,
-                    trace.StackDepth));
-            }
-            return rows;
-        }
+	        private static List<OpCodeTraceRow> BuildOpCodeTraceRows(
+	            int blockIndex,
+	            string txHash,
+	            IReadOnlyList<OpCodeTrace> traces,
+	            Dictionary<UInt160, string> contractHashCache)
+	        {
+	            var rows = new List<OpCodeTraceRow>(traces.Count);
+	            foreach (var trace in traces)
+	            {
+	                var operand = trace.Operand.IsEmpty ? null : Convert.ToBase64String(trace.Operand.Span);
+	                var contractHash = trace.ContractHash ?? UInt160.Zero;
+	                var contractHashString = GetContractHashString(contractHash, contractHashCache);
+	                var opCodeName = GetOpCodeName(trace.OpCode);
+	                rows.Add(new OpCodeTraceRow(
+	                    blockIndex,
+	                    txHash,
+	                    trace.Order,
+	                    contractHashString,
+	                    trace.InstructionPointer,
+	                    (int)trace.OpCode,
+	                    opCodeName,
+	                    operand,
+	                    trace.GasConsumed,
+	                    trace.StackDepth));
+	            }
+	            return rows;
+	        }
 
-        private static List<SyscallTraceRow> BuildSyscallTraceRows(int blockIndex, string txHash, IReadOnlyList<SyscallTrace> traces)
-        {
-            var rows = new List<SyscallTraceRow>(traces.Count);
-            foreach (var trace in traces)
-            {
-                rows.Add(new SyscallTraceRow(
-                    blockIndex,
-                    txHash,
-                    trace.Order,
-                    trace.ContractHash.ToString(),
-                    trace.SyscallHash,
-                    trace.SyscallName,
-                    trace.GasCost));
-            }
-            return rows;
-        }
+	        private static List<SyscallTraceRow> BuildSyscallTraceRows(
+	            int blockIndex,
+	            string txHash,
+	            IReadOnlyList<SyscallTrace> traces,
+	            Dictionary<UInt160, string> contractHashCache)
+	        {
+	            var rows = new List<SyscallTraceRow>(traces.Count);
+	            foreach (var trace in traces)
+	            {
+	                var contractHash = trace.ContractHash ?? UInt160.Zero;
+	                var contractHashString = GetContractHashString(contractHash, contractHashCache);
+	                rows.Add(new SyscallTraceRow(
+	                    blockIndex,
+	                    txHash,
+	                    trace.Order,
+	                    contractHashString,
+	                    trace.SyscallHash,
+	                    trace.SyscallName,
+	                    trace.GasCost));
+	            }
+	            return rows;
+	        }
 
-        private static List<ContractCallTraceRow> BuildContractCallTraceRows(int blockIndex, string txHash, IReadOnlyList<ContractCallTrace> traces)
-        {
-            var rows = new List<ContractCallTraceRow>(traces.Count);
-            foreach (var trace in traces)
-            {
-                rows.Add(new ContractCallTraceRow(
-                    blockIndex,
-                    txHash,
-                    trace.Order,
-                    trace.CallerHash?.ToString(),
-                    trace.CalleeHash.ToString(),
-                    trace.MethodName,
-                    trace.CallDepth,
-                    trace.Success,
-                    trace.GasConsumed));
-            }
-            return rows;
-        }
+	        private static List<ContractCallTraceRow> BuildContractCallTraceRows(
+	            int blockIndex,
+	            string txHash,
+	            IReadOnlyList<ContractCallTrace> traces,
+	            Dictionary<UInt160, string> contractHashCache)
+	        {
+	            var rows = new List<ContractCallTraceRow>(traces.Count);
+	            foreach (var trace in traces)
+	            {
+	                var calleeHash = trace.CalleeHash ?? UInt160.Zero;
+	                var calleeHashString = GetContractHashString(calleeHash, contractHashCache);
+	                rows.Add(new ContractCallTraceRow(
+	                    blockIndex,
+	                    txHash,
+	                    trace.Order,
+	                    GetContractHashStringOrNull(trace.CallerHash, contractHashCache),
+	                    calleeHashString,
+	                    trace.MethodName,
+	                    trace.CallDepth,
+	                    trace.Success,
+	                    trace.GasConsumed));
+	            }
+	            return rows;
+	        }
 
-        private static List<StorageWriteTraceRow> BuildStorageWriteTraceRows(int blockIndex, string txHash, IReadOnlyList<StorageWriteTrace> traces)
-        {
-            var rows = new List<StorageWriteTraceRow>(traces.Count);
-            foreach (var trace in traces)
-            {
-                rows.Add(new StorageWriteTraceRow(
-                    blockIndex,
-                    txHash,
-                    trace.Order,
-                    trace.ContractId,
-                    trace.ContractHash.ToString(),
-                    Convert.ToBase64String(trace.Key.Span),
-                    trace.OldValue.HasValue ? Convert.ToBase64String(trace.OldValue.Value.Span) : null,
-                    Convert.ToBase64String(trace.NewValue.Span)));
-            }
-            return rows;
-        }
+	        private static List<StorageWriteTraceRow> BuildStorageWriteTraceRows(
+	            int blockIndex,
+	            string txHash,
+	            IReadOnlyList<StorageWriteTrace> traces,
+	            Dictionary<UInt160, string> contractHashCache)
+	        {
+	            var rows = new List<StorageWriteTraceRow>(traces.Count);
+	            foreach (var trace in traces)
+	            {
+	                var contractHash = trace.ContractHash ?? UInt160.Zero;
+	                var contractHashString = GetContractHashString(contractHash, contractHashCache);
+	                rows.Add(new StorageWriteTraceRow(
+	                    blockIndex,
+	                    txHash,
+	                    trace.Order,
+	                    trace.ContractId,
+	                    contractHashString,
+	                    Convert.ToBase64String(trace.Key.Span),
+	                    trace.OldValue.HasValue ? Convert.ToBase64String(trace.OldValue.Value.Span) : null,
+	                    Convert.ToBase64String(trace.NewValue.Span)));
+	            }
+	            return rows;
+	        }
 
-        private static List<NotificationTraceRow> BuildNotificationTraceRows(int blockIndex, string txHash, IReadOnlyList<NotificationTrace> traces)
-        {
-            var rows = new List<NotificationTraceRow>(traces.Count);
-            foreach (var trace in traces)
-            {
-                rows.Add(new NotificationTraceRow(
-                    blockIndex,
-                    txHash,
-                    trace.Order,
-                    trace.ContractHash.ToString(),
-                    trace.EventName,
-                    ParseNotificationState(trace.StateJson)));
-            }
-            return rows;
-        }
+	        private static List<NotificationTraceRow> BuildNotificationTraceRows(
+	            int blockIndex,
+	            string txHash,
+	            IReadOnlyList<NotificationTrace> traces,
+	            Dictionary<UInt160, string> contractHashCache)
+	        {
+	            var rows = new List<NotificationTraceRow>(traces.Count);
+	            foreach (var trace in traces)
+	            {
+	                var contractHash = trace.ContractHash ?? UInt160.Zero;
+	                var contractHashString = GetContractHashString(contractHash, contractHashCache);
+	                rows.Add(new NotificationTraceRow(
+	                    blockIndex,
+	                    txHash,
+	                    trace.Order,
+	                    contractHashString,
+	                    trace.EventName,
+	                    ParseNotificationState(trace.StateJson)));
+	            }
+	            return rows;
+	        }
 
         private static JsonElement? ParseNotificationState(string? stateJson)
         {
