@@ -122,27 +122,5 @@ namespace Neo.Persistence
         {
             TryUpload(recorder);
         }
-
-        private static async Task ExecuteWithRetryAsync(Func<Task> action, string description, uint blockIndex)
-        {
-            var delay = TimeSpan.FromSeconds(1);
-            for (var attempt = 1; attempt <= 3; attempt++)
-            {
-                try
-                {
-                    await action().ConfigureAwait(false);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
-                        $"Supabase {description} attempt {attempt}/3 failed for block {blockIndex}: {ex.Message}");
-                    if (attempt == 3) return;
-                    await Task.Delay(delay).ConfigureAwait(false);
-                    delay += delay; // Exponential backoff: 1s, 2s, 4s
-                }
-            }
-        }
     }
 }
-
