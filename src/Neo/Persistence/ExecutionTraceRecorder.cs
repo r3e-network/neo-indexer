@@ -23,8 +23,8 @@ namespace Neo.Persistence
     /// Aggregates execution trace data for a single transaction.
     /// Thread-safe for concurrent recording from multiple sources.
     /// </summary>
-	    public sealed class ExecutionTraceRecorder
-	    {
+		    public sealed partial class ExecutionTraceRecorder
+		    {
 	        private static readonly ConcurrentDictionary<uint, string> SyscallHashStringCache = new();
 
 	        private readonly ConcurrentQueue<OpCodeTrace> _opCodeTraces = new();
@@ -240,10 +240,10 @@ namespace Neo.Persistence
         /// <summary>
         /// Creates and records a notification trace with auto-incrementing order.
         /// </summary>
-        public NotificationTrace RecordNotification(
-            UInt160 contractHash,
-            string eventName,
-            string? stateJson)
+	        public NotificationTrace RecordNotification(
+	            UInt160 contractHash,
+	            string eventName,
+	            string? stateJson)
         {
             var trace = new NotificationTrace
             {
@@ -259,177 +259,7 @@ namespace Neo.Persistence
 	                Interlocked.Increment(ref _notificationCount);
 	            }
 
-            return trace;
-        }
-
-	        /// <summary>
-	        /// Gets all recorded OpCode traces ordered by execution order.
-	        /// </summary>
-	        public IReadOnlyList<OpCodeTrace> GetOpCodeTraces()
-	        {
-	            var snapshot = _opCodeTraces.ToArray();
-	            for (var i = 1; i < snapshot.Length; i++)
-	            {
-	                if (snapshot[i].Order < snapshot[i - 1].Order)
-	                {
-	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
-	                    break;
-	                }
-	            }
-	            return snapshot;
+	            return trace;
 	        }
-
-        /// <summary>
-	        /// Gets all recorded syscall traces ordered by execution order.
-	        /// </summary>
-	        public IReadOnlyList<SyscallTrace> GetSyscallTraces()
-	        {
-	            var snapshot = _syscallTraces.ToArray();
-	            for (var i = 1; i < snapshot.Length; i++)
-	            {
-	                if (snapshot[i].Order < snapshot[i - 1].Order)
-	                {
-	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
-	                    break;
-	                }
-	            }
-	            return snapshot;
-	        }
-
-        /// <summary>
-	        /// Gets all recorded contract call traces ordered by execution order.
-	        /// </summary>
-	        public IReadOnlyList<ContractCallTrace> GetContractCallTraces()
-	        {
-	            var snapshot = _contractCalls.ToArray();
-	            for (var i = 1; i < snapshot.Length; i++)
-	            {
-	                if (snapshot[i].Order < snapshot[i - 1].Order)
-	                {
-	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
-	                    break;
-	                }
-	            }
-	            return snapshot;
-	        }
-
-        /// <summary>
-	        /// Gets all recorded storage write traces ordered by execution order.
-	        /// </summary>
-	        public IReadOnlyList<StorageWriteTrace> GetStorageWriteTraces()
-	        {
-	            var snapshot = _storageWrites.ToArray();
-	            for (var i = 1; i < snapshot.Length; i++)
-	            {
-	                if (snapshot[i].Order < snapshot[i - 1].Order)
-	                {
-	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
-	                    break;
-	                }
-	            }
-	            return snapshot;
-	        }
-
-        /// <summary>
-	        /// Gets all recorded notification traces ordered by execution order.
-	        /// </summary>
-	        public IReadOnlyList<NotificationTrace> GetNotificationTraces()
-	        {
-	            var snapshot = _notifications.ToArray();
-	            for (var i = 1; i < snapshot.Length; i++)
-	            {
-	                if (snapshot[i].Order < snapshot[i - 1].Order)
-	                {
-	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
-	                    break;
-	                }
-	            }
-	            return snapshot;
-	        }
-
-        /// <summary>
-        /// Gets aggregated statistics for this transaction.
-        /// </summary>
-	        public BlockStats GetStats()
-	        {
-	            var resolvedTotalGasConsumed = TotalGasConsumed ?? ResolveTotalGasFromOpCodes();
-
-	            return new BlockStats
-	            {
-	                BlockIndex = BlockIndex,
-	                TransactionCount = 1,
-	                TotalGasConsumed = resolvedTotalGasConsumed,
-	                OpCodeCount = Volatile.Read(ref _opCodeCount),
-	                SyscallCount = Volatile.Read(ref _syscallCount),
-	                ContractCallCount = Volatile.Read(ref _contractCallCount),
-	                StorageReadCount = 0, // Filled by BlockReadRecorder
-	                StorageWriteCount = Volatile.Read(ref _storageWriteCount),
-	                NotificationCount = Volatile.Read(ref _notificationCount)
-	            };
-	        }
-
-	        private long ResolveTotalGasFromOpCodes()
-	        {
-	            // Fallback path: TotalGasConsumed is normally filled by TracingDiagnostic.Disposed.
-	            // Avoid materializing/sorting a list here; just scan the recorded opcodes.
-	            long sum = 0;
-	            bool hasAny = false;
-	            bool looksCumulative = true;
-	            long previous = 0;
-	            long last = 0;
-
-	            foreach (var trace in _opCodeTraces)
-	            {
-	                var gas = trace.GasConsumed;
-	                if (!hasAny)
-	                {
-	                    hasAny = true;
-	                }
-	                else if (gas < previous)
-	                {
-	                    looksCumulative = false;
-	                }
-
-	                previous = gas;
-	                last = gas;
-	                sum += gas;
-	            }
-
-	            if (!hasAny) return 0;
-	            return looksCumulative ? last : sum;
-	        }
-
-	        /// <summary>
-	        /// Clears all recorded traces.
-	        /// </summary>
-	        public void Clear()
-        {
-            while (_opCodeTraces.TryDequeue(out _)) { }
-            while (_syscallTraces.TryDequeue(out _)) { }
-            while (_contractCalls.TryDequeue(out _)) { }
-            while (_storageWrites.TryDequeue(out _)) { }
-            while (_notifications.TryDequeue(out _)) { }
-
-	            _opCodeOrder = 0;
-	            _syscallOrder = 0;
-	            _contractCallOrder = 0;
-	            _storageWriteOrder = 0;
-	            _notificationOrder = 0;
-	            _opCodeCount = 0;
-	            _syscallCount = 0;
-	            _contractCallCount = 0;
-	            _storageWriteCount = 0;
-	            _notificationCount = 0;
-	        }
-
-        /// <summary>
-        /// Returns true if any traces have been recorded.
-        /// </summary>
-        public bool HasTraces =>
-            !_opCodeTraces.IsEmpty ||
-            !_syscallTraces.IsEmpty ||
-            !_contractCalls.IsEmpty ||
-            !_storageWrites.IsEmpty ||
-            !_notifications.IsEmpty;
-    }
-}
+	    }
+	}
