@@ -251,45 +251,90 @@ namespace Neo.Persistence
             return trace;
         }
 
-        /// <summary>
-        /// Gets all recorded OpCode traces ordered by execution order.
-        /// </summary>
-        public IReadOnlyList<OpCodeTrace> GetOpCodeTraces()
-        {
-            return _opCodeTraces.OrderBy(t => t.Order).ToList();
-        }
+	        /// <summary>
+	        /// Gets all recorded OpCode traces ordered by execution order.
+	        /// </summary>
+	        public IReadOnlyList<OpCodeTrace> GetOpCodeTraces()
+	        {
+	            var snapshot = _opCodeTraces.ToArray();
+	            for (var i = 1; i < snapshot.Length; i++)
+	            {
+	                if (snapshot[i].Order < snapshot[i - 1].Order)
+	                {
+	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
+	                    break;
+	                }
+	            }
+	            return snapshot;
+	        }
 
         /// <summary>
-        /// Gets all recorded syscall traces ordered by execution order.
-        /// </summary>
-        public IReadOnlyList<SyscallTrace> GetSyscallTraces()
-        {
-            return _syscallTraces.OrderBy(t => t.Order).ToList();
-        }
+	        /// Gets all recorded syscall traces ordered by execution order.
+	        /// </summary>
+	        public IReadOnlyList<SyscallTrace> GetSyscallTraces()
+	        {
+	            var snapshot = _syscallTraces.ToArray();
+	            for (var i = 1; i < snapshot.Length; i++)
+	            {
+	                if (snapshot[i].Order < snapshot[i - 1].Order)
+	                {
+	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
+	                    break;
+	                }
+	            }
+	            return snapshot;
+	        }
 
         /// <summary>
-        /// Gets all recorded contract call traces ordered by execution order.
-        /// </summary>
-        public IReadOnlyList<ContractCallTrace> GetContractCallTraces()
-        {
-            return _contractCalls.OrderBy(t => t.Order).ToList();
-        }
+	        /// Gets all recorded contract call traces ordered by execution order.
+	        /// </summary>
+	        public IReadOnlyList<ContractCallTrace> GetContractCallTraces()
+	        {
+	            var snapshot = _contractCalls.ToArray();
+	            for (var i = 1; i < snapshot.Length; i++)
+	            {
+	                if (snapshot[i].Order < snapshot[i - 1].Order)
+	                {
+	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
+	                    break;
+	                }
+	            }
+	            return snapshot;
+	        }
 
         /// <summary>
-        /// Gets all recorded storage write traces ordered by execution order.
-        /// </summary>
-        public IReadOnlyList<StorageWriteTrace> GetStorageWriteTraces()
-        {
-            return _storageWrites.OrderBy(t => t.Order).ToList();
-        }
+	        /// Gets all recorded storage write traces ordered by execution order.
+	        /// </summary>
+	        public IReadOnlyList<StorageWriteTrace> GetStorageWriteTraces()
+	        {
+	            var snapshot = _storageWrites.ToArray();
+	            for (var i = 1; i < snapshot.Length; i++)
+	            {
+	                if (snapshot[i].Order < snapshot[i - 1].Order)
+	                {
+	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
+	                    break;
+	                }
+	            }
+	            return snapshot;
+	        }
 
         /// <summary>
-        /// Gets all recorded notification traces ordered by execution order.
-        /// </summary>
-        public IReadOnlyList<NotificationTrace> GetNotificationTraces()
-        {
-            return _notifications.OrderBy(t => t.Order).ToList();
-        }
+	        /// Gets all recorded notification traces ordered by execution order.
+	        /// </summary>
+	        public IReadOnlyList<NotificationTrace> GetNotificationTraces()
+	        {
+	            var snapshot = _notifications.ToArray();
+	            for (var i = 1; i < snapshot.Length; i++)
+	            {
+	                if (snapshot[i].Order < snapshot[i - 1].Order)
+	                {
+	                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
+	                    break;
+	                }
+	            }
+	            return snapshot;
+	        }
 
         /// <summary>
         /// Gets aggregated statistics for this transaction.
