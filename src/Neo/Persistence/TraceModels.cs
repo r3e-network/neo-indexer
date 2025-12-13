@@ -16,16 +16,16 @@ using System;
 
 namespace Neo.Persistence
 {
-    /// <summary>
-    /// Represents a single OpCode execution trace entry.
-    /// Captured via IDiagnostic.PreExecuteInstruction/PostExecuteInstruction.
-    /// </summary>
-    public sealed class OpCodeTrace
-    {
-        /// <summary>
-        /// The contract hash executing this instruction.
-        /// </summary>
-        public UInt160 ContractHash { get; init; } = UInt160.Zero;
+	/// <summary>
+	/// Represents a single OpCode execution trace entry.
+	/// Captured via IDiagnostic.PreExecuteInstruction/PostExecuteInstruction.
+	/// </summary>
+	public readonly record struct OpCodeTrace
+	{
+	        /// <summary>
+	        /// The contract hash executing this instruction.
+	        /// </summary>
+	        public UInt160 ContractHash { get; init; }
 
         /// <summary>
         /// The instruction pointer (offset in script).
@@ -45,12 +45,12 @@ namespace Neo.Persistence
         /// <summary>
         /// The operand bytes (if any).
         /// </summary>
-        public ReadOnlyMemory<byte> Operand { get; init; }
+	        public ReadOnlyMemory<byte> Operand { get; init; }
 
         /// <summary>
         /// GAS consumed by this instruction (in datoshi).
         /// </summary>
-        public long GasConsumed { get; set; }
+	        public long GasConsumed { get; init; }
 
         /// <summary>
         /// Evaluation stack depth before this instruction.
@@ -60,8 +60,8 @@ namespace Neo.Persistence
         /// <summary>
         /// Execution order within the transaction.
         /// </summary>
-        public int Order { get; init; }
-    }
+	        public int Order { get; init; }
+	}
 
     /// <summary>
     /// Represents a syscall invocation trace entry.

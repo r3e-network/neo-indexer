@@ -24,13 +24,13 @@ namespace Neo.SmartContract
     /// IDiagnostic implementation that captures OpCode execution traces
     /// and contract call graph information.
     /// </summary>
-    public sealed class TracingDiagnostic : IDiagnostic
-    {
-        private readonly ExecutionTraceRecorder _recorder;
-        private ApplicationEngine? _engine;
-        private long _lastFeeConsumed;
-        private OpCodeTrace? _lastOpCodeTrace;
-        private readonly Stack<(ContractCallTrace Trace, long GasStart)> _callStack = new();
+	public sealed class TracingDiagnostic : IDiagnostic
+	{
+	    private readonly ExecutionTraceRecorder _recorder;
+	    private ApplicationEngine? _engine;
+	    private long _lastFeeConsumed;
+	    private PendingOpCodeData? _pendingOpCode;
+	    private readonly Stack<(ContractCallTrace Trace, long GasStart)> _callStack = new();
 
         /// <summary>
         /// Gets the trace recorder associated with this diagnostic.
@@ -58,53 +58,59 @@ namespace Neo.SmartContract
         /// <summary>
         /// Called when the ApplicationEngine is initialized.
         /// </summary>
-        public void Initialized(ApplicationEngine engine)
-        {
-            _engine = engine;
-            _lastFeeConsumed = engine.FeeConsumed;
-            _lastOpCodeTrace = null;
-            _callStack.Clear();
-        }
+	    public void Initialized(ApplicationEngine engine)
+	    {
+	        _engine = engine;
+	        _lastFeeConsumed = engine.FeeConsumed;
+	        _pendingOpCode = null;
+	        _callStack.Clear();
+	    }
 
         /// <summary>
         /// Called when the ApplicationEngine is disposed.
         /// </summary>
-        public void Disposed()
-        {
-            var engine = _engine;
-            if (engine is null)
-            {
-                _callStack.Clear();
-                _lastOpCodeTrace = null;
-                return;
-            }
+	    public void Disposed()
+	    {
+	        var engine = _engine;
+	        if (engine is null)
+	        {
+	            _callStack.Clear();
+	            _pendingOpCode = null;
+	            return;
+	        }
 
-            _recorder.TotalGasConsumed = engine.FeeConsumed;
+	        _recorder.TotalGasConsumed = engine.FeeConsumed;
 
-            // If the engine terminates between PreExecuteInstruction and PostExecuteInstruction,
-            // finalize the last pending opcode trace using the current FeeConsumed.
-            if (_lastOpCodeTrace is not null)
-            {
-                var delta = engine.FeeConsumed - _lastFeeConsumed;
-                _lastOpCodeTrace.GasConsumed = delta < 0 ? 0 : delta;
-                _lastFeeConsumed = engine.FeeConsumed;
-                _lastOpCodeTrace = null;
-            }
+	        // If the engine terminates between PreExecuteInstruction and PostExecuteInstruction,
+	        // emit the last pending opcode trace using the current FeeConsumed.
+	        if (_pendingOpCode is { } pending)
+	        {
+	            var delta = engine.FeeConsumed - _lastFeeConsumed;
+	            _recorder.RecordOpCode(
+	                pending.ContractHash,
+	                pending.InstructionPointer,
+	                pending.OpCode,
+	                pending.Operand,
+	                gasConsumed: delta < 0 ? 0 : delta,
+	                pending.StackDepth);
+	            _lastFeeConsumed = engine.FeeConsumed;
+	            _pendingOpCode = null;
+	        }
 
             var faulted = engine.State == VMState.FAULT || engine.FaultException is not null;
 
-            // Mark any remaining calls as completed (abnormal termination)
-            while (_callStack.Count > 0)
-            {
-                var (trace, gasStart) = _callStack.Pop();
+	        // Mark any remaining calls as completed (abnormal termination)
+	        while (_callStack.Count > 0)
+	        {
+	            var (trace, gasStart) = _callStack.Pop();
                 var gasConsumed = engine.FeeConsumed - gasStart;
                 trace.GasConsumed = gasConsumed < 0 ? 0 : gasConsumed;
                 if (faulted)
                     trace.Success = false;
             }
 
-            _engine = null;
-        }
+	        _engine = null;
+	    }
 
         /// <summary>
         /// Called when a new execution context is loaded (contract call starts).
@@ -165,41 +171,52 @@ namespace Neo.SmartContract
         /// <summary>
         /// Called before each instruction is executed.
         /// </summary>
-        public void PreExecuteInstruction(Instruction instruction)
-        {
-            if (!TraceOpCodes || _engine == null) return;
+	    public void PreExecuteInstruction(Instruction instruction)
+	    {
+	        if (!TraceOpCodes || _engine == null) return;
 
-            var currentContext = _engine.CurrentContext;
-            if (currentContext == null) return;
+	        var currentContext = _engine.CurrentContext;
+	        if (currentContext == null) return;
 
-            var contractHash = currentContext.GetScriptHash();
-            var instructionPointer = currentContext.InstructionPointer;
-            var stackDepth = currentContext.EvaluationStack.Count;
+	        var contractHash = currentContext.GetScriptHash();
+	        var instructionPointer = currentContext.InstructionPointer;
+	        var stackDepth = currentContext.EvaluationStack.Count;
 
-            _lastFeeConsumed = _engine.FeeConsumed;
-            _lastOpCodeTrace = _recorder.RecordOpCode(
-                contractHash,
-                instructionPointer,
-                instruction.OpCode,
-                instruction.Operand,
-                gasConsumed: 0,
-                stackDepth);
-        }
+	        _lastFeeConsumed = _engine.FeeConsumed;
+	        _pendingOpCode = new PendingOpCodeData(
+	            contractHash,
+	            instructionPointer,
+	            instruction.OpCode,
+	            instruction.Operand,
+	            stackDepth);
+	    }
 
         /// <summary>
         /// Called after each instruction is executed.
         /// </summary>
-        public void PostExecuteInstruction(Instruction instruction)
-        {
-            if (!TraceOpCodes || _engine == null) return;
+	    public void PostExecuteInstruction(Instruction instruction)
+	    {
+	        if (!TraceOpCodes || _engine == null) return;
 
-            var trace = _lastOpCodeTrace;
-            if (trace is null) return;
+	        if (_pendingOpCode is not { } pending) return;
 
-            var delta = _engine.FeeConsumed - _lastFeeConsumed;
-            trace.GasConsumed = delta < 0 ? 0 : delta;
-            _lastFeeConsumed = _engine.FeeConsumed;
-            _lastOpCodeTrace = null;
-        }
-    }
+	        var delta = _engine.FeeConsumed - _lastFeeConsumed;
+	        _recorder.RecordOpCode(
+	            pending.ContractHash,
+	            pending.InstructionPointer,
+	            pending.OpCode,
+	            pending.Operand,
+	            gasConsumed: delta < 0 ? 0 : delta,
+	            pending.StackDepth);
+	        _lastFeeConsumed = _engine.FeeConsumed;
+	        _pendingOpCode = null;
+	    }
+
+	    private readonly record struct PendingOpCodeData(
+	        UInt160 ContractHash,
+	        int InstructionPointer,
+	        OpCode OpCode,
+	        ReadOnlyMemory<byte> Operand,
+	        int StackDepth);
+	}
 }
