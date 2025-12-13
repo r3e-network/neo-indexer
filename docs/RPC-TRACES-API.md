@@ -25,6 +25,23 @@ There are two ways to consume traces:
    `getcontractcalls`, `getcontractcallstats`, `getsyscallstats`, and `getopcodestats`. These are thin HTTPS
    proxies to Supabase PostgREST and are useful for non‑browser clients.
 
+### RPC Proxy Configuration
+
+`RpcServer.Traces` reads the Supabase URL/key from the state recorder env vars:
+
+- `NEO_STATE_RECORDER__SUPABASE_URL`
+- `NEO_STATE_RECORDER__SUPABASE_KEY`
+
+If your Neo JSON‑RPC endpoint is reachable by untrusted clients, prefer using an `anon` key for trace queries
+so Supabase RLS/RPC guardrails apply:
+
+- `NEO_RPC_TRACES__SUPABASE_KEY` (optional override for trace RPC endpoints only)
+
+To reduce load on Supabase under high traffic, you can also limit concurrent Supabase requests issued by
+trace RPC endpoints:
+
+- `NEO_RPC_TRACES__MAX_CONCURRENCY` (default `16`)
+
 ## Common Concepts
 
 ### Trace Request Options

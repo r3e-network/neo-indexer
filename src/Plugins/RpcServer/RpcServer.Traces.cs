@@ -21,10 +21,12 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Neo.Plugins.RpcServer
@@ -34,7 +36,12 @@ namespace Neo.Plugins.RpcServer
         private const int DefaultTraceLimit = 1000;
         private const int MaxTraceLimit = 5000;
         private const string RpcTracesSupabaseKeyEnvVar = "NEO_RPC_TRACES__SUPABASE_KEY";
-        private static readonly HttpClient TraceHttpClient = new();
+        private const string RpcTracesConcurrencyEnvVar = "NEO_RPC_TRACES__MAX_CONCURRENCY";
+        private const int DefaultRpcTracesConcurrency = 16;
+
+        private static readonly int TraceQueryConcurrency = GetTraceQueryConcurrency();
+        private static readonly SemaphoreSlim TraceQuerySemaphore = new(TraceQueryConcurrency, TraceQueryConcurrency);
+        private static readonly HttpClient TraceHttpClient = CreateTraceHttpClient();
         private static readonly JsonSerializerOptions TraceSerializerOptions = new()
         {
             PropertyNameCaseInsensitive = true
@@ -771,27 +778,35 @@ namespace Neo.Plugins.RpcServer
         private async Task<SupabaseResponse<T>> SendSupabaseQueryAsync<T>(StateRecorderSettings settings, string resource, IEnumerable<KeyValuePair<string, string?>> queryParams)
         {
             var uri = BuildSupabaseUri(settings.SupabaseUrl, resource, queryParams);
-            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            ApplySupabaseHeaders(request, settings.SupabaseApiKey);
-
-            using var response = await TraceHttpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
-            var payload = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-            if (!response.IsSuccessStatusCode)
-                throw new RpcException(RpcError.InternalServerError.WithData($"Supabase request failed ({(int)response.StatusCode}): {payload}"));
-
-            List<T>? items;
+            await TraceQuerySemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                items = JsonSerializer.Deserialize<List<T>>(payload, TraceSerializerOptions);
-            }
-            catch (JsonException ex)
-            {
-                throw new RpcException(RpcError.InternalServerError.WithData($"Failed to parse Supabase response: {ex.Message}"));
-            }
+                using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                ApplySupabaseHeaders(request, settings.SupabaseApiKey);
 
-            var total = TryParseTotalCount(response) ?? items?.Count ?? 0;
-            return new SupabaseResponse<T>(items ?? new List<T>(), total);
+                using var response = await TraceHttpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
+                var payload = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode)
+                    throw new RpcException(RpcError.InternalServerError.WithData($"Supabase request failed ({(int)response.StatusCode}): {payload}"));
+
+                List<T>? items;
+                try
+                {
+                    items = JsonSerializer.Deserialize<List<T>>(payload, TraceSerializerOptions);
+                }
+                catch (JsonException ex)
+                {
+                    throw new RpcException(RpcError.InternalServerError.WithData($"Failed to parse Supabase response: {ex.Message}"));
+                }
+
+                var total = TryParseTotalCount(response) ?? items?.Count ?? 0;
+                return new SupabaseResponse<T>(items ?? new List<T>(), total);
+            }
+            finally
+            {
+                TraceQuerySemaphore.Release();
+            }
         }
 
         private async Task<IReadOnlyList<T>> SendSupabaseRpcAsync<T>(StateRecorderSettings settings, string functionName, object payload)
@@ -799,26 +814,55 @@ namespace Neo.Plugins.RpcServer
             var uri = BuildSupabaseUri(settings.SupabaseUrl, $"rpc/{functionName}", Array.Empty<KeyValuePair<string, string?>>());
             var jsonBody = JsonSerializer.Serialize(payload, TraceSerializerOptions);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, uri)
-            {
-                Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
-            };
-            ApplySupabaseHeaders(request, settings.SupabaseApiKey);
-
-            using var response = await TraceHttpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
-            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-            if (!response.IsSuccessStatusCode)
-                throw new RpcException(RpcError.InternalServerError.WithData($"Supabase RPC request failed ({(int)response.StatusCode}): {body}"));
-
+            await TraceQuerySemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                return JsonSerializer.Deserialize<List<T>>(body, TraceSerializerOptions) ?? new List<T>();
+                using var request = new HttpRequestMessage(HttpMethod.Post, uri)
+                {
+                    Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
+                };
+                ApplySupabaseHeaders(request, settings.SupabaseApiKey);
+
+                using var response = await TraceHttpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
+                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode)
+                    throw new RpcException(RpcError.InternalServerError.WithData($"Supabase RPC request failed ({(int)response.StatusCode}): {body}"));
+
+                try
+                {
+                    return JsonSerializer.Deserialize<List<T>>(body, TraceSerializerOptions) ?? new List<T>();
+                }
+                catch (JsonException ex)
+                {
+                    throw new RpcException(RpcError.InternalServerError.WithData($"Failed to parse Supabase response: {ex.Message}"));
+                }
             }
-            catch (JsonException ex)
+            finally
             {
-                throw new RpcException(RpcError.InternalServerError.WithData($"Failed to parse Supabase response: {ex.Message}"));
+                TraceQuerySemaphore.Release();
             }
+        }
+
+        private static int GetTraceQueryConcurrency()
+        {
+            var raw = Environment.GetEnvironmentVariable(RpcTracesConcurrencyEnvVar);
+            if (string.IsNullOrWhiteSpace(raw))
+                return DefaultRpcTracesConcurrency;
+
+            if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+                return DefaultRpcTracesConcurrency;
+
+            return parsed > 0 ? parsed : DefaultRpcTracesConcurrency;
+        }
+
+        private static HttpClient CreateTraceHttpClient()
+        {
+            var handler = new HttpClientHandler
+            {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+            };
+            return new HttpClient(handler);
         }
 
         private static string BuildSupabaseUri(string? baseUrl, string resource, IEnumerable<KeyValuePair<string, string?>> queryParams)
