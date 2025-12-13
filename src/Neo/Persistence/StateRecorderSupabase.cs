@@ -1653,16 +1653,11 @@ ON CONFLICT (block_index) DO UPDATE SET
                 ? $"{baseUrl}/rest/v1/{tableName}"
                 : $"{baseUrl}/rest/v1/{tableName}?on_conflict={conflictTarget}";
 
-            for (var offset = 0; offset < rows.Count; offset += effectiveBatchSize)
-            {
-                var count = Math.Min(effectiveBatchSize, rows.Count - offset);
-                var buffer = new T[count];
-                for (var i = 0; i < count; i++)
-                {
-                    buffer[i] = rows[offset + i];
-                }
-
-	                var payload = JsonSerializer.SerializeToUtf8Bytes(buffer);
+	            for (var offset = 0; offset < rows.Count; offset += effectiveBatchSize)
+	            {
+	                var count = Math.Min(effectiveBatchSize, rows.Count - offset);
+	                var batch = rows.Skip(offset).Take(count);
+	                var payload = JsonSerializer.SerializeToUtf8Bytes(batch);
 	                await SendTraceRequestWithRetryAsync(
 	                    requestUri,
 	                    apiKey,
