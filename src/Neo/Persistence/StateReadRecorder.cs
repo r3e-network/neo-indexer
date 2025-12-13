@@ -310,6 +310,11 @@ namespace Neo.Persistence
         public UploadMode Mode { get; init; } = UploadMode.Binary;
         public ExecutionTraceLevel TraceLevel { get; init; } = ExecutionTraceLevel.All;
         /// <summary>
+        /// When true, trace uploads will also delete any stale rows (e.g., when re-syncing or when trace level changes),
+        /// ensuring trace tables exactly match the latest captured trace counts per transaction.
+        /// </summary>
+        public bool TrimStaleTraceRows { get; init; }
+        /// <summary>
         /// When true, also upload per-block JSON/CSV exports to storage.
         /// Disabled by default to avoid creating large numbers of files.
         /// </summary>
@@ -351,6 +356,7 @@ namespace Neo.Persistence
                 SupabaseConnectionString = Environment.GetEnvironmentVariable($"{Prefix}SUPABASE_CONNECTION_STRING") ?? string.Empty,
                 Mode = mode,
                 TraceLevel = ParseTraceLevel(Environment.GetEnvironmentVariable($"{Prefix}TRACE_LEVEL")),
+                TrimStaleTraceRows = GetEnvBool("TRACE_TRIM_STALE_ROWS"),
                 UploadAuxFormats = GetEnvBool("UPLOAD_AUX_FORMATS"),
                 MaxStorageReadsPerBlock = GetEnvInt("MAX_STORAGE_READS_PER_BLOCK")
             };

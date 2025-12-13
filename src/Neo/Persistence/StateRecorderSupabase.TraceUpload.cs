@@ -55,15 +55,17 @@ namespace Neo.Persistence
                 return;
 
             var txHash = recorder.TxHash?.ToString();
-            if (string.IsNullOrEmpty(txHash))
-            {
-                throw new InvalidOperationException("ExecutionTraceRecorder must include a transaction hash before uploading traces.");
-            }
-
-	            await TraceUploadLaneSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-	            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-	            try
+	            if (string.IsNullOrEmpty(txHash))
 	            {
+	                throw new InvalidOperationException("ExecutionTraceRecorder must include a transaction hash before uploading traces.");
+	            }
+
+	            var trimStaleTraceRows = settings.TrimStaleTraceRows;
+
+		            await TraceUploadLaneSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+		            await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+		            try
+		            {
 	                var blockIndexValue = checked((int)blockIndex);
 	                var batchSize = GetTraceUploadBatchSize();
 
@@ -81,48 +83,94 @@ namespace Neo.Persistence
                         return;
 
 #if NET9_0_OR_GREATER
-                    await UploadBlockTracePostgresAsync(
-                        blockIndexValue,
-                        txHash,
-                        opCodeRows,
-                        syscallRows,
-                        contractCallRows,
-                        storageWriteRows,
-                        notificationRows,
-                        batchSize,
-                        settings).ConfigureAwait(false);
+	                    await UploadBlockTracePostgresAsync(
+	                        blockIndexValue,
+	                        txHash,
+	                        opCodeRows,
+	                        syscallRows,
+	                        contractCallRows,
+	                        storageWriteRows,
+	                        notificationRows,
+	                        batchSize,
+	                        trimStaleTraceRows,
+	                        settings).ConfigureAwait(false);
 #endif
-                    return;
-                }
+	                    return;
+	                }
 
                 var baseUrl = settings.SupabaseUrl.TrimEnd('/');
                 var apiKey = settings.SupabaseApiKey;
                 var uploadTasks = new List<Task>(5);
 
-                if (opCodeRows.Count > 0)
-                {
-                    uploadTasks.Add(UploadOpCodeTracesRestApiAsync(baseUrl, apiKey, opCodeRows, batchSize));
-                }
+	                if (trimStaleTraceRows || opCodeRows.Count > 0)
+	                {
+	                    uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
+	                        baseUrl,
+	                        apiKey,
+	                        tableName: "opcode_traces",
+	                        entityName: "opcode traces",
+	                        opCodeRows,
+	                        batchSize,
+	                        blockIndexValue,
+	                        txHash,
+	                        trimStaleTraceRows));
+	                }
 
-                if (syscallRows.Count > 0)
-                {
-                    uploadTasks.Add(UploadSyscallTracesRestApiAsync(baseUrl, apiKey, syscallRows, batchSize));
-                }
+	                if (trimStaleTraceRows || syscallRows.Count > 0)
+	                {
+	                    uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
+	                        baseUrl,
+	                        apiKey,
+	                        tableName: "syscall_traces",
+	                        entityName: "syscall traces",
+	                        syscallRows,
+	                        batchSize,
+	                        blockIndexValue,
+	                        txHash,
+	                        trimStaleTraceRows));
+	                }
 
-                if (contractCallRows.Count > 0)
-                {
-                    uploadTasks.Add(UploadContractCallTracesRestApiAsync(baseUrl, apiKey, contractCallRows, batchSize));
-                }
+	                if (trimStaleTraceRows || contractCallRows.Count > 0)
+	                {
+	                    uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
+	                        baseUrl,
+	                        apiKey,
+	                        tableName: "contract_calls",
+	                        entityName: "contract call traces",
+	                        contractCallRows,
+	                        batchSize,
+	                        blockIndexValue,
+	                        txHash,
+	                        trimStaleTraceRows));
+	                }
 
-                if (storageWriteRows.Count > 0)
-                {
-                    uploadTasks.Add(UploadStorageWriteTracesRestApiAsync(baseUrl, apiKey, storageWriteRows, batchSize));
-                }
+	                if (trimStaleTraceRows || storageWriteRows.Count > 0)
+	                {
+	                    uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
+	                        baseUrl,
+	                        apiKey,
+	                        tableName: "storage_writes",
+	                        entityName: "storage write traces",
+	                        storageWriteRows,
+	                        batchSize,
+	                        blockIndexValue,
+	                        txHash,
+	                        trimStaleTraceRows));
+	                }
 
-                if (notificationRows.Count > 0)
-                {
-                    uploadTasks.Add(UploadNotificationTracesRestApiAsync(baseUrl, apiKey, notificationRows, batchSize));
-                }
+	                if (trimStaleTraceRows || notificationRows.Count > 0)
+	                {
+	                    uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
+	                        baseUrl,
+	                        apiKey,
+	                        tableName: "notifications",
+	                        entityName: "notification traces",
+	                        notificationRows,
+	                        batchSize,
+	                        blockIndexValue,
+	                        txHash,
+	                        trimStaleTraceRows));
+	                }
 
                 if (uploadTasks.Count == 0)
                     return;
@@ -217,23 +265,70 @@ namespace Neo.Persistence
             return UploadTraceBatchRestApiAsync(baseUrl, apiKey, "notifications", "notification traces", rows, batchSize);
         }
 
-        private static string? GetTraceUpsertConflictTarget(string tableName)
-        {
-            return tableName switch
-            {
-                "opcode_traces" => "block_index,tx_hash,trace_order",
-                "syscall_traces" => "block_index,tx_hash,trace_order",
-                "contract_calls" => "block_index,tx_hash,trace_order",
-                "storage_writes" => "block_index,tx_hash,write_order",
-                "notifications" => "block_index,tx_hash,notification_order",
-                _ => null
-            };
-        }
+	        private static string? GetTraceUpsertConflictTarget(string tableName)
+	        {
+	            return tableName switch
+	            {
+	                "opcode_traces" => "block_index,tx_hash,trace_order",
+	                "syscall_traces" => "block_index,tx_hash,trace_order",
+	                "contract_calls" => "block_index,tx_hash,trace_order",
+	                "storage_writes" => "block_index,tx_hash,write_order",
+	                "notifications" => "block_index,tx_hash,notification_order",
+	                _ => null
+	            };
+	        }
 
-        private static async Task UploadTraceBatchRestApiAsync<T>(
-            string baseUrl,
-            string apiKey,
-            string tableName,
+	        private static string? GetTraceOrderColumn(string tableName)
+	        {
+	            return tableName switch
+	            {
+	                "opcode_traces" => "trace_order",
+	                "syscall_traces" => "trace_order",
+	                "contract_calls" => "trace_order",
+	                "storage_writes" => "write_order",
+	                "notifications" => "notification_order",
+	                _ => null
+	            };
+	        }
+
+	        private static async Task UploadAndMaybeTrimTraceTableRestApiAsync<T>(
+	            string baseUrl,
+	            string apiKey,
+	            string tableName,
+	            string entityName,
+	            IReadOnlyList<T> rows,
+	            int batchSize,
+	            int blockIndex,
+	            string txHash,
+	            bool trimStaleRows)
+	        {
+	            if (rows.Count > 0)
+	            {
+	                await UploadTraceBatchRestApiAsync(baseUrl, apiKey, tableName, entityName, rows, batchSize).ConfigureAwait(false);
+	            }
+
+	            if (!trimStaleRows)
+	                return;
+
+	            var orderColumn = GetTraceOrderColumn(tableName);
+	            if (orderColumn is null)
+	                return;
+
+	            await DeleteTraceTailRestApiAsync(
+	                baseUrl,
+	                apiKey,
+	                tableName,
+	                entityName,
+	                blockIndex,
+	                txHash,
+	                orderColumn,
+	                keepCount: rows.Count).ConfigureAwait(false);
+	        }
+
+	        private static async Task UploadTraceBatchRestApiAsync<T>(
+	            string baseUrl,
+	            string apiKey,
+	            string tableName,
             string entityName,
             IReadOnlyList<T> rows,
             int batchSize)
@@ -247,23 +342,78 @@ namespace Neo.Persistence
                 ? $"{baseUrl}/rest/v1/{tableName}"
                 : $"{baseUrl}/rest/v1/{tableName}?on_conflict={conflictTarget}";
 
-	            for (var offset = 0; offset < rows.Count; offset += effectiveBatchSize)
-	            {
-	                var count = Math.Min(effectiveBatchSize, rows.Count - offset);
-	                var batch = rows.Skip(offset).Take(count);
-	                var payload = JsonSerializer.SerializeToUtf8Bytes(batch);
-	                await SendTraceRequestWithRetryAsync(
-	                    requestUri,
-	                    apiKey,
-	                    payload,
-	                    entityName).ConfigureAwait(false);
-            }
-        }
+		            for (var offset = 0; offset < rows.Count; offset += effectiveBatchSize)
+		            {
+		                var count = Math.Min(effectiveBatchSize, rows.Count - offset);
+		                var batch = rows.Skip(offset).Take(count);
+		                var payload = JsonSerializer.SerializeToUtf8Bytes(batch);
+		                await SendTraceRequestWithRetryAsync(
+		                    requestUri,
+		                    apiKey,
+		                    payload,
+		                    entityName).ConfigureAwait(false);
+	            }
+	        }
 
-	        private static async Task SendTraceRequestWithRetryAsync(string requestUri, string apiKey, byte[] jsonPayload, string entityName)
+	        private static async Task DeleteTraceTailRestApiAsync(
+	            string baseUrl,
+	            string apiKey,
+	            string tableName,
+	            string entityName,
+	            int blockIndex,
+	            string txHash,
+	            string orderColumn,
+	            int keepCount)
 	        {
+	            var escapedTxHash = Uri.EscapeDataString(txHash);
+	            var requestUri =
+	                $"{baseUrl}/rest/v1/{tableName}?block_index=eq.{blockIndex}&tx_hash=eq.{escapedTxHash}&{orderColumn}=gte.{keepCount}";
+
 	            var delay = TimeSpan.FromSeconds(1);
 	            const int maxAttempts = 5;
+
+	            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+	            {
+	                using var request = new HttpRequestMessage(HttpMethod.Delete, requestUri);
+	                AddRestApiHeaders(request, apiKey);
+	                request.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
+
+	                using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
+	                if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+	                    return;
+
+	                if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
+	                {
+	                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
+	                        $"Supabase REST API throttled ({(int)response.StatusCode}) while trimming {entityName} attempt {attempt}/{maxAttempts}. Retrying…");
+
+	                    if (attempt == maxAttempts)
+	                    {
+	                        var finalBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+	                        throw new InvalidOperationException($"REST API {entityName} trim failed after retries: {(int)response.StatusCode} {finalBody}");
+	                    }
+
+	                    await Task.Delay(delay).ConfigureAwait(false);
+	                    delay += delay;
+	                    continue;
+	                }
+
+	                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+	                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden || IsUpsertPermissionError(body))
+	                {
+	                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
+	                        $"Supabase REST API cannot trim stale {entityName} for tx {txHash} @ block {blockIndex}: {(int)response.StatusCode} {body}");
+	                    return;
+	                }
+
+	                throw new InvalidOperationException($"REST API {entityName} trim failed: {(int)response.StatusCode} {body}");
+	            }
+	        }
+
+		        private static async Task SendTraceRequestWithRetryAsync(string requestUri, string apiKey, byte[] jsonPayload, string entityName)
+		        {
+		            var delay = TimeSpan.FromSeconds(1);
+		            const int maxAttempts = 5;
 
 	            for (var attempt = 1; attempt <= maxAttempts; attempt++)
 	            {

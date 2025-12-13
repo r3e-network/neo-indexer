@@ -289,20 +289,21 @@ ON CONFLICT (block_index) DO UPDATE SET
             }
         }
 
-        private static async Task UploadBlockTracePostgresAsync(
-            int blockIndex,
-            string txHash,
-            List<OpCodeTraceRow> opCodeRows,
-            List<SyscallTraceRow> syscallRows,
-            List<ContractCallTraceRow> contractCallRows,
-            List<StorageWriteTraceRow> storageWriteRows,
-            List<NotificationTraceRow> notificationRows,
-            int batchSize,
-            StateRecorderSettings settings)
-        {
-            await using var connection = new NpgsqlConnection(settings.SupabaseConnectionString);
-            await connection.OpenAsync(CancellationToken.None).ConfigureAwait(false);
-            await using var transaction = await connection.BeginTransactionAsync(CancellationToken.None).ConfigureAwait(false);
+	        private static async Task UploadBlockTracePostgresAsync(
+	            int blockIndex,
+	            string txHash,
+	            List<OpCodeTraceRow> opCodeRows,
+	            List<SyscallTraceRow> syscallRows,
+	            List<ContractCallTraceRow> contractCallRows,
+	            List<StorageWriteTraceRow> storageWriteRows,
+	            List<NotificationTraceRow> notificationRows,
+	            int batchSize,
+	            bool trimStaleRows,
+	            StateRecorderSettings settings)
+	        {
+	            await using var connection = new NpgsqlConnection(settings.SupabaseConnectionString);
+	            await connection.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+	            await using var transaction = await connection.BeginTransactionAsync(CancellationToken.None).ConfigureAwait(false);
 
             if (opCodeRows.Count > 0)
                 await UpsertOpCodeTracesPostgresAsync(connection, transaction, opCodeRows, batchSize).ConfigureAwait(false);
@@ -316,14 +317,48 @@ ON CONFLICT (block_index) DO UPDATE SET
             if (storageWriteRows.Count > 0)
                 await UpsertStorageWriteTracesPostgresAsync(connection, transaction, storageWriteRows, batchSize).ConfigureAwait(false);
 
-            if (notificationRows.Count > 0)
-                await UpsertNotificationTracesPostgresAsync(connection, transaction, notificationRows, batchSize).ConfigureAwait(false);
+	            if (notificationRows.Count > 0)
+	                await UpsertNotificationTracesPostgresAsync(connection, transaction, notificationRows, batchSize).ConfigureAwait(false);
 
-            await transaction.CommitAsync(CancellationToken.None).ConfigureAwait(false);
+	            if (trimStaleRows)
+	            {
+	                try
+	                {
+	                    await TrimTraceTailPostgresAsync(connection, transaction, "opcode_traces", "trace_order", blockIndex, txHash, opCodeRows.Count).ConfigureAwait(false);
+	                    await TrimTraceTailPostgresAsync(connection, transaction, "syscall_traces", "trace_order", blockIndex, txHash, syscallRows.Count).ConfigureAwait(false);
+	                    await TrimTraceTailPostgresAsync(connection, transaction, "contract_calls", "trace_order", blockIndex, txHash, contractCallRows.Count).ConfigureAwait(false);
+	                    await TrimTraceTailPostgresAsync(connection, transaction, "storage_writes", "write_order", blockIndex, txHash, storageWriteRows.Count).ConfigureAwait(false);
+	                    await TrimTraceTailPostgresAsync(connection, transaction, "notifications", "notification_order", blockIndex, txHash, notificationRows.Count).ConfigureAwait(false);
+	                }
+	                catch (Exception ex)
+	                {
+	                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
+	                        $"PostgreSQL trace trim failed for tx {txHash} @ block {blockIndex}: {ex.Message}");
+	                }
+	            }
 
-            Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
-                $"PostgreSQL trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}");
-        }
+	            await transaction.CommitAsync(CancellationToken.None).ConfigureAwait(false);
+
+	            Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
+	                $"PostgreSQL trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}");
+	        }
+
+	        private static async Task TrimTraceTailPostgresAsync(
+	            NpgsqlConnection connection,
+	            NpgsqlTransaction transaction,
+	            string tableName,
+	            string orderColumn,
+	            int blockIndex,
+	            string txHash,
+	            int keepCount)
+	        {
+	            var sql = $"DELETE FROM {tableName} WHERE block_index = @block_index AND tx_hash = @tx_hash AND {orderColumn} >= @keep_count";
+	            await using var command = new NpgsqlCommand(sql, connection, transaction);
+	            command.Parameters.AddWithValue("block_index", blockIndex);
+	            command.Parameters.AddWithValue("tx_hash", txHash);
+	            command.Parameters.AddWithValue("keep_count", keepCount);
+	            await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+	        }
 
         private static Task UpsertOpCodeTracesPostgresAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, IReadOnlyList<OpCodeTraceRow> rows, int batchSize)
         {
