@@ -731,7 +731,26 @@ namespace Neo.Persistence
 
         private static BlockReadEntry[] GetOrderedEntries(BlockReadRecorder recorder)
         {
-            return recorder.Entries.OrderBy(entry => entry.Order).ToArray();
+            if (recorder is null) throw new ArgumentNullException(nameof(recorder));
+
+            var entries = recorder.Entries;
+            if (entries.Count == 0)
+                return Array.Empty<BlockReadEntry>();
+
+            var snapshot = new BlockReadEntry[entries.Count];
+            var index = 0;
+            foreach (var entry in entries)
+                snapshot[index++] = entry;
+
+            for (var i = 1; i < snapshot.Length; i++)
+            {
+                if (snapshot[i].Order < snapshot[i - 1].Order)
+                {
+                    Array.Sort(snapshot, static (a, b) => a.Order.CompareTo(b.Order));
+                    break;
+                }
+            }
+            return snapshot;
         }
 
         #endregion

@@ -12,11 +12,9 @@
 #nullable enable
 
 using Neo.Persistence;
-using Neo.SmartContract.Manifest;
 using Neo.VM;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Neo.SmartContract
 {
@@ -31,6 +29,7 @@ namespace Neo.SmartContract
 	    private long _lastFeeConsumed;
 	    private PendingOpCodeData? _pendingOpCode;
 	    private readonly Stack<(ContractCallTrace Trace, long GasStart)> _callStack = new();
+	    private readonly Dictionary<UInt160, Dictionary<int, string?>> _methodNameCache = new();
 
         /// <summary>
         /// Gets the trace recorder associated with this diagnostic.
@@ -64,6 +63,7 @@ namespace Neo.SmartContract
 	        _lastFeeConsumed = engine.FeeConsumed;
 	        _pendingOpCode = null;
 	        _callStack.Clear();
+	        _methodNameCache.Clear();
 	    }
 
         /// <summary>
@@ -127,12 +127,21 @@ namespace Neo.SmartContract
             try
             {
                 var state = context.GetState<ExecutionContextState>();
-                var contractState = state.Contract;
-                var manifest = contractState?.Manifest;
+                var methods = state.Contract?.Manifest?.Abi?.Methods;
                 var offset = context.InstructionPointer;
 
-                ContractMethodDescriptor? descriptor = manifest?.Abi?.Methods?.FirstOrDefault(m => m.Offset == offset);
-                methodName = descriptor?.Name;
+                if (methods is { Length: > 0 })
+                {
+                    if (!_methodNameCache.TryGetValue(calleeHash, out var offsetMap))
+                    {
+                        offsetMap = new Dictionary<int, string?>(methods.Length);
+                        foreach (var method in methods)
+                            offsetMap[method.Offset] = method.Name;
+                        _methodNameCache[calleeHash] = offsetMap;
+                    }
+
+                    offsetMap.TryGetValue(offset, out methodName);
+                }
             }
             catch
             {
