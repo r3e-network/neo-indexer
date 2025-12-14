@@ -7,6 +7,8 @@
 On `Blockchain.Committed`:
 - drains the block read recorder (`DrainReadRecorder`)
 - drains tx trace recorders (`DrainBlock`)
+- queues transaction results as a per-block high-priority upsert
+- optionally queues per-tx trace uploads (low priority) when `MinTransactionCount` threshold is met
 - decides what to upload based on:
   - plugin config (`BlockStateIndexer.json`)
   - environment recorder config (`StateRecorderSettings`)
@@ -19,10 +21,10 @@ Uploads are queued rather than executed inline with block persistence.
 - `src/Neo/Persistence/StateRecorderSupabase.UploadQueue.cs`
 
 There is a bounded background queue with two lanes:
-- **High priority**: block state (binary/json/csv), REST/PG block + reads upserts, block stats.
-- **Low priority**: per-transaction uploads (tx result always; traces optionally).
+- **High priority**: block state (binary/json/csv), REST/PG block + reads upserts, transaction results, block stats.
+- **Low priority**: per-transaction trace uploads.
 
-This prevents slow trace uploads from starving “index baseline” uploads (blocks + reads + stats).
+This prevents slow trace uploads from starving “index baseline” uploads (blocks + reads + tx results + stats).
 
 When a lane is full, work is dropped and logged (with a periodic log cadence).
 

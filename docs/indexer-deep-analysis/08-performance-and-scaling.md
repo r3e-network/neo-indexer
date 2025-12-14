@@ -17,7 +17,7 @@
 
 ## 8.3 Backpressure vs completeness
 The bounded queue can drop work under sustained Supabase slowness:
-- high priority drops mean you may miss blocks/reads/stats
+- high priority drops mean you may miss blocks/reads/tx results/stats
 - low priority drops mean you may miss traces (by design preference)
 
 If your goal is completeness:

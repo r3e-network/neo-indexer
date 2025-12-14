@@ -19,23 +19,30 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class BlockStateIndexerPlugin
     {
-        private void TryQueueTransactionUploads(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
+        private void TryQueueTransactionResultsUpload(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
+        {
+            if (!allowRestApiUploads || recorders.Count == 0)
+                return;
+
+            StateRecorderSupabase.TryQueueTransactionResultsUpload(block.Index, block.Hash.ToString(), recorders);
+        }
+
+        private void TryQueueTraceUploads(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
         {
             if (!allowRestApiUploads || recorders.Count == 0)
                 return;
 
             var uploadTraces = block.Transactions.Length >= Settings.Default.MinTransactionCount;
 
-            foreach (var recorder in recorders)
-            {
-                StateRecorderSupabase.TryQueueTransactionUpload(block.Index, block.Hash.ToString(), recorder, uploadTraces);
-            }
-
             if (!uploadTraces)
             {
                 Utility.Log(Name, LogLevel.Debug,
-                    $"Block {block.Index}: Skipping trace upload (tx count {block.Transactions.Length} below minimum {Settings.Default.MinTransactionCount}); uploading tx results only.");
+                    $"Block {block.Index}: Skipping trace upload (tx count {block.Transactions.Length} below minimum {Settings.Default.MinTransactionCount}).");
+                return;
             }
+
+            foreach (var recorder in recorders)
+                StateRecorderSupabase.TryQueueTraceUpload(block.Index, block.Hash.ToString(), recorder);
         }
     }
 }

@@ -12,32 +12,30 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 
 namespace Neo.Persistence
 {
     public static partial class StateRecorderSupabase
     {
         /// <summary>
-        /// Queue a per-transaction upload (tx result always; traces optionally). Returns false if the queue is full and the work was dropped.
+        /// Queue a per-block transaction results upload (high priority). Returns false if the queue is full and the work was dropped.
         /// </summary>
-        public static bool TryQueueTransactionUpload(uint blockIndex, string blockHash, ExecutionTraceRecorder recorder, bool uploadTraces)
+        public static bool TryQueueTransactionResultsUpload(uint blockIndex, string blockHash, IReadOnlyCollection<ExecutionTraceRecorder> recorders)
         {
-            if (recorder is null) throw new ArgumentNullException(nameof(recorder));
+            if (recorders is null) throw new ArgumentNullException(nameof(recorders));
+            if (recorders.Count == 0) return true;
 
-            var txHash = recorder.TxHash?.ToString();
-            if (string.IsNullOrWhiteSpace(txHash))
-                return true; // Nothing to do without a transaction hash.
-
-            return UploadQueue.TryEnqueueLow(
+            return UploadQueue.TryEnqueueHigh(
                 blockIndex,
-                uploadTraces ? $"tx upload (traces, tx={txHash})" : $"tx upload (result-only, tx={txHash})",
+                $"transaction results upload (txs={recorders.Count})",
                 () => ExecuteWithRetryAsync(
                     () => ExecuteIfCanonicalAsync(
                         blockIndex,
                         blockHash,
-                        "tx upload",
-                        () => UploadTransactionAsync(blockIndex, blockHash, txHash, recorder, uploadTraces)),
-                    "tx upload",
+                        "transaction results upload",
+                        () => UploadTransactionResultsAsync(blockIndex, blockHash, recorders)),
+                    "transaction results upload",
                     blockIndex));
         }
 

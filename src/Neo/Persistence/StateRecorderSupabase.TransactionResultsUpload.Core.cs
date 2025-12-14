@@ -1,6 +1,6 @@
 // Copyright (C) 2015-2025 The Neo Project.
 //
-// StateRecorderSupabase.TransactionUpload.Core.cs file belongs to the neo project and is free
+// StateRecorderSupabase.TransactionResultsUpload.Core.cs file belongs to the neo project and is free
 // software distributed under the MIT software license, see the
 // accompanying file LICENSE in the main directory of the
 // repository or http://www.opensource.org/licenses/mit-license.php
@@ -12,6 +12,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,15 +20,12 @@ namespace Neo.Persistence
 {
     public static partial class StateRecorderSupabase
     {
-        private static async Task UploadTransactionCoreAsync(
+        private static async Task UploadTransactionResultsCoreAsync(
             uint blockIndex,
-            string txHash,
-            ExecutionTraceRecorder recorder,
-            StateRecorderSettings settings,
             string expectedBlockHash,
-            bool uploadTraces)
+            IReadOnlyCollection<ExecutionTraceRecorder> recorders,
+            StateRecorderSettings settings)
         {
-            await TraceUploadLaneSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
@@ -36,7 +34,7 @@ namespace Neo.Persistence
                     !string.Equals(canonical, expectedBlockHash, StringComparison.Ordinal))
                 {
                     Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
-                        $"Skipping tx upload for block {blockIndex}: block hash no longer canonical.");
+                        $"Skipping transaction results upload for block {blockIndex}: block hash no longer canonical.");
                     return;
                 }
 
@@ -46,41 +44,49 @@ namespace Neo.Persistence
 
                 var blockIndexValue = checked((int)blockIndex);
                 var batchSize = GetTraceUploadBatchSize();
-                var trimStaleTraceRows = uploadTraces && settings.TrimStaleTraceRows;
 
-                var txResultRow = BuildTransactionResultRow(blockIndexValue, txHash, recorder);
+                var rows = BuildTransactionResultRows(blockIndexValue, recorders);
+                if (rows.Count == 0)
+                    return;
 
                 if (backend == DatabaseBackend.Postgres)
                 {
 #if NET9_0_OR_GREATER
-                    await UploadTransactionPostgresAsync(
-                        txResultRow,
-                        blockIndexValue,
-                        txHash,
-                        recorder,
-                        settings,
-                        uploadTraces,
-                        batchSize,
-                        trimStaleTraceRows).ConfigureAwait(false);
+                    await UploadTransactionResultsPostgresAsync(rows, settings, batchSize).ConfigureAwait(false);
 #endif
                     return;
                 }
 
-                await UploadTransactionRestApiAsync(
-                    txResultRow,
-                    blockIndexValue,
-                    txHash,
-                    recorder,
-                    settings,
-                    uploadTraces,
-                    batchSize,
-                    trimStaleTraceRows).ConfigureAwait(false);
+                await UploadTransactionResultsRestApiAsync(rows, settings, batchSize).ConfigureAwait(false);
+
+                Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
+                    $"Transaction results upsert successful for block {blockIndex}: rows={rows.Count}");
             }
             finally
             {
                 TraceUploadSemaphore.Release();
-                TraceUploadLaneSemaphore.Release();
             }
+        }
+
+        private static List<TransactionResultRow> BuildTransactionResultRows(
+            int blockIndex,
+            IReadOnlyCollection<ExecutionTraceRecorder> recorders)
+        {
+            var rows = new List<TransactionResultRow>(recorders.Count);
+            foreach (var recorder in recorders)
+            {
+                if (recorder is null)
+                    continue;
+
+                var txHash = recorder.TxHash?.ToString();
+                if (string.IsNullOrWhiteSpace(txHash))
+                    continue;
+
+                rows.Add(BuildTransactionResultRow(blockIndex, txHash, recorder));
+            }
+
+            return rows;
         }
     }
 }
+
