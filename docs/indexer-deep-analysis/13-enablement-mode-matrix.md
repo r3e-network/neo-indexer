@@ -27,15 +27,15 @@ See:
 
 On each committed block, the plugin computes:
 - `allowBinaryUploads = (plugin allows Binary) AND (env allows Binary)`
-- `allowRestApiUploads = (plugin allows RestApi/Postgres) AND (env allows RestApi/Postgres)`
+- `allowDatabaseUploads = (plugin allows RestApi/Postgres) AND (env allows RestApi/Postgres)`
 
 See:
 - `src/Plugins/BlockStateIndexer/BlockStateIndexerPlugin.Handlers.Committed.UploadModes.cs`
 
 ## 13.3 `MinTransactionCount` behavior
 
-`MinTransactionCount` applies to **trace uploads** (not to read recording):
-- If `block.Transactions.Length < MinTransactionCount`, traces are skipped (reads may still be uploaded).
+`MinTransactionCount` applies to **trace uploads** (not reads, and not tx results):
+- If `block.Transactions.Length < MinTransactionCount`, detailed traces are skipped (reads and `transaction_results` may still be uploaded).
 
 See:
 - `src/Plugins/BlockStateIndexer/BlockStateIndexerPlugin.Handlers.Committed.Traces.cs`
