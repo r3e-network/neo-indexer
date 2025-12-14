@@ -62,6 +62,9 @@ namespace Neo.Plugins.RpcServer.Model
         [JsonPropertyName("notification_count")]
         public int NotificationCount { get; set; }
 
+        [JsonPropertyName("log_count")]
+        public int LogCount { get; set; }
+
         public JObject ToJson()
         {
             JObject json = new();
@@ -84,6 +87,7 @@ namespace Neo.Plugins.RpcServer.Model
             json["contractCallCount"] = ContractCallCount;
             json["storageWriteCount"] = StorageWriteCount;
             json["notificationCount"] = NotificationCount;
+            json["logCount"] = LogCount;
             return json;
         }
 
@@ -106,4 +110,3 @@ namespace Neo.Plugins.RpcServer.Model
         }
     }
 }
-

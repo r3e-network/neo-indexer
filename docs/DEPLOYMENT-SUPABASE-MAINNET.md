@@ -34,6 +34,7 @@ Run the SQL files in order in the Supabase SQL editor:
 17. `migrations/017_prune_trace_partitions_include_transaction_results.sql`
 18. `migrations/018_storage_writes_is_delete.sql`
 19. `migrations/019_runtime_logs.sql`
+20. `migrations/020_transaction_results_log_count.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -50,6 +51,7 @@ Notes:
 - `017_prune_trace_partitions_include_transaction_results.sql` makes `prune_trace_partitions(retention_blocks)` also prune old `transaction_results_*` partitions.
 - `018_storage_writes_is_delete.sql` adds an explicit `is_delete` flag to `storage_writes` to disambiguate deletes from empty-value writes.
 - `019_runtime_logs.sql` adds the partitioned `runtime_logs` trace table for `System.Runtime.Log` and extends the partition management/pruning helper allowlists.
+- `020_transaction_results_log_count.sql` adds `log_count` to `transaction_results` so log volume analytics can be done without joining `runtime_logs`.
 
 Optional automation (runs migrations using a direct Postgres connection string):
 

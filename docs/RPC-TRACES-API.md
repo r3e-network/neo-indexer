@@ -270,6 +270,7 @@ Otherwise, it returns the stored execution outcome:
   "contractCallCount": 5,
   "storageWriteCount": 3,
   "notificationCount": 2,
+  "logCount": 1,
   "resultStack": [ ... ]
 }
 ```

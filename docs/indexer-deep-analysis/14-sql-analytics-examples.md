@@ -119,6 +119,14 @@ GROUP BY success;
 ```
 
 ```sql
+-- Average Runtime.Log messages per tx, grouped by success/failure
+SELECT success, AVG(log_count) AS avg_logs
+FROM transaction_results
+WHERE block_index BETWEEN 5000000 AND 5010000
+GROUP BY success;
+```
+
+```sql
 -- Join tx outcome with contract calls for “fault rate by callee”
 SELECT c.callee_hash,
        COUNT(*) AS calls,

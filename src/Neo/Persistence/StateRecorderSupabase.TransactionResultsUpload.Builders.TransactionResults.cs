@@ -39,7 +39,8 @@ namespace Neo.Persistence
                 stats.SyscallCount,
                 stats.ContractCallCount,
                 stats.StorageWriteCount,
-                stats.NotificationCount);
+                stats.NotificationCount,
+                recorder.LogCount);
         }
 
         private static JsonElement? ParseResultStackJson(string? stackJson)

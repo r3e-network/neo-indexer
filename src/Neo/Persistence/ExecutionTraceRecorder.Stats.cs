@@ -18,6 +18,11 @@ namespace Neo.Persistence
     public sealed partial class ExecutionTraceRecorder
     {
         /// <summary>
+        /// Gets the number of runtime log entries recorded for this transaction.
+        /// </summary>
+        public int LogCount => Volatile.Read(ref _logCount);
+
+        /// <summary>
         /// Gets aggregated statistics for this transaction.
         /// </summary>
         public BlockStats GetStats()
