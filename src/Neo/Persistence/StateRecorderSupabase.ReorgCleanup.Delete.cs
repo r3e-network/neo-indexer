@@ -21,7 +21,8 @@ namespace Neo.Persistence
         private static async Task DeleteBlockDataIfCanonicalAsync(
             uint blockIndex,
             string expectedBlockHash,
-            StateRecorderSettings settings)
+            StateRecorderSettings settings,
+            StateRecorderSettings.UploadMode effectiveMode)
         {
             // If the canonical hash changed again, do not delete anything (avoid deleting new data).
             if (TryGetCanonicalBlockHash(blockIndex, out var canonical) &&
@@ -32,36 +33,9 @@ namespace Neo.Persistence
 
             var blockIndexValue = checked((int)blockIndex);
 
-            var hasRestApi = settings.UploadEnabled;
-            var hasPostgres = !string.IsNullOrWhiteSpace(settings.SupabaseConnectionString);
-
-            // Mirror upload routing:
-            // - Postgres mode prefers direct Postgres when configured, otherwise falls back to REST API.
-            // - RestApi/Both prefer REST API when configured, otherwise fall back to direct Postgres.
-            var deleteViaPostgres = false;
-            if (settings.Mode == StateRecorderSettings.UploadMode.Postgres)
-            {
-                if (hasPostgres)
-                {
-                    deleteViaPostgres = true;
-                }
-                else if (!hasRestApi)
-                {
-                    return;
-                }
-            }
-            else if (hasRestApi)
-            {
-                deleteViaPostgres = false;
-            }
-            else if (hasPostgres)
-            {
-                deleteViaPostgres = true;
-            }
-            else
-            {
+            var backend = ResolveDatabaseBackend(effectiveMode, settings);
+            if (backend == DatabaseBackend.None)
                 return;
-            }
 
             // Reorg cleanup should not interleave with other uploads (HTTP or direct Postgres).
             // Drain the global semaphore so in-flight uploads complete before we delete, and no new ones start mid-cleanup.
@@ -71,7 +45,7 @@ namespace Neo.Persistence
                 for (; acquired < TraceUploadConcurrency; acquired++)
                     await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
 
-                if (deleteViaPostgres)
+                if (backend == DatabaseBackend.Postgres)
                 {
                     await TryDeleteBlockDataPostgresAsync(blockIndexValue, settings).ConfigureAwait(false);
                 }

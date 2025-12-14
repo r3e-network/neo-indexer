@@ -167,7 +167,7 @@ When a lane is full, work is dropped and logged (with a periodic log cadence).
 ### 5.3 Concurrency controls: global throttle + trace-lane throttle
 
 Within `StateRecorderSupabase`:
-- `TraceUploadSemaphore` gates total concurrent HTTPS uploads (to avoid Supabase 429 throttling on mainnet).
+- `TraceUploadSemaphore` gates total concurrent uploads (HTTP + direct Postgres) to avoid overloading Supabase on mainnet.
 - `TraceUploadLaneSemaphore` prevents low-priority trace uploads from using all upload slots.
 
 Relevant env vars:

@@ -18,7 +18,8 @@ namespace Neo.Persistence
         private static void TryQueueReorgCleanup(
             uint blockIndex,
             string blockHash,
-            StateRecorderSettings settings)
+            StateRecorderSettings settings,
+            StateRecorderSettings.UploadMode effectiveMode)
         {
             var barrier = GetOrReplaceReorgBarrier(blockIndex, blockHash);
 
@@ -31,7 +32,7 @@ namespace Neo.Persistence
                     try
                     {
                         await ExecuteWithRetryAsync(
-                            () => DeleteBlockDataIfCanonicalAsync(blockIndex, blockHash, settings),
+                            () => DeleteBlockDataIfCanonicalAsync(blockIndex, blockHash, settings, effectiveMode),
                             "reorg cleanup",
                             blockIndex).ConfigureAwait(false);
                     }
@@ -50,4 +51,3 @@ namespace Neo.Persistence
         }
     }
 }
-

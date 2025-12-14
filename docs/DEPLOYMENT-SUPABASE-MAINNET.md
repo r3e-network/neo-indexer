@@ -87,7 +87,7 @@ NEO_STATE_RECORDER__UPLOAD_MODE=RestApi
 # Keep JSON/CSV uploads disabled on mainnet unless required
 NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=false
 
-# Throttle concurrent HTTPS writes
+# Throttle concurrent uploads (HTTP and optional direct Postgres)
 NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
 
 # Optional: keep trace/read tables exact on re-sync + tip reorgs (adds DELETE traffic)

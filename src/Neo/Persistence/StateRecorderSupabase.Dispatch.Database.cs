@@ -21,13 +21,13 @@ namespace Neo.Persistence
             StateRecorderSettings.UploadMode effectiveMode,
             string blockHash)
         {
-            // Database upload:
-            // - RestApi/Both prefer Supabase PostgREST when configured, otherwise fall back to direct Postgres.
-            // - Postgres mode always uses direct Postgres when a connection string is provided.
-            if (effectiveMode == StateRecorderSettings.UploadMode.Postgres)
+            if (!IsRestApiMode(effectiveMode))
+                return;
+
+            var backend = ResolveDatabaseBackend(effectiveMode, settings);
+            switch (backend)
             {
-                if (!string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
-                {
+                case DatabaseBackend.Postgres:
                     UploadQueue.TryEnqueueHigh(
                         recorder.BlockIndex,
                         "PostgreSQL upsert",
@@ -39,9 +39,9 @@ namespace Neo.Persistence
                                 () => UploadPostgresAsync(recorder, settings)),
                             "PostgreSQL upsert",
                             recorder.BlockIndex));
-                }
-                else if (settings.UploadEnabled)
-                {
+                    break;
+
+                case DatabaseBackend.RestApi:
                     UploadQueue.TryEnqueueHigh(
                         recorder.BlockIndex,
                         "REST API upsert",
@@ -53,38 +53,7 @@ namespace Neo.Persistence
                                 () => UploadRestApiAsync(recorder, settings)),
                             "REST API upsert",
                             recorder.BlockIndex));
-                }
-            }
-            else if (IsRestApiMode(effectiveMode))
-            {
-                if (settings.UploadEnabled)
-                {
-                    UploadQueue.TryEnqueueHigh(
-                        recorder.BlockIndex,
-                        "REST API upsert",
-                        () => ExecuteWithRetryAsync(
-                            () => ExecuteIfCanonicalAsync(
-                                recorder.BlockIndex,
-                                blockHash,
-                                "REST API upsert",
-                                () => UploadRestApiAsync(recorder, settings)),
-                            "REST API upsert",
-                            recorder.BlockIndex));
-                }
-                else if (!string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
-                {
-                    UploadQueue.TryEnqueueHigh(
-                        recorder.BlockIndex,
-                        "PostgreSQL upsert",
-                        () => ExecuteWithRetryAsync(
-                            () => ExecuteIfCanonicalAsync(
-                                recorder.BlockIndex,
-                                blockHash,
-                                "PostgreSQL upsert",
-                                () => UploadPostgresAsync(recorder, settings)),
-                            "PostgreSQL upsert",
-                            recorder.BlockIndex));
-                }
+                    break;
             }
         }
     }

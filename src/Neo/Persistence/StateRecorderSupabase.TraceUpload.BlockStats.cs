@@ -34,34 +34,11 @@ namespace Neo.Persistence
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                var hasRestApi = settings.UploadEnabled;
-                var hasPostgres = !string.IsNullOrWhiteSpace(settings.SupabaseConnectionString);
-
-                // Mirror block-state upload routing:
-                // - Postgres mode prefers direct Postgres when configured, otherwise falls back to REST API.
-                // - RestApi/Both prefer REST API when configured, otherwise fall back to direct Postgres.
-                var usePostgres = false;
-                if (settings.Mode == StateRecorderSettings.UploadMode.Postgres)
-                {
-                    if (hasPostgres)
-                        usePostgres = true;
-                    else if (!hasRestApi)
-                        return;
-                }
-                else if (hasRestApi)
-                {
-                    usePostgres = false;
-                }
-                else if (hasPostgres)
-                {
-                    usePostgres = true;
-                }
-                else
-                {
+                var backend = ResolveDatabaseBackend(settings.Mode, settings);
+                if (backend == DatabaseBackend.None)
                     return;
-                }
 
-                if (usePostgres)
+                if (backend == DatabaseBackend.Postgres)
                 {
 #if NET9_0_OR_GREATER
                     await UploadBlockStatsPostgresAsync(stats, settings).ConfigureAwait(false);

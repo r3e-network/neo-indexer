@@ -47,7 +47,7 @@ namespace Neo.Persistence
             {
                 Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
                     $"Detected block hash replacement at height {recorder.BlockIndex} (reorg). Scheduling per-block cleanup before re-upload.");
-                TryQueueReorgCleanup(recorder.BlockIndex, blockHash, settings);
+                TryQueueReorgCleanup(recorder.BlockIndex, blockHash, settings, effectiveMode);
             }
 
             TryQueueBinaryUploads(recorder, settings, effectiveMode, blockHash);
