@@ -81,7 +81,7 @@ namespace Neo.SmartContract
                 var gasConsumed = _engine.FeeConsumed - gasStart;
 
                 trace.GasConsumed = gasConsumed < 0 ? 0 : gasConsumed;
-                if (_engine.State == VMState.FAULT || _engine.FaultException is not null)
+                if (_engine.UncaughtException is not null || _engine.State == VMState.FAULT || _engine.FaultException is not null)
                     trace.Success = false;
             }
         }

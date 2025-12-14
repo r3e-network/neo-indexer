@@ -26,6 +26,10 @@ Opcode tracing notes:
 - Implemented by `TracingDiagnostic` (`src/Neo/SmartContract/TracingDiagnostic.OpCodes.cs`).
 - `gasConsumed` is the opcode fee (`OpCodePriceTable * ExecFeeFactor`). Syscall fees are recorded separately in `syscall_traces`.
 
+Contract call tracing notes:
+- Implemented by `TracingDiagnostic` (`src/Neo/SmartContract/TracingDiagnostic.ContractCalls.cs`).
+- `contract_calls.success=false` when a callee context unwinds due to an exception (including exceptions caught by the caller), so per-call “failure” analytics are possible even when the overall transaction succeeds.
+
 ## 4.2 Trace aggregation: `ExecutionTraceRecorder`
 
 - `src/Neo/Persistence/ExecutionTraceRecorder.Core.cs`
