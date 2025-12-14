@@ -51,7 +51,11 @@ namespace StateReplay
             var apiKey = Settings.Default.SupabaseApiKey;
             const int batchSize = 5000;
 
-            var rows = new List<SupabaseStorageReadRow>();
+            using var memoryStore = new MemoryStore();
+            using var storeSnapshot = memoryStore.GetSnapshot();
+            using var snapshotCache = new StoreCache(storeSnapshot);
+
+            var loaded = 0;
             for (var offset = 0; ; offset += batchSize)
             {
                 var url =
@@ -75,29 +79,23 @@ namespace StateReplay
                 if (batch.Count == 0)
                     break;
 
-                rows.AddRange(batch);
+                foreach (var row in batch)
+                {
+                    if (row.ContractId is null)
+                        continue;
+                    if (string.IsNullOrEmpty(row.KeyBase64) || row.ValueBase64 is null)
+                        continue;
+
+                    var keyBytes = Convert.FromBase64String(row.KeyBase64);
+                    var valueBytes = Convert.FromBase64String(row.ValueBase64);
+
+                    var storageKey = new StorageKey { Id = row.ContractId.Value, Key = keyBytes };
+                    snapshotCache.Add(storageKey, new StorageItem(valueBytes));
+                    loaded++;
+                }
+
                 if (batch.Count < batchSize)
                     break;
-            }
-
-            using var memoryStore = new MemoryStore();
-            using var storeSnapshot = memoryStore.GetSnapshot();
-            using var snapshotCache = new StoreCache(storeSnapshot);
-
-            var loaded = 0;
-            foreach (var row in rows)
-            {
-                if (row.ContractId is null)
-                    continue;
-                if (string.IsNullOrEmpty(row.KeyBase64) || row.ValueBase64 is null)
-                    continue;
-
-                var keyBytes = Convert.FromBase64String(row.KeyBase64);
-                var valueBytes = Convert.FromBase64String(row.ValueBase64);
-
-                var storageKey = new StorageKey { Id = row.ContractId.Value, Key = keyBytes };
-                snapshotCache.Add(storageKey, new StorageItem(valueBytes));
-                loaded++;
             }
 
             ReplayBlock(block, snapshotCache);
