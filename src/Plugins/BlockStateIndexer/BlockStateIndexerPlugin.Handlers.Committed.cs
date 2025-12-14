@@ -27,26 +27,36 @@ namespace Neo.Plugins.BlockStateIndexer
             if (provider == null) return;
 
             var recorderSettings = StateRecorderSettings.Current;
-            var (allowBinaryUploads, allowRestApiUploads) = ResolveUploadAllows(recorderSettings);
+            var (allowBinaryUploads, allowDatabaseUploads) = ResolveUploadAllows(recorderSettings);
 
             var readRecorder = provider.DrainReadRecorder(block.Index);
             var storageReadCount = readRecorder?.Entries.Count ?? 0;
             if (readRecorder != null)
-                TryUploadStorageReads(readRecorder, recorderSettings, allowBinaryUploads, allowRestApiUploads, storageReadCount);
+                TryUploadStorageReads(readRecorder, recorderSettings, allowBinaryUploads, allowDatabaseUploads, storageReadCount);
 
             var recorders = provider.DrainBlock(block.Index);
             if (recorders.Count == 0 && readRecorder == null) return;
-            TryQueueTransactionResultsUpload(block, recorders, allowRestApiUploads);
-            TryQueueTraceUploads(block, recorders, allowRestApiUploads);
+            var txResultsEnqueued = TryQueueTransactionResultsUpload(block, recorders, allowDatabaseUploads);
+            var (traceAttempted, traceEnqueued) = TryQueueTraceUploads(block, recorders, allowDatabaseUploads);
 
             var blockStats = BuildBlockStats(block, recorders, storageReadCount);
-            if (allowRestApiUploads)
+            if (allowDatabaseUploads)
             {
                 StateRecorderSupabase.TryQueueBlockStatsUpload(blockStats, block.Hash.ToString());
             }
 
+            var txResultsLabel = !allowDatabaseUploads || recorders.Count == 0
+                ? "0"
+                : txResultsEnqueued
+                    ? recorders.Count.ToString()
+                    : $"{recorders.Count} dropped";
+
+            var tracesLabel = traceAttempted == 0
+                ? "0"
+                : $"{traceEnqueued}/{traceAttempted}";
+
             Utility.Log(Name, LogLevel.Info,
-                $"Block {block.Index}: Queued uploads (reads={storageReadCount}, traces={recorders.Count})");
+                $"Block {block.Index}: Queued uploads (reads={storageReadCount}, tx_results={txResultsLabel}, traces={tracesLabel})");
         }
     }
 }

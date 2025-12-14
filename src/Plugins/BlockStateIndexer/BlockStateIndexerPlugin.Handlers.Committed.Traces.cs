@@ -19,18 +19,18 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class BlockStateIndexerPlugin
     {
-        private void TryQueueTransactionResultsUpload(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
+        private bool TryQueueTransactionResultsUpload(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowDatabaseUploads)
         {
-            if (!allowRestApiUploads || recorders.Count == 0)
-                return;
+            if (!allowDatabaseUploads || recorders.Count == 0)
+                return true;
 
-            StateRecorderSupabase.TryQueueTransactionResultsUpload(block.Index, block.Hash.ToString(), recorders);
+            return StateRecorderSupabase.TryQueueTransactionResultsUpload(block.Index, block.Hash.ToString(), recorders);
         }
 
-        private void TryQueueTraceUploads(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
+        private (int Attempted, int Enqueued) TryQueueTraceUploads(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowDatabaseUploads)
         {
-            if (!allowRestApiUploads || recorders.Count == 0)
-                return;
+            if (!allowDatabaseUploads || recorders.Count == 0)
+                return (0, 0);
 
             var uploadTraces = block.Transactions.Length >= Settings.Default.MinTransactionCount;
 
@@ -38,11 +38,22 @@ namespace Neo.Plugins.BlockStateIndexer
             {
                 Utility.Log(Name, LogLevel.Debug,
                     $"Block {block.Index}: Skipping trace upload (tx count {block.Transactions.Length} below minimum {Settings.Default.MinTransactionCount}).");
-                return;
+                return (0, 0);
             }
 
+            var attempted = 0;
+            var enqueued = 0;
             foreach (var recorder in recorders)
-                StateRecorderSupabase.TryQueueTraceUpload(block.Index, block.Hash.ToString(), recorder);
+            {
+                if (recorder is null || !recorder.HasTraces)
+                    continue;
+
+                attempted++;
+                if (StateRecorderSupabase.TryQueueTraceUpload(block.Index, block.Hash.ToString(), recorder))
+                    enqueued++;
+            }
+
+            return (attempted, enqueued);
         }
     }
 }

@@ -17,25 +17,24 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class BlockStateIndexerPlugin
     {
-        private static (bool AllowBinaryUploads, bool AllowRestApiUploads) ResolveUploadAllows(StateRecorderSettings recorderSettings)
+        private static (bool AllowBinaryUploads, bool AllowDatabaseUploads) ResolveUploadAllows(StateRecorderSettings recorderSettings)
         {
             var pluginMode = Settings.Default.UploadMode;
 
             var pluginAllowsBinary = pluginMode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
-            var pluginAllowsRestApi = pluginMode is StateRecorderSettings.UploadMode.RestApi
+            var pluginAllowsDatabase = pluginMode is StateRecorderSettings.UploadMode.RestApi
                 or StateRecorderSettings.UploadMode.Postgres
                 or StateRecorderSettings.UploadMode.Both;
 
             var envAllowsBinary = recorderSettings.Mode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
-            var envAllowsRestApi = recorderSettings.Mode is StateRecorderSettings.UploadMode.RestApi
+            var envAllowsDatabase = recorderSettings.Mode is StateRecorderSettings.UploadMode.RestApi
                 or StateRecorderSettings.UploadMode.Postgres
                 or StateRecorderSettings.UploadMode.Both;
 
             var allowBinaryUploads = pluginAllowsBinary && envAllowsBinary;
-            var allowRestApiUploads = pluginAllowsRestApi && envAllowsRestApi;
+            var allowDatabaseUploads = pluginAllowsDatabase && envAllowsDatabase;
 
-            return (allowBinaryUploads, allowRestApiUploads);
+            return (allowBinaryUploads, allowDatabaseUploads);
         }
     }
 }
-
