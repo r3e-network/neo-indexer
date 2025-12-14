@@ -20,8 +20,8 @@ using static System.IO.Path;
 namespace Neo.Plugins.BlockStateIndexer
 {
     /// <summary>
-    /// Plugin that captures all storage state reads during block execution
-    /// and uploads them to Supabase for analysis and replay.
+    /// Plugin that captures storage reads and execution traces during block persistence
+    /// and uploads derived data to Supabase for analytics and replay tooling.
     /// </summary>
     public sealed partial class BlockStateIndexerPlugin : Plugin, ICommittingHandler, ICommittedHandler
     {
@@ -30,7 +30,7 @@ namespace Neo.Plugins.BlockStateIndexer
         private IApplicationEngineProvider? _previousEngineProvider;
 
         public override string Name => "BlockStateIndexer";
-        public override string Description => "Captures block storage state reads for analysis and replay.";
+        public override string Description => "Indexes block execution (reads/results/traces) into Supabase.";
         protected override UnhandledExceptionPolicy ExceptionPolicy => Settings.Default.ExceptionPolicy;
         public override string ConfigFile => Combine(RootPath, "BlockStateIndexer.json");
 
