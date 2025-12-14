@@ -109,6 +109,11 @@ This provider replaces `ApplicationEngine.Provider` when enabled by the plugin. 
   - `persistingBlock != null`
 - Wraps the engine’s diagnostic pipeline so tracing diagnostics and a read-attribution diagnostic run for each tx execution.
 
+Trace/write interactions:
+- Storage write tracing (`System.Storage.Put/Delete`) needs to read the old/new values and resolve contract metadata.
+- Those tracer-internal lookups are wrapped in `StateReadRecorder.SuppressRecordingScope()` to avoid polluting `storage_reads`.
+  - See `src/Neo/SmartContract/TracingApplicationEngine.Storage.cs`
+
 ### 4.2 Trace aggregation: `ExecutionTraceRecorder`
 
 - `src/Neo/Persistence/ExecutionTraceRecorder.Core.cs`

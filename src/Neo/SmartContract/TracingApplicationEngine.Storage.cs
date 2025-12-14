@@ -11,6 +11,7 @@
 
 #nullable enable
 
+using Neo.Persistence;
 using Neo.SmartContract.Native;
 using System;
 
@@ -37,8 +38,12 @@ namespace Neo.SmartContract
             };
 
             ReadOnlyMemory<byte>? oldValue = null;
-            if (SnapshotCache.TryGet(storageKey, out var existingItem))
-                oldValue = Clone(existingItem.Value);
+            // Avoid polluting the storage read recorder with tracer-internal reads (old-value lookups).
+            using (StateReadRecorder.SuppressRecordingScope())
+            {
+                if (SnapshotCache.TryGet(storageKey, out var existingItem))
+                    oldValue = Clone(existingItem.Value);
+            }
 
             UInt160 contractHash = TryResolveContractHash(context.Id, out var hash) && hash is not null
                 ? hash
@@ -65,7 +70,12 @@ namespace Neo.SmartContract
             }
             else
             {
-                StorageItem? updatedItem = SnapshotCache.TryGet(scope.StorageKey);
+                StorageItem? updatedItem;
+                // Avoid polluting the storage read recorder with tracer-internal reads (new-value lookups).
+                using (StateReadRecorder.SuppressRecordingScope())
+                {
+                    updatedItem = SnapshotCache.TryGet(scope.StorageKey);
+                }
                 newValue = updatedItem is null
                     ? ReadOnlyMemory<byte>.Empty
                     : Clone(updatedItem.Value);
@@ -87,7 +97,12 @@ namespace Neo.SmartContract
                 return true;
             }
 
-            ContractState? contract = NativeContract.ContractManagement.GetContractById(SnapshotCache, contractId);
+            // Contract metadata lookups are tracer-internal and should not be treated as user storage reads.
+            ContractState? contract;
+            using (StateReadRecorder.SuppressRecordingScope())
+            {
+                contract = NativeContract.ContractManagement.GetContractById(SnapshotCache, contractId);
+            }
             if (contract is null)
             {
                 hash = null;
@@ -108,4 +123,3 @@ namespace Neo.SmartContract
             bool IsDelete);
     }
 }
-
