@@ -1,27 +1,10 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { ContractCallTraceEntry, SyscallStat, TransactionTraceResult } from '../../types';
-import { MAX_STATS_RANGE, type TraceMode, type TraceTab } from './constants';
-import type { StatsRangeInput, StatsRangeParams } from './types';
 import { useTraceBrowserQueries } from './useTraceBrowserQueries';
+import { useTraceBrowserState } from './useTraceBrowserState';
 
 export function useTraceBrowser() {
-  const [mode, setMode] = useState<TraceMode>('block');
-  const [blockInput, setBlockInput] = useState('');
-  const [txInput, setTxInput] = useState('');
-  const [submittedBlock, setSubmittedBlock] = useState<number | null>(null);
-  const [submittedTx, setSubmittedTx] = useState<string | null>(null);
-  const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TraceTab>('opcodes');
-  const [formError, setFormError] = useState<string | null>(null);
-  const [opcodeSearch, setOpcodeSearch] = useState('');
-  const [stackDepthLimit, setStackDepthLimit] = useState(32);
-  const [contractHashInput, setContractHashInput] = useState('');
-  const [contractQueryHash, setContractQueryHash] = useState<string | null>(null);
-  const [statsInput, setStatsInput] = useState<StatsRangeInput>({ start: '', end: '' });
-  const [statsParams, setStatsParams] = useState<StatsRangeParams>({});
-  const [statsValidationError, setStatsValidationError] = useState<string | null>(null);
-  const [opcodeStatsParams, setOpcodeStatsParams] = useState<StatsRangeParams>({});
-  const [contractCallStatsParams, setContractCallStatsParams] = useState<StatsRangeParams>({});
+  const state = useTraceBrowserState();
 
   const {
     blockTraceQuery,
@@ -31,34 +14,34 @@ export function useTraceBrowser() {
     opcodeStatsQuery,
     contractCallStatsQuery,
   } = useTraceBrowserQueries({
-    submittedBlock,
-    submittedTx,
-    contractQueryHash,
-    statsParams,
-    opcodeStatsParams,
-    contractCallStatsParams,
+    submittedBlock: state.submittedBlock,
+    submittedTx: state.submittedTx,
+    contractQueryHash: state.contractQueryHash,
+    statsParams: state.statsParams,
+    opcodeStatsParams: state.opcodeStatsParams,
+    contractCallStatsParams: state.contractCallStatsParams,
   });
 
   useEffect(() => {
-    if (mode === 'transaction' && submittedTx) {
-      setSelectedTxHash(submittedTx);
+    if (state.mode === 'transaction' && state.submittedTx) {
+      state.setSelectedTxHash(state.submittedTx);
     } else if (
-      mode === 'block' &&
+      state.mode === 'block' &&
       blockTraceQuery.data?.transactions?.length &&
-      !blockTraceQuery.data.transactions.some((tx) => tx.txHash === selectedTxHash)
+      !blockTraceQuery.data.transactions.some((tx) => tx.txHash === state.selectedTxHash)
     ) {
-      setSelectedTxHash(blockTraceQuery.data.transactions[0].txHash);
+      state.setSelectedTxHash(blockTraceQuery.data.transactions[0].txHash);
     }
-  }, [mode, submittedTx, blockTraceQuery.data, selectedTxHash]);
+  }, [state.mode, state.submittedTx, blockTraceQuery.data, state.selectedTxHash, state.setSelectedTxHash]);
 
   const currentTrace: TransactionTraceResult | undefined = useMemo(() => {
-    if (mode === 'transaction') {
+    if (state.mode === 'transaction') {
       return transactionTraceQuery.data ?? undefined;
     }
-    return blockTraceQuery.data?.transactions.find((tx) => tx.txHash === selectedTxHash);
-  }, [mode, transactionTraceQuery.data, blockTraceQuery.data, selectedTxHash]);
+    return blockTraceQuery.data?.transactions.find((tx) => tx.txHash === state.selectedTxHash);
+  }, [state.mode, transactionTraceQuery.data, blockTraceQuery.data, state.selectedTxHash]);
 
-  const normalizedContractFilter = contractHashInput.trim().toLowerCase();
+  const normalizedContractFilter = state.contractHashInput.trim().toLowerCase();
 
   const filteredOpcodes = useMemo(() => {
     if (!currentTrace) return [];
@@ -67,17 +50,17 @@ export function useTraceBrowser() {
         return false;
       }
       if (
-        opcodeSearch.trim() &&
+        state.opcodeSearch.trim() &&
         !(
-          opcode.opcodeName.toLowerCase().includes(opcodeSearch.toLowerCase()) ||
-          opcode.opcode.toLowerCase().includes(opcodeSearch.toLowerCase())
+          opcode.opcodeName.toLowerCase().includes(state.opcodeSearch.toLowerCase()) ||
+          opcode.opcode.toLowerCase().includes(state.opcodeSearch.toLowerCase())
         )
       ) {
         return false;
       }
-      return opcode.stackDepth <= stackDepthLimit;
+      return opcode.stackDepth <= state.stackDepthLimit;
     });
-  }, [currentTrace, normalizedContractFilter, opcodeSearch, stackDepthLimit]);
+  }, [currentTrace, normalizedContractFilter, state.opcodeSearch, state.stackDepthLimit]);
 
   const callGraphSource = useMemo<ContractCallTraceEntry[]>(() => {
     if (contractCallsQuery.data?.calls?.length) {
@@ -86,73 +69,8 @@ export function useTraceBrowser() {
     return currentTrace?.contractCalls ?? [];
   }, [contractCallsQuery.data, currentTrace]);
 
-  const handleTraceSubmit = useCallback(
-    (event: FormEvent) => {
-      event.preventDefault();
-      setFormError(null);
-
-      if (mode === 'block') {
-        const parsed = Number(blockInput);
-        if (Number.isNaN(parsed) || parsed < 0) {
-          setFormError('Enter a valid block index.');
-          return;
-        }
-        setSubmittedBlock(parsed);
-        setSubmittedTx(null);
-        setSelectedTxHash(null);
-      } else {
-        const hash = txInput.trim();
-        if (!hash) {
-          setFormError('Enter a transaction hash.');
-          return;
-        }
-        setSubmittedTx(hash);
-        setSubmittedBlock(null);
-        setSelectedTxHash(hash);
-      }
-    },
-    [mode, blockInput, txInput]
-  );
-
-  const handleContractGraphLoad = useCallback(() => {
-    setContractQueryHash(contractHashInput.trim() || null);
-  }, [contractHashInput]);
-
-  const validateStatsRange = useCallback(() => {
-    const start = Number(statsInput.start);
-    const end = Number(statsInput.end);
-    if (Number.isNaN(start) || Number.isNaN(end) || start < 0 || end < start) {
-      setStatsValidationError('Enter a valid block range.');
-      return null;
-    }
-    if (end - start > MAX_STATS_RANGE) {
-      setStatsValidationError(`Block range too large (max ${MAX_STATS_RANGE} blocks).`);
-      return null;
-    }
-    setStatsValidationError(null);
-    return { start, end };
-  }, [statsInput]);
-
-  const handleStatsLoad = useCallback(() => {
-    const range = validateStatsRange();
-    if (!range) return;
-    setStatsParams(range);
-  }, [validateStatsRange]);
-
-  const handleOpcodeStatsLoad = useCallback(() => {
-    const range = validateStatsRange();
-    if (!range) return;
-    setOpcodeStatsParams(range);
-  }, [validateStatsRange]);
-
-  const handleContractCallStatsLoad = useCallback(() => {
-    const range = validateStatsRange();
-    if (!range) return;
-    setContractCallStatsParams(range);
-  }, [validateStatsRange]);
-
   const isTraceLoading =
-    mode === 'block'
+    state.mode === 'block'
       ? blockTraceQuery.isLoading || blockTraceQuery.isFetching
       : transactionTraceQuery.isLoading || transactionTraceQuery.isFetching;
 
@@ -182,34 +100,7 @@ export function useTraceBrowser() {
   const activeContractCallStats = contractCallStatsQuery.data ?? [];
 
   return {
-    mode,
-    setMode,
-    blockInput,
-    setBlockInput,
-    txInput,
-    setTxInput,
-    submittedBlock,
-    submittedTx,
-    selectedTxHash,
-    setSelectedTxHash,
-    activeTab,
-    setActiveTab,
-    formError,
-    opcodeSearch,
-    setOpcodeSearch,
-    stackDepthLimit,
-    setStackDepthLimit,
-    contractHashInput,
-    setContractHashInput,
-    contractQueryHash,
-    statsInput,
-    setStatsInput,
-    statsValidationError,
-    handleTraceSubmit,
-    handleContractGraphLoad,
-    handleStatsLoad,
-    handleOpcodeStatsLoad,
-    handleContractCallStatsLoad,
+    ...state,
     isTraceLoading,
     blockTraceError,
     txTraceError,
