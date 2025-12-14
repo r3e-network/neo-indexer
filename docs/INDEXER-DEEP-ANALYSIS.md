@@ -354,7 +354,8 @@ Where this is implemented:
 - `src/Plugins/StateReplay/StateReplayPlugin.Commands.BlockState.cs`
 - `src/Plugins/StateReplay/StateReplayPlugin.Commands.Binary.cs`
 - `src/Plugins/StateReplay/StateReplayPlugin.Commands.Supabase.cs`
-- `src/Plugins/StateReplay/StateReplayPlugin.Supabase.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Supabase.Replay.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Supabase.Download.cs`
 - `src/Plugins/StateReplay/BinaryFormatReader.cs`
 
 ### 12.1 Replay algorithm

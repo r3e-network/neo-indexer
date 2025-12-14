@@ -1,6 +1,6 @@
 // Copyright (C) 2015-2025 The Neo Project.
 //
-// StateReplayPlugin.Supabase.cs file belongs to the neo project and is free
+// StateReplayPlugin.Supabase.Replay.cs file belongs to the neo project and is free
 // software distributed under the MIT software license, see the
 // accompanying file LICENSE in the main directory of the
 // repository or http://www.opensource.org/licenses/mit-license.php
@@ -16,7 +16,6 @@ using Neo.SmartContract;
 using Neo.SmartContract.Native;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json.Serialization;
@@ -81,7 +80,7 @@ namespace StateReplay
                     break;
             }
 
-            var memoryStore = new MemoryStore();
+            using var memoryStore = new MemoryStore();
             using var storeSnapshot = memoryStore.GetSnapshot();
             using var snapshotCache = new StoreCache(storeSnapshot);
 
@@ -90,7 +89,7 @@ namespace StateReplay
             {
                 if (row.ContractId is null)
                     continue;
-                if (string.IsNullOrEmpty(row.KeyBase64) || string.IsNullOrEmpty(row.ValueBase64))
+                if (string.IsNullOrEmpty(row.KeyBase64) || row.ValueBase64 is null)
                     continue;
 
                 var keyBytes = Convert.FromBase64String(row.KeyBase64);
@@ -103,25 +102,6 @@ namespace StateReplay
 
             ReplayBlock(block, snapshotCache);
             ConsoleHelper.Info("Replay", $"Loaded {loaded} entries from Supabase storage_reads (block {blockIndex}).");
-        }
-
-        private async Task DownloadFromSupabaseAsync(uint blockIndex, string localPath)
-        {
-            var fileName = $"block-{blockIndex}.bin";
-            var url = $"{Settings.Default.SupabaseUrl.TrimEnd('/')}/storage/v1/object/{Settings.Default.SupabaseBucket}/{fileName}";
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.TryAddWithoutValidation("apikey", Settings.Default.SupabaseApiKey);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Settings.Default.SupabaseApiKey);
-
-            using var response = await HttpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new InvalidOperationException($"Download failed: {(int)response.StatusCode} {response.ReasonPhrase}");
-            }
-
-            var bytes = await response.Content.ReadAsByteArrayAsync();
-            await File.WriteAllBytesAsync(localPath, bytes);
         }
     }
 }
