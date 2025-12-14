@@ -22,6 +22,7 @@ Key behaviors:
 - Also exposes per-transaction outcome rows from `transaction_results` via `gettransactionresult`.
 - `getblocktrace` / `gettransactiontrace` also include `transaction_results`, `storage_writes`, `notifications`, and `logs` (from `runtime_logs`) in the returned payload.
 - Exposes runtime log stats via `getlogstats` (backed by Supabase RPC `get_runtime_log_stats`).
+- Exposes block aggregate stats via `getblockstats` (backed by Supabase RPC `get_block_stats`).
 - Supports optional per-request limits/offsets with caps to protect Supabase.
 - Supports an override key `NEO_RPC_TRACES__SUPABASE_KEY` (recommended for public RPC deployments so you can use an anon key + RLS).
 - Has its own concurrency gate (`NEO_RPC_TRACES__MAX_CONCURRENCY`) to avoid stampedes.
