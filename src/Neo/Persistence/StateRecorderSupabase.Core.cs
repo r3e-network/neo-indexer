@@ -35,8 +35,8 @@ namespace Neo.Persistence
         private const string UploadQueueCapacityEnvVar = "NEO_STATE_RECORDER__UPLOAD_QUEUE_CAPACITY";
         private const string TraceUploadQueueCapacityEnvVar = "NEO_STATE_RECORDER__TRACE_UPLOAD_QUEUE_CAPACITY";
 
-        // Global Supabase REST/Storage throttle to avoid 429 on mainnet.
-        // Despite the legacy name, this semaphore gates all HTTPS uploads (snapshots, reads, traces, stats).
+        // Global upload throttle to avoid Supabase overload on mainnet.
+        // Despite the legacy name, this semaphore gates all uploads (snapshots, reads, traces, stats), including direct Postgres.
         private static readonly int TraceUploadConcurrency = GetTraceUploadConcurrency();
         private static readonly SemaphoreSlim TraceUploadSemaphore = new(TraceUploadConcurrency);
 

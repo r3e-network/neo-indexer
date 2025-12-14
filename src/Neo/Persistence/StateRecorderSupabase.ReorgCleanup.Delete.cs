@@ -38,43 +38,47 @@ namespace Neo.Persistence
             // Mirror upload routing:
             // - Postgres mode prefers direct Postgres when configured, otherwise falls back to REST API.
             // - RestApi/Both prefer REST API when configured, otherwise fall back to direct Postgres.
+            var deleteViaPostgres = false;
             if (settings.Mode == StateRecorderSettings.UploadMode.Postgres)
             {
                 if (hasPostgres)
                 {
-                    await TryDeleteBlockDataPostgresAsync(blockIndexValue, settings).ConfigureAwait(false);
+                    deleteViaPostgres = true;
+                }
+                else if (!hasRestApi)
+                {
                     return;
                 }
-
-                if (!hasRestApi)
-                    return;
+            }
+            else if (hasRestApi)
+            {
+                deleteViaPostgres = false;
+            }
+            else if (hasPostgres)
+            {
+                deleteViaPostgres = true;
             }
             else
             {
-                if (hasRestApi)
-                {
-                    // continue below
-                }
-                else if (hasPostgres)
-                {
-                    await TryDeleteBlockDataPostgresAsync(blockIndexValue, settings).ConfigureAwait(false);
-                    return;
-                }
-                else
-                {
-                    return;
-                }
+                return;
             }
 
-            // Reorg cleanup should not interleave with other HTTP uploads. Drain the global HTTP semaphore
-            // so old in-flight trace/uploads complete before we delete, and no new ones start mid-cleanup.
+            // Reorg cleanup should not interleave with other uploads (HTTP or direct Postgres).
+            // Drain the global semaphore so in-flight uploads complete before we delete, and no new ones start mid-cleanup.
             var acquired = 0;
             try
             {
                 for (; acquired < TraceUploadConcurrency; acquired++)
                     await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
 
-                await DeleteBlockDataRestApiAsync(blockIndexValue, settings).ConfigureAwait(false);
+                if (deleteViaPostgres)
+                {
+                    await TryDeleteBlockDataPostgresAsync(blockIndexValue, settings).ConfigureAwait(false);
+                }
+                else
+                {
+                    await DeleteBlockDataRestApiAsync(blockIndexValue, settings).ConfigureAwait(false);
+                }
             }
             finally
             {
