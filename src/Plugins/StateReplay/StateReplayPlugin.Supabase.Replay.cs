@@ -70,7 +70,9 @@ namespace StateReplay
                 request.Headers.TryAddWithoutValidation("apikey", apiKey);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-                using var response = await HttpClient.SendAsync(request).ConfigureAwait(false);
+                using var response = await HttpClient
+                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead)
+                    .ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
                     var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
