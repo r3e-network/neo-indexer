@@ -40,8 +40,8 @@ Neo node
   └─ Block committed event fires
        └─ BlockStateIndexerPlugin drains recorders for this block
             ├─ StateRecorderSupabase.TryUpload(BlockReadRecorder, mode)
-            ├─ StateRecorderSupabase.TryQueueTraceUpload(block, ExecutionTraceRecorder) [per tx]
-            └─ StateRecorderSupabase.TryQueueBlockStatsUpload(BlockStats)
+            ├─ StateRecorderSupabase.TryQueueTraceUpload(blockIndex, blockHash, ExecutionTraceRecorder) [per tx]
+            └─ StateRecorderSupabase.TryQueueBlockStatsUpload(BlockStats, blockHash)
                  └─ Background upload queue + concurrency throttles + retries
 ```
 
@@ -267,6 +267,7 @@ Key behaviors:
   - upserts for blocks/contracts
   - batched inserts/upserts for reads and traces
   - optional stale-tail deletes when trimming is enabled
+  - optional per-block deletes when a tip reorg is detected (see 9.3)
 - Postgres direct mode is typically lower overhead (single transaction), but requires network connectivity to Postgres.
 
 ### 8.3 Backpressure vs completeness
@@ -305,9 +306,21 @@ What can become stale without extra cleanup:
   - `opcode_traces`, `syscall_traces`, `contract_calls`, `storage_writes`, `notifications`
 - With migration `012` enabled, `storage_reads` uses a unique key on `(block_index, contract_id, key_base64)`. That makes uploads idempotent, but it also means keys that were read by the **old** block at that height can remain if the **new** block never reads them (because there is no conflicting row to overwrite).
 
+What this fork does to mitigate reorg orphans (when enabled):
+- `StateRecorderSupabase` tracks a best-effort **canonical block hash** per `block_index` (in-process) and wraps queued uploads in a guard:
+  - if the queued work’s `expectedBlockHash` is no longer canonical, the upload is skipped
+  - if a reorg cleanup is in-flight for that height, the upload waits for it
+- When `NEO_STATE_RECORDER__TRACE_TRIM_STALE_ROWS=true` and a block hash replacement is observed at the same height, the uploader schedules a **high priority** reorg cleanup that deletes all per-block rows for that height (reads + traces) before re-uploading.
+
+Code pointers:
+- Canonical hash tracking + canonical-only execution: `src/Neo/Persistence/StateRecorderSupabase.ReorgGuard.*.cs`
+- Reorg cleanup barrier + queueing: `src/Neo/Persistence/StateRecorderSupabase.ReorgCleanup.Barriers.cs`, `src/Neo/Persistence/StateRecorderSupabase.ReorgCleanup.Queueing.cs`
+- Delete implementations: `src/Neo/Persistence/StateRecorderSupabase.ReorgCleanup.RestApi.cs`, `src/Neo/Persistence/StateRecorderSupabase.ReorgCleanup.Postgres.cs`
+- Detection + scheduling: `src/Neo/Persistence/StateRecorderSupabase.Dispatch.cs`
+
 Operational implications:
-- For “append-only analytics”, stale rows are usually acceptable (they only affect a small reorg window).
-- For “exact state reconstruction / replay correctness”, reorg windows may require explicit cleanup (delete by `block_index` and re-upload).
+- For “append-only analytics”, stale rows are usually acceptable (they only affect a small reorg window), and you can leave trimming disabled.
+- For “exact state reconstruction / replay correctness”, enable trimming so reorgs trigger per-height cleanup (delete by `block_index` and re-upload).
   - Trace table DELETE policies exist for service role deployments (see migration `009_trace_delete_policies_and_indexes.sql`).
 
 ## 10. Security considerations
