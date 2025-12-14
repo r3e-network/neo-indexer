@@ -388,8 +388,18 @@ StateReplay supports multiple snapshot sources:
 
 ### 12.3 Current limitations
 
-`replay compare` currently produces a summary report but does **not** perform a full “live execution vs replay” diff:
+`replay compare <snapshotFile>` replays the block against the snapshot and produces a *read coverage* report (hit/miss keys at the store layer):
 - `src/Plugins/StateReplay/StateReplayPlugin.Commands.Compare.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Compare.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Compare.Snapshot.cs`
+- `src/Plugins/StateReplay/ReadCapturingStoreSnapshot.cs`
+
+This is useful to answer questions like:
+- “Did the replay attempt to read a key that is missing from my snapshot?”
+- “How much of the snapshot was actually used?”
+- “Did the replay read keys that were not present in the snapshot (e.g., keys created during replay)?”
+
+It still does **not** perform a full “live execution vs replay” diff (events, ordering, VM state transitions, storage *values*, etc.); it is primarily a snapshot *coverage* and missing-data diagnostic.
 
 ## 13. Enablement + mode matrix (plugin config vs env)
 
