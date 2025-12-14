@@ -1,0 +1,253 @@
+// Copyright (C) 2015-2025 The Neo Project.
+//
+// StateReplayPlugin.Commands.cs file belongs to the neo project and is free
+// software distributed under the MIT software license, see the
+// accompanying file LICENSE in the main directory of the
+// repository or http://www.opensource.org/licenses/mit-license.php
+// for more details.
+//
+// Redistribution and use in source and binary forms with or without
+// modifications are permitted.
+
+using Neo;
+using Neo.ConsoleService;
+using Neo.Network.P2P.Payloads;
+using Neo.Persistence;
+using Neo.Persistence.Providers;
+using Neo.SmartContract;
+using Neo.SmartContract.Native;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using static System.IO.Path;
+
+namespace StateReplay
+{
+    public partial class StateReplayPlugin
+    {
+        [ConsoleCommand("replay block-state", Category = "Replay", Description = "Replay a block using a key-value list file (JSON format)")]
+        internal void ReplayBlockState(string filePath, uint? heightOverride = null)
+        {
+            if (_system is null)
+                throw new InvalidOperationException("NeoSystem is not ready.");
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("Snapshot file not found", filePath);
+
+            // Check if it's binary format
+            if (BinaryFormatReader.IsBinaryFormat(filePath))
+            {
+                ReplayBlockStateBinary(filePath);
+                return;
+            }
+
+            JsonDocument snapshotJson;
+            try
+            {
+                snapshotJson = JsonDocument.Parse(File.ReadAllBytes(filePath));
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Snapshot file is not valid JSON.", ex);
+            }
+
+            var root = snapshotJson.RootElement;
+            if (!root.TryGetProperty("keys", out var keysElement) || keysElement.ValueKind != JsonValueKind.Array)
+                throw new InvalidOperationException("Snapshot file missing 'keys' array.");
+            if (!root.TryGetProperty("block", out var blockProperty))
+                throw new InvalidOperationException("Snapshot file missing 'block' field.");
+
+            var heightFromFile = blockProperty.GetUInt32();
+            var height = heightOverride ?? heightFromFile;
+            if (heightOverride.HasValue && heightOverride.Value != heightFromFile)
+                throw new InvalidOperationException("Height override does not match snapshot block height.");
+
+            var blockHash = root.TryGetProperty("hash", out var hashElem) ? UInt256.Parse(hashElem.GetString()) : throw new InvalidOperationException("Snapshot file missing 'hash' field.");
+            if (blockHash is null)
+                throw new InvalidOperationException($"Block {height} not found on this node.");
+
+            var block = NativeContract.Ledger.GetBlock(_system.StoreView, blockHash);
+            block ??= NativeContract.Ledger.GetBlock(_system.StoreView, height);
+            if (block is null)
+                throw new InvalidOperationException($"Block {height} not found on this node.");
+            if (block.Index != height)
+                throw new InvalidOperationException($"Snapshot height {height} does not match block index {block.Index} for hash {blockHash}.");
+
+            var expectedCount = root.TryGetProperty("keyCount", out var kcElem) && kcElem.ValueKind == JsonValueKind.Number ? kcElem.GetInt32() : (int?)null;
+
+            var memoryStore = new MemoryStore();
+            using var storeSnapshot = memoryStore.GetSnapshot();
+            using var snapshotCache = new StoreCache(storeSnapshot);
+
+            var loaded = 0;
+            foreach (var entry in keysElement.EnumerateArray())
+            {
+                if (!entry.TryGetProperty("key", out var keyProp) || !entry.TryGetProperty("value", out var valueProp))
+                    throw new InvalidOperationException("Snapshot entry missing 'key' or 'value'.");
+                var keyBase64 = keyProp.GetString() ?? throw new InvalidOperationException("Snapshot entry key is null.");
+                var valueBase64 = valueProp.GetString() ?? throw new InvalidOperationException("Snapshot entry value is null.");
+                if (keyBase64.Length == 0) throw new InvalidOperationException("Snapshot entry key is empty.");
+                if (valueBase64.Length == 0) throw new InvalidOperationException("Snapshot entry value is empty.");
+                var keyBytes = Convert.FromBase64String(keyBase64);
+                var valueBytes = Convert.FromBase64String(valueBase64);
+                snapshotCache.Add((StorageKey)keyBytes, new StorageItem(valueBytes));
+                loaded++;
+            }
+
+            if (expectedCount.HasValue && expectedCount.Value != loaded)
+                throw new InvalidOperationException($"Snapshot keyCount mismatch: expected {expectedCount}, loaded {loaded}.");
+
+            ReplayBlock(block, snapshotCache);
+            ConsoleHelper.Info("Replay", $"Loaded {loaded} entries from JSON snapshot.");
+        }
+
+        [ConsoleCommand("replay block-binary", Category = "Replay", Description = "Replay a block using a binary NSBR format file")]
+        internal void ReplayBlockStateBinary(string filePath)
+        {
+            if (_system is null)
+                throw new InvalidOperationException("NeoSystem is not ready.");
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("Binary snapshot file not found", filePath);
+
+            var binaryFile = BinaryFormatReader.Read(filePath);
+            var blockIndex = binaryFile.BlockIndex;
+
+            var block = NativeContract.Ledger.GetBlock(_system.StoreView, blockIndex);
+            if (block is null)
+                throw new InvalidOperationException($"Block {blockIndex} not found on this node.");
+
+            var memoryStore = new MemoryStore();
+            using var storeSnapshot = memoryStore.GetSnapshot();
+            using var snapshotCache = new StoreCache(storeSnapshot);
+
+            foreach (var entry in binaryFile.Entries)
+            {
+                // Cast byte array directly to StorageKey - it expects explicit conversion from byte[]
+                var storageKey = (StorageKey)entry.Key;
+                var storageItem = new StorageItem(entry.Value);
+                snapshotCache.Add(storageKey, storageItem);
+            }
+
+            ReplayBlock(block, snapshotCache);
+            ConsoleHelper.Info("Replay", $"Loaded {binaryFile.Entries.Count} entries from binary snapshot (block {blockIndex}).");
+        }
+
+        [ConsoleCommand("replay supabase", Category = "Replay", Description = "Replay a block by fetching storage_reads from Supabase Postgres")]
+        internal void ReplayBlockStateFromSupabase(uint blockIndex)
+        {
+            if (_system is null)
+                throw new InvalidOperationException("NeoSystem is not ready.");
+
+            if (string.IsNullOrEmpty(Settings.Default.SupabaseUrl) || string.IsNullOrEmpty(Settings.Default.SupabaseApiKey))
+            {
+                ConsoleHelper.Error("Supabase not configured. Set SupabaseUrl and SupabaseApiKey in StateReplay.json");
+                return;
+            }
+
+            try
+            {
+                ReplayFromSupabaseAsync(blockIndex).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                ConsoleHelper.Error($"Replay failed: {ex.Message}");
+            }
+        }
+
+        [ConsoleCommand("replay download", Category = "Replay", Description = "Download binary state file from Supabase")]
+        internal void DownloadBlockState(uint blockIndex)
+        {
+            if (string.IsNullOrEmpty(Settings.Default.SupabaseUrl) || string.IsNullOrEmpty(Settings.Default.SupabaseApiKey))
+            {
+                ConsoleHelper.Error("Supabase not configured. Set SupabaseUrl and SupabaseApiKey in StateReplay.json");
+                return;
+            }
+
+            var fileName = $"block-{blockIndex}.bin";
+            var localPath = Combine(Settings.Default.CacheDirectory, fileName);
+
+            try
+            {
+                var task = DownloadFromSupabaseAsync(blockIndex, localPath);
+                task.Wait();
+                ConsoleHelper.Info("Replay", $"Downloaded block {blockIndex} to {localPath}");
+            }
+            catch (Exception ex)
+            {
+                ConsoleHelper.Error($"Download failed: {ex.Message}");
+            }
+        }
+
+        [ConsoleCommand("replay compare", Category = "Replay", Description = "Compare replay execution with live execution and generate diff report")]
+        internal void CompareBlockExecution(string filePath)
+        {
+            if (_system is null)
+                throw new InvalidOperationException("NeoSystem is not ready.");
+
+            // Load state file
+            BinaryStateFile? binaryFile = null;
+            Dictionary<string, byte[]>? jsonEntries = null;
+            uint blockIndex;
+
+            if (BinaryFormatReader.IsBinaryFormat(filePath))
+            {
+                binaryFile = BinaryFormatReader.Read(filePath);
+                blockIndex = binaryFile.BlockIndex;
+            }
+            else
+            {
+                // JSON format
+                var json = JsonDocument.Parse(File.ReadAllBytes(filePath));
+                blockIndex = json.RootElement.GetProperty("block").GetUInt32();
+                jsonEntries = new Dictionary<string, byte[]>();
+                foreach (var entry in json.RootElement.GetProperty("keys").EnumerateArray())
+                {
+                    var key = entry.GetProperty("key").GetString()!;
+                    var value = Convert.FromBase64String(entry.GetProperty("value").GetString()!);
+                    jsonEntries[key] = value;
+                }
+            }
+
+            var block = NativeContract.Ledger.GetBlock(_system.StoreView, blockIndex);
+            if (block is null)
+            {
+                ConsoleHelper.Error($"Block {blockIndex} not found on this node.");
+                return;
+            }
+
+            // Capture reads during replay
+            var replayReads = new Dictionary<string, byte[]>();
+            var liveReads = new Dictionary<string, byte[]>();
+
+            // For comparison, we'd need to intercept reads during both executions
+            // This is a simplified implementation that compares the loaded state
+            var report = new StringBuilder();
+            report.AppendLine($"=== Block {blockIndex} Comparison Report ===");
+            report.AppendLine($"Block Hash: {block.Hash}");
+            report.AppendLine($"Transactions: {block.Transactions.Length}");
+            report.AppendLine();
+
+            if (binaryFile != null)
+            {
+                report.AppendLine($"Snapshot Entries: {binaryFile.Entries.Count}");
+                // Group by contract
+                var byContract = binaryFile.Entries.GroupBy(e => e.ContractHash.ToString());
+                foreach (var group in byContract.OrderBy(g => g.Key))
+                {
+                    report.AppendLine($"  Contract {group.Key}: {group.Count()} reads");
+                }
+            }
+            else if (jsonEntries != null)
+            {
+                report.AppendLine($"Snapshot Entries: {jsonEntries.Count}");
+            }
+
+            report.AppendLine();
+            report.AppendLine("Comparison complete. (Full diff requires live execution capture - not implemented in this version)");
+
+            ConsoleHelper.Info(report.ToString());
+        }
+    }
+}
