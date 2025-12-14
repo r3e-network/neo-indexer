@@ -19,7 +19,7 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class BlockStateIndexerPlugin
     {
-        private void TryQueueTraceUploads(Block block, IReadOnlyList<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
+        private void TryQueueTraceUploads(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
         {
             if (allowRestApiUploads &&
                 block.Transactions.Length >= Settings.Default.MinTransactionCount &&
@@ -38,4 +38,3 @@ namespace Neo.Plugins.BlockStateIndexer
         }
     }
 }
-

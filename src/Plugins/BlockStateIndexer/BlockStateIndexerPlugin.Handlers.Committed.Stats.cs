@@ -19,7 +19,7 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class BlockStateIndexerPlugin
     {
-        private static BlockStats BuildBlockStats(Block block, IReadOnlyList<ExecutionTraceRecorder> recorders, int storageReadCount)
+        private static BlockStats BuildBlockStats(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, int storageReadCount)
         {
             long totalGasConsumed = 0;
             int opCodeCount = 0;
@@ -54,4 +54,3 @@ namespace Neo.Plugins.BlockStateIndexer
         }
     }
 }
-
