@@ -27,7 +27,7 @@ namespace Neo.Persistence
             if (recorders is null) throw new ArgumentNullException(nameof(recorders));
 
             var settings = StateRecorderSettings.Current;
-            if (!settings.Enabled || !IsRestApiMode(settings.Mode))
+            if (!settings.Enabled || !IsDatabaseMode(settings.Mode))
                 return Task.CompletedTask;
 
             return UploadTransactionResultsCoreAsync(
@@ -38,4 +38,3 @@ namespace Neo.Persistence
         }
     }
 }
-

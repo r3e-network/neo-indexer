@@ -18,10 +18,9 @@ namespace Neo.Persistence
         private static bool IsBinaryMode(StateRecorderSettings.UploadMode mode)
             => mode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
 
-        private static bool IsRestApiMode(StateRecorderSettings.UploadMode mode)
+        private static bool IsDatabaseMode(StateRecorderSettings.UploadMode mode)
             => mode is StateRecorderSettings.UploadMode.RestApi
                 or StateRecorderSettings.UploadMode.Postgres
                 or StateRecorderSettings.UploadMode.Both;
     }
 }
-

@@ -21,7 +21,7 @@ namespace Neo.Persistence
             StateRecorderSettings.UploadMode effectiveMode,
             string blockHash)
         {
-            if (!IsRestApiMode(effectiveMode))
+            if (!IsDatabaseMode(effectiveMode))
                 return;
 
             var backend = ResolveDatabaseBackend(effectiveMode, settings);

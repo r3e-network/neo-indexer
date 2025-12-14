@@ -39,7 +39,7 @@ namespace Neo.Persistence
             // If the same height is observed again with a different hash (tip reorg), and trimming is enabled,
             // delete per-block rows (reads + traces) before re-uploading to avoid orphan data.
             if (settings.TrimStaleTraceRows &&
-                IsRestApiMode(effectiveMode) &&
+                IsDatabaseMode(effectiveMode) &&
                 hadPrevious &&
                 !string.IsNullOrWhiteSpace(previousHash) &&
                 !string.Equals(previousHash, blockHash, System.StringComparison.Ordinal) &&

@@ -26,7 +26,7 @@ namespace Neo.Persistence
             if (recorder is null) throw new ArgumentNullException(nameof(recorder));
 
             var settings = StateRecorderSettings.Current;
-            if (!settings.Enabled || !IsRestApiMode(settings.Mode))
+            if (!settings.Enabled || !IsDatabaseMode(settings.Mode))
                 return Task.CompletedTask;
 
             if (!recorder.HasTraces)
@@ -47,7 +47,7 @@ namespace Neo.Persistence
             if (recorder is null) throw new ArgumentNullException(nameof(recorder));
 
             var settings = StateRecorderSettings.Current;
-            if (!settings.Enabled || !IsRestApiMode(settings.Mode))
+            if (!settings.Enabled || !IsDatabaseMode(settings.Mode))
                 return Task.CompletedTask;
 
             if (!recorder.HasTraces)

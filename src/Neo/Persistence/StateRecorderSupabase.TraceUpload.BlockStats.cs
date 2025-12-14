@@ -33,7 +33,7 @@ namespace Neo.Persistence
             if (stats is null) throw new ArgumentNullException(nameof(stats));
 
             var settings = StateRecorderSettings.Current;
-            if (!settings.Enabled || !IsRestApiMode(settings.Mode))
+            if (!settings.Enabled || !IsDatabaseMode(settings.Mode))
                 return;
 
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
