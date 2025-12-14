@@ -350,7 +350,7 @@ echo "The Neo node with plugins is available at: $OUTPUT_DIR/Neo.CLI/$TARGET_FRA
 echo "You can run it using: cd $OUTPUT_DIR/Neo.CLI/$TARGET_FRAMEWORK && dotnet neo-cli.dll"
 
 # Verify essential plugins were installed
-ESSENTIAL_PLUGINS=("DBFTPlugin" "ApplicationLogs" "RpcServer")
+ESSENTIAL_PLUGINS=("LevelDBStore" "RpcServer" "BlockStateIndexer")
 for plugin in "${ESSENTIAL_PLUGINS[@]}"; do
     if [ ! -f "$CLI_PLUGINS_DIR/$plugin/$plugin.dll" ]; then
         echo -e "${YELLOW}Warning: Essential plugin $plugin is missing${NC}"

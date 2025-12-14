@@ -10,5 +10,3 @@
 // modifications are permitted.
 
 using System.Runtime.CompilerServices;
-
-[assembly: InternalsVisibleTo("Neo.VM.Tests")]

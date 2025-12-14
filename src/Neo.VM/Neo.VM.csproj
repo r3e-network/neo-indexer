@@ -9,7 +9,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Neo" />
     <InternalsVisibleTo Include="Neo.SmartContract.Testing" />
-    <InternalsVisibleTo Include="Neo.VM.Benchmarks" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,4 @@
-name: Release (neo-cli)
+name: Release (neo-indexer)
 
 # Trigger the workflow on a release event when a new release is published
 on:
@@ -97,11 +97,82 @@ jobs:
         -p:GITHUB_ACTIONS=true
 
     # Remove unnecessary files from the LevelDBStore plugin output
-    - name: Remove files (junk)
+    - name: Remove files (junk, LevelDBStore)
       working-directory: ${{ env.OUTPUT_PATH }}/${{ matrix.runtime }}/Plugins/LevelDBStore
       run: |
-        rm -v -R runtimes
-        rm -v Neo*
+        rm -rf runtimes Neo*
+
+    - name: .NET Build (RpcServer)
+      run: |
+        dotnet build ./src/Plugins/RpcServer \
+        --version-suffix ${{ matrix.runtime }} \
+        --framework net9.0 \
+        --configuration ${{ env.CONFIGURATION }} \
+        --runtime ${{ matrix.runtime }} \
+        --output ${{ env.OUTPUT_PATH }}/${{ matrix.runtime }}/Plugins/RpcServer \
+        --verbosity normal \
+        -p:VersionPrefix=${{ env.APP_VERSION }} \
+        -p:DebugSymbols=false \
+        -p:DebugType=none \
+        -p:ServerGarbageCollection=true \
+        -p:TieredCompilation=true \
+        -p:TieredCompilationQuickJitForLoops=false \
+        -p:TieredPGO=true \
+        -p:GenerateDocumentationFile=false \
+        -p:GITHUB_ACTIONS=true
+
+    - name: Remove files (junk, RpcServer)
+      working-directory: ${{ env.OUTPUT_PATH }}/${{ matrix.runtime }}/Plugins/RpcServer
+      run: |
+        rm -rf runtimes Neo*
+
+    - name: .NET Build (BlockStateIndexer)
+      run: |
+        dotnet build ./src/Plugins/BlockStateIndexer \
+        --version-suffix ${{ matrix.runtime }} \
+        --framework net9.0 \
+        --configuration ${{ env.CONFIGURATION }} \
+        --runtime ${{ matrix.runtime }} \
+        --output ${{ env.OUTPUT_PATH }}/${{ matrix.runtime }}/Plugins/BlockStateIndexer \
+        --verbosity normal \
+        -p:VersionPrefix=${{ env.APP_VERSION }} \
+        -p:DebugSymbols=false \
+        -p:DebugType=none \
+        -p:ServerGarbageCollection=true \
+        -p:TieredCompilation=true \
+        -p:TieredCompilationQuickJitForLoops=false \
+        -p:TieredPGO=true \
+        -p:GenerateDocumentationFile=false \
+        -p:GITHUB_ACTIONS=true
+
+    - name: Remove files (junk, BlockStateIndexer)
+      working-directory: ${{ env.OUTPUT_PATH }}/${{ matrix.runtime }}/Plugins/BlockStateIndexer
+      run: |
+        rm -rf runtimes Neo*
+
+    - name: .NET Build (StateReplay)
+      run: |
+        dotnet build ./src/Plugins/StateReplay \
+        --version-suffix ${{ matrix.runtime }} \
+        --framework net9.0 \
+        --configuration ${{ env.CONFIGURATION }} \
+        --runtime ${{ matrix.runtime }} \
+        --output ${{ env.OUTPUT_PATH }}/${{ matrix.runtime }}/Plugins/StateReplay \
+        --verbosity normal \
+        -p:VersionPrefix=${{ env.APP_VERSION }} \
+        -p:DebugSymbols=false \
+        -p:DebugType=none \
+        -p:ServerGarbageCollection=true \
+        -p:TieredCompilation=true \
+        -p:TieredCompilationQuickJitForLoops=false \
+        -p:TieredPGO=true \
+        -p:GenerateDocumentationFile=false \
+        -p:GITHUB_ACTIONS=true
+
+    - name: Remove files (junk, StateReplay)
+      working-directory: ${{ env.OUTPUT_PATH }}/${{ matrix.runtime }}/Plugins/StateReplay
+      run: |
+        rm -rf runtimes Neo*
 
     # Create the distribution directory
     - name: Create Distribution Directory

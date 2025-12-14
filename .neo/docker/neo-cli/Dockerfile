@@ -1,6 +1,6 @@
 FROM debian:stable-slim
 
-LABEL org.opencontainers.image.description "neo-cli -- full node, no plugins"
+LABEL org.opencontainers.image.description "neo-cli -- Neo Indexer (Supabase) with indexing plugins"
 
 # Install the apt-get packages
 RUN apt-get update

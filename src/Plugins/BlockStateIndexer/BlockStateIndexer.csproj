@@ -14,8 +14,4 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
-  <ItemGroup>
-    <InternalsVisibleTo Include="$(PackageId).Tests" />
-  </ItemGroup>
 </Project>

@@ -211,7 +211,7 @@ echo The Neo node with plugins is available at: %OUTPUT_DIR%\Neo.CLI\%TARGET_FRA
 echo You can run it using: cd %OUTPUT_DIR%\Neo.CLI\%TARGET_FRAMEWORK% ^&^& dotnet neo-cli.dll
 
 REM Verify essential plugins were installed
-set "ESSENTIAL_PLUGINS=DBFTPlugin ApplicationLogs RpcServer"
+set "ESSENTIAL_PLUGINS=LevelDBStore RpcServer BlockStateIndexer"
 for %%P in (%ESSENTIAL_PLUGINS%) do (
     if not exist "%CLI_PLUGINS_DIR%\%%P\%%P.dll" (
         echo Warning: Essential plugin %%P is missing

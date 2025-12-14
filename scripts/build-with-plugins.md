@@ -17,7 +17,7 @@ This directory contains scripts to build Neo.CLI and all its plugins, organizing
 - Copies plugin configuration files automatically
 - Smart DLL detection that searches multiple locations:
   - Main output directory (bin/)
-  - Project-specific folders under bin/ (e.g., bin/Neo.Plugins.ApplicationLogs/)
+  - Project-specific folders under bin/ (e.g., bin/Neo.Plugins.BlockStateIndexer/)
   - Framework-specific folders (e.g., bin/Neo.CLI/net9.0/)
   - Source directory build outputs
 - Comprehensive logging to build.log
@@ -59,9 +59,11 @@ bin/
     └── net9.0/    (or other detected framework version)
         ├── neo-cli.dll (and other core files)
         └── Plugins/
-            ├── DBFTPlugin/
-            │   ├── DBFTPlugin.dll
-            │   └── DBFTPlugin.json (if available)
+            ├── BlockStateIndexer/
+            │   ├── BlockStateIndexer.dll
+            │   └── BlockStateIndexer.json (if available)
+            ├── LevelDBStore/
+            │   ├── LevelDBStore.dll
             ├── RpcServer/
             │   ├── RpcServer.dll
             │   └── RpcServer.json (if available)
@@ -118,9 +120,11 @@ This approach ensures all plugins are properly built and copied, even when:
       └── net9.0/    (or other detected framework version)
           ├── neo-cli.dll (and other core files)
           └── Plugins/
-              ├── DBFTPlugin/
-              │   ├── DBFTPlugin.dll
-              │   └── DBFTPlugin.json
+              ├── BlockStateIndexer/
+              │   ├── BlockStateIndexer.dll
+              │   └── BlockStateIndexer.json
+              ├── LevelDBStore/
+              │   ├── LevelDBStore.dll
               ├── RpcServer/
               │   ├── RpcServer.dll
               │   └── RpcServer.json
@@ -171,6 +175,6 @@ grep -i error build.log
 - If a plugin doesn't have a corresponding JSON configuration file, the script will skip copying the config but will still copy the DLL
 - The output will be placed in the `/bin/Neo.CLI/[framework]` directory at the root of your Neo repository
 - Each plugin will be placed in its own subdirectory under `/bin/Neo.CLI/[framework]/Plugins` with its DLL and config files
-- Essential plugins (DBFTPlugin, ApplicationLogs, RpcServer) are verified after build
+- Essential plugins (LevelDBStore, RpcServer, BlockStateIndexer) are verified after build
 - Build time is measured and reported
 - A complete build log is generated at the root of the repository

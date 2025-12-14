@@ -13,7 +13,7 @@ This README provides an explanation for each field in the JSON configuration fil
 - **Engine**: Specifies the storage engine used by the node. Possible values are:
     - `MemoryStore`
     - `LevelDBStore`
-    - `RocksDBStore`
+    - `RecordingStore` (BlockStateIndexer wrapper; records storage reads)
 - **Path**: Path to the data storage directory. `{0}` is a placeholder for the network ID.
 
 ### P2P

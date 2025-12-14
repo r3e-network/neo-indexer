@@ -1,4 +1,4 @@
-name: Publish (docker-image)
+name: Publish (neo-indexer docker-image)
 
 on:
   release:
@@ -74,10 +74,71 @@ jobs:
           -p:PublishReferencesDocumentationFiles=false \
           -p:GITHUB_ACTIONS=true
 
+    - name: Build (RpcServer)
+      run: |
+        dotnet build ./src/Plugins/RpcServer \
+          --framework net9.0 \
+          --configuration Release \
+          --runtime linux-x64 \
+          --output ${{ env.DIST_DIR }}/Plugins/RpcServer \
+          --verbosity normal \
+          -p:VersionPrefix=${{ env.APP_VERSION }} \
+          -p:DebugSymbols=false \
+          -p:DebugType=none \
+          -p:ServerGarbageCollection=true \
+          -p:TieredCompilation=true \
+          -p:TieredCompilationQuickJitForLoops=false \
+          -p:TieredPGO=true \
+          -p:GenerateDocumentationFile=false \
+          -p:PublishDocumentationFiles=false \
+          -p:PublishReferencesDocumentationFiles=false \
+          -p:GITHUB_ACTIONS=true
+
+    - name: Build (BlockStateIndexer)
+      run: |
+        dotnet build ./src/Plugins/BlockStateIndexer \
+          --framework net9.0 \
+          --configuration Release \
+          --runtime linux-x64 \
+          --output ${{ env.DIST_DIR }}/Plugins/BlockStateIndexer \
+          --verbosity normal \
+          -p:VersionPrefix=${{ env.APP_VERSION }} \
+          -p:DebugSymbols=false \
+          -p:DebugType=none \
+          -p:ServerGarbageCollection=true \
+          -p:TieredCompilation=true \
+          -p:TieredCompilationQuickJitForLoops=false \
+          -p:TieredPGO=true \
+          -p:GenerateDocumentationFile=false \
+          -p:PublishDocumentationFiles=false \
+          -p:PublishReferencesDocumentationFiles=false \
+          -p:GITHUB_ACTIONS=true
+
+    - name: Build (StateReplay)
+      run: |
+        dotnet build ./src/Plugins/StateReplay \
+          --framework net9.0 \
+          --configuration Release \
+          --runtime linux-x64 \
+          --output ${{ env.DIST_DIR }}/Plugins/StateReplay \
+          --verbosity normal \
+          -p:VersionPrefix=${{ env.APP_VERSION }} \
+          -p:DebugSymbols=false \
+          -p:DebugType=none \
+          -p:ServerGarbageCollection=true \
+          -p:TieredCompilation=true \
+          -p:TieredPGO=true \
+          -p:GenerateDocumentationFile=false \
+          -p:PublishDocumentationFiles=false \
+          -p:PublishReferencesDocumentationFiles=false \
+          -p:GITHUB_ACTIONS=true
+
     - name: Remove (junk)
       run: |
-        rm -v -R ${{ env.DIST_DIR }}/Plugins/LevelDBStore/runtimes
-        rm -v ${{ env.DIST_DIR }}/Plugins/LevelDBStore/Neo*
+        for plugin in LevelDBStore RpcServer BlockStateIndexer StateReplay; do
+          rm -rf "${{ env.DIST_DIR }}/Plugins/${plugin}/runtimes"
+          rm -f "${{ env.DIST_DIR }}/Plugins/${plugin}"/Neo*
+        done
 
     - name: Docker Login
       run: |
