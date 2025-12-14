@@ -11,22 +11,22 @@
 
 #nullable enable
 
-	using Neo.Network.P2P.Payloads;
-	using Neo.Persistence;
-	using Neo.VM;
-	using System;
-	using System.Collections.Generic;
+using Neo.Network.P2P.Payloads;
+using Neo.Persistence;
+using Neo.VM;
+using System;
+using System.Collections.Generic;
 
 namespace Neo.SmartContract
 {
-	    /// <summary>
-	    /// ApplicationEngine implementation that emits extended traces for syscalls, storage mutations, and notifications.
-	    /// </summary>
-	    public partial class TracingApplicationEngine : ApplicationEngine
-	    {
-	        private readonly ExecutionTraceRecorder _traceRecorder;
-	        private readonly ExecutionTraceLevel _traceLevel;
-	        private readonly Dictionary<int, UInt160> _contractHashCache = new();
+    /// <summary>
+    /// ApplicationEngine implementation that emits extended traces for syscalls, storage mutations, and notifications.
+    /// </summary>
+    public partial class TracingApplicationEngine : ApplicationEngine
+    {
+        private readonly ExecutionTraceRecorder _traceRecorder;
+        private readonly ExecutionTraceLevel _traceLevel;
+        private readonly Dictionary<int, UInt160> _contractHashCache = new();
 
         /// <summary>
         /// Gets the recorder used to capture execution traces.
@@ -54,20 +54,20 @@ namespace Neo.SmartContract
             JumpTable? jumpTable = null)
             : base(trigger, container, snapshotCache, persistingBlock, settings, gas, diagnostic, jumpTable)
         {
-	            _traceRecorder = traceRecorder ?? throw new ArgumentNullException(nameof(traceRecorder));
-	            _traceLevel = traceLevel;
-	        }
+            _traceRecorder = traceRecorder ?? throw new ArgumentNullException(nameof(traceRecorder));
+            _traceLevel = traceLevel;
+        }
 
-	        private bool ShouldTrace(ExecutionTraceLevel level)
-	        {
-	            if (_traceRecorder is null || !_traceRecorder.IsEnabled)
+        private bool ShouldTrace(ExecutionTraceLevel level)
+        {
+            if (!_traceRecorder.IsEnabled)
                 return false;
-	            return (_traceLevel & level) != 0;
-	        }
+            return (_traceLevel & level) != 0;
+        }
 
-	        private static ReadOnlyMemory<byte> Clone(ReadOnlyMemory<byte> source)
-	        {
-	            return source.IsEmpty ? ReadOnlyMemory<byte>.Empty : source.ToArray();
-	        }
-	    }
-	}
+        private static ReadOnlyMemory<byte> Clone(ReadOnlyMemory<byte> source)
+        {
+            return source.IsEmpty ? ReadOnlyMemory<byte>.Empty : source.ToArray();
+        }
+    }
+}

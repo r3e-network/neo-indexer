@@ -22,14 +22,14 @@ namespace Neo.SmartContract
     /// IDiagnostic implementation that captures OpCode execution traces
     /// and contract call graph information.
     /// </summary>
-	public sealed partial class TracingDiagnostic : IDiagnostic
-	{
-	    private readonly ExecutionTraceRecorder _recorder;
-	    private ApplicationEngine? _engine;
-	    private long _lastFeeConsumed;
-	    private PendingOpCodeData? _pendingOpCode;
-	    private readonly Stack<(ContractCallTrace Trace, long GasStart)> _callStack = new();
-	    private readonly Dictionary<UInt160, Dictionary<int, string?>> _methodNameCache = new();
+    public sealed partial class TracingDiagnostic : IDiagnostic
+    {
+        private readonly ExecutionTraceRecorder _recorder;
+        private ApplicationEngine? _engine;
+        private long _lastFeeConsumed;
+        private PendingOpCodeData? _pendingOpCode;
+        private readonly Stack<(ContractCallTrace Trace, long GasStart)> _callStack = new();
+        private readonly Dictionary<UInt160, Dictionary<int, string?>> _methodNameCache = new();
 
         /// <summary>
         /// Gets the trace recorder associated with this diagnostic.
@@ -57,59 +57,59 @@ namespace Neo.SmartContract
         /// <summary>
         /// Called when the ApplicationEngine is initialized.
         /// </summary>
-	    public void Initialized(ApplicationEngine engine)
-	    {
-	        _engine = engine;
-	        _lastFeeConsumed = engine.FeeConsumed;
-	        _pendingOpCode = null;
-	        _callStack.Clear();
-	        _methodNameCache.Clear();
-	    }
+        public void Initialized(ApplicationEngine engine)
+        {
+            _engine = engine;
+            _lastFeeConsumed = engine.FeeConsumed;
+            _pendingOpCode = null;
+            _callStack.Clear();
+            _methodNameCache.Clear();
+        }
 
         /// <summary>
         /// Called when the ApplicationEngine is disposed.
         /// </summary>
-		    public void Disposed()
-		    {
-		        var engine = _engine;
-	        if (engine is null)
-	        {
-	            _callStack.Clear();
-	            _pendingOpCode = null;
-	            return;
-	        }
+        public void Disposed()
+        {
+            var engine = _engine;
+            if (engine is null)
+            {
+                _callStack.Clear();
+                _pendingOpCode = null;
+                return;
+            }
 
-	        _recorder.TotalGasConsumed = engine.FeeConsumed;
+            _recorder.TotalGasConsumed = engine.FeeConsumed;
 
-	        // If the engine terminates between PreExecuteInstruction and PostExecuteInstruction,
-	        // emit the last pending opcode trace using the current FeeConsumed.
-	        if (_pendingOpCode is { } pending)
-	        {
-	            var delta = engine.FeeConsumed - _lastFeeConsumed;
-	            _recorder.RecordOpCode(
-	                pending.ContractHash,
-	                pending.InstructionPointer,
-	                pending.OpCode,
-	                pending.Operand,
-	                gasConsumed: delta < 0 ? 0 : delta,
-	                pending.StackDepth);
-	            _lastFeeConsumed = engine.FeeConsumed;
-	            _pendingOpCode = null;
-	        }
+            // If the engine terminates between PreExecuteInstruction and PostExecuteInstruction,
+            // emit the last pending opcode trace using the current FeeConsumed.
+            if (_pendingOpCode is { } pending)
+            {
+                var delta = engine.FeeConsumed - _lastFeeConsumed;
+                _recorder.RecordOpCode(
+                    pending.ContractHash,
+                    pending.InstructionPointer,
+                    pending.OpCode,
+                    pending.Operand,
+                    gasConsumed: delta < 0 ? 0 : delta,
+                    pending.StackDepth);
+                _lastFeeConsumed = engine.FeeConsumed;
+                _pendingOpCode = null;
+            }
 
             var faulted = engine.State == VMState.FAULT || engine.FaultException is not null;
 
-	        // Mark any remaining calls as completed (abnormal termination)
-	        while (_callStack.Count > 0)
-	        {
-	            var (trace, gasStart) = _callStack.Pop();
+            // Mark any remaining calls as completed (abnormal termination)
+            while (_callStack.Count > 0)
+            {
+                var (trace, gasStart) = _callStack.Pop();
                 var gasConsumed = engine.FeeConsumed - gasStart;
                 trace.GasConsumed = gasConsumed < 0 ? 0 : gasConsumed;
                 if (faulted)
                     trace.Success = false;
             }
 
-		        _engine = null;
-		    }
-	}
+            _engine = null;
+        }
+    }
 }

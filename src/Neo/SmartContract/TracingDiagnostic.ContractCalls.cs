@@ -16,71 +16,71 @@ using System.Collections.Generic;
 
 namespace Neo.SmartContract
 {
-	public sealed partial class TracingDiagnostic
-	{
-	    /// <summary>
-	    /// Called when a new execution context is loaded (contract call starts).
-	    /// </summary>
-	    public void ContextLoaded(ExecutionContext context)
-	    {
-	        if (!TraceContractCalls || _engine == null) return;
+    public sealed partial class TracingDiagnostic
+    {
+        /// <summary>
+        /// Called when a new execution context is loaded (contract call starts).
+        /// </summary>
+        public void ContextLoaded(ExecutionContext context)
+        {
+            if (!TraceContractCalls || _engine == null) return;
 
-	        var calleeHash = context.GetScriptHash();
-	        var callerHash = _engine.CallingScriptHash;
-	        var callDepth = _engine.InvocationStack.Count;
+            var calleeHash = context.GetScriptHash();
+            var callerHash = _engine.CallingScriptHash;
+            var callDepth = _engine.InvocationStack.Count;
 
-	        string? methodName = null;
-	        try
-	        {
-	            var state = context.GetState<ExecutionContextState>();
-	            var methods = state.Contract?.Manifest?.Abi?.Methods;
-	            var offset = context.InstructionPointer;
+            string? methodName = null;
+            try
+            {
+                var state = context.GetState<ExecutionContextState>();
+                var methods = state.Contract?.Manifest?.Abi?.Methods;
+                var offset = context.InstructionPointer;
 
-	            if (methods is { Length: > 0 })
-	            {
-	                if (!_methodNameCache.TryGetValue(calleeHash, out var offsetMap))
-	                {
-	                    offsetMap = new Dictionary<int, string?>(methods.Length);
-	                    foreach (var method in methods)
-	                        offsetMap[method.Offset] = method.Name;
-	                    _methodNameCache[calleeHash] = offsetMap;
-	                }
+                if (methods is { Length: > 0 })
+                {
+                    if (!_methodNameCache.TryGetValue(calleeHash, out var offsetMap))
+                    {
+                        offsetMap = new Dictionary<int, string?>(methods.Length);
+                        foreach (var method in methods)
+                            offsetMap[method.Offset] = method.Name;
+                        _methodNameCache[calleeHash] = offsetMap;
+                    }
 
-	                offsetMap.TryGetValue(offset, out methodName);
-	            }
-	        }
-	        catch
-	        {
-	            methodName = null;
-	        }
+                    offsetMap.TryGetValue(offset, out methodName);
+                }
+            }
+            catch
+            {
+                methodName = null;
+            }
 
-	        // Record the contract call
-	        var trace = _recorder.RecordContractCall(
-	            callerHash,
-	            calleeHash,
-	            methodName: methodName,
-	            callDepth);
+            // Record the contract call
+            var trace = _recorder.RecordContractCall(
+                callerHash,
+                calleeHash,
+                methodName: methodName,
+                callDepth);
 
-	        // Push to call stack for tracking completion
-	        _callStack.Push((trace, _engine.FeeConsumed));
-	    }
+            // Push to call stack for tracking completion
+            _callStack.Push((trace, _engine.FeeConsumed));
+        }
 
-	    /// <summary>
-	    /// Called when an execution context is unloaded (contract call ends).
-	    /// </summary>
-	    public void ContextUnloaded(ExecutionContext context)
-	    {
-	        if (!TraceContractCalls || _engine == null) return;
+        /// <summary>
+        /// Called when an execution context is unloaded (contract call ends).
+        /// </summary>
+        public void ContextUnloaded(ExecutionContext context)
+        {
+            if (!TraceContractCalls || _engine == null) return;
 
-	        if (_callStack.Count > 0)
-	        {
-	            var (trace, gasStart) = _callStack.Pop();
-	            var gasConsumed = _engine.FeeConsumed - gasStart;
+            if (_callStack.Count > 0)
+            {
+                var (trace, gasStart) = _callStack.Pop();
+                var gasConsumed = _engine.FeeConsumed - gasStart;
 
-	            trace.GasConsumed = gasConsumed < 0 ? 0 : gasConsumed;
-	            if (_engine.State == VMState.FAULT || _engine.FaultException is not null)
-	                trace.Success = false;
-	        }
-	    }
-	}
+                trace.GasConsumed = gasConsumed < 0 ? 0 : gasConsumed;
+                if (_engine.State == VMState.FAULT || _engine.FaultException is not null)
+                    trace.Success = false;
+            }
+        }
+    }
 }
