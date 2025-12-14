@@ -11,7 +11,6 @@
 
 #nullable enable
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,21 +33,13 @@ namespace Neo.Persistence
                 var blockIndexValue = checked((int)blockIndex);
                 var batchSize = GetTraceUploadBatchSize();
 
-                var contractHashCache = new Dictionary<UInt160, string>();
-                var opCodeRows = BuildOpCodeTraceRows(blockIndexValue, txHash, recorder.GetOpCodeTraces(), contractHashCache);
-                var syscallRows = BuildSyscallTraceRows(blockIndexValue, txHash, recorder.GetSyscallTraces(), contractHashCache);
-                var contractCallRows = BuildContractCallTraceRows(blockIndexValue, txHash, recorder.GetContractCallTraces(), contractHashCache);
-                var storageWriteRows = BuildStorageWriteTraceRows(blockIndexValue, txHash, recorder.GetStorageWriteTraces(), contractHashCache);
-                var notificationRows = BuildNotificationTraceRows(blockIndexValue, txHash, recorder.GetNotificationTraces(), contractHashCache);
+                var (opCodeRows, syscallRows, contractCallRows, storageWriteRows, notificationRows) =
+                    BuildTraceRows(blockIndexValue, txHash, recorder);
 
                 var useDirectPostgres = settings.Mode == StateRecorderSettings.UploadMode.Postgres || !settings.UploadEnabled;
                 if (useDirectPostgres)
                 {
-                    if (string.IsNullOrWhiteSpace(settings.SupabaseConnectionString))
-                        return;
-
-#if NET9_0_OR_GREATER
-                    await UploadBlockTracePostgresAsync(
+                    await TryUploadBlockTracePostgresAsync(
                         blockIndexValue,
                         txHash,
                         opCodeRows,
@@ -59,7 +50,6 @@ namespace Neo.Persistence
                         batchSize,
                         trimStaleTraceRows,
                         settings).ConfigureAwait(false);
-#endif
                     return;
                 }
 

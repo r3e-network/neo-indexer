@@ -33,75 +33,65 @@ namespace Neo.Persistence
         {
             var uploadTasks = new List<Task>(5);
 
-            if (trimStaleTraceRows || opCodeRows.Count > 0)
-            {
-                uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
-                    baseUrl,
-                    apiKey,
-                    tableName: "opcode_traces",
-                    entityName: "opcode traces",
-                    opCodeRows,
-                    batchSize,
-                    blockIndex,
-                    txHash,
-                    trimStaleTraceRows));
-            }
+            MaybeAddTraceUploadTask(
+                uploadTasks,
+                baseUrl,
+                apiKey,
+                tableName: "opcode_traces",
+                entityName: "opcode traces",
+                opCodeRows,
+                batchSize,
+                blockIndex,
+                txHash,
+                trimStaleTraceRows);
 
-            if (trimStaleTraceRows || syscallRows.Count > 0)
-            {
-                uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
-                    baseUrl,
-                    apiKey,
-                    tableName: "syscall_traces",
-                    entityName: "syscall traces",
-                    syscallRows,
-                    batchSize,
-                    blockIndex,
-                    txHash,
-                    trimStaleTraceRows));
-            }
+            MaybeAddTraceUploadTask(
+                uploadTasks,
+                baseUrl,
+                apiKey,
+                tableName: "syscall_traces",
+                entityName: "syscall traces",
+                syscallRows,
+                batchSize,
+                blockIndex,
+                txHash,
+                trimStaleTraceRows);
 
-            if (trimStaleTraceRows || contractCallRows.Count > 0)
-            {
-                uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
-                    baseUrl,
-                    apiKey,
-                    tableName: "contract_calls",
-                    entityName: "contract call traces",
-                    contractCallRows,
-                    batchSize,
-                    blockIndex,
-                    txHash,
-                    trimStaleTraceRows));
-            }
+            MaybeAddTraceUploadTask(
+                uploadTasks,
+                baseUrl,
+                apiKey,
+                tableName: "contract_calls",
+                entityName: "contract call traces",
+                contractCallRows,
+                batchSize,
+                blockIndex,
+                txHash,
+                trimStaleTraceRows);
 
-            if (trimStaleTraceRows || storageWriteRows.Count > 0)
-            {
-                uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
-                    baseUrl,
-                    apiKey,
-                    tableName: "storage_writes",
-                    entityName: "storage write traces",
-                    storageWriteRows,
-                    batchSize,
-                    blockIndex,
-                    txHash,
-                    trimStaleTraceRows));
-            }
+            MaybeAddTraceUploadTask(
+                uploadTasks,
+                baseUrl,
+                apiKey,
+                tableName: "storage_writes",
+                entityName: "storage write traces",
+                storageWriteRows,
+                batchSize,
+                blockIndex,
+                txHash,
+                trimStaleTraceRows);
 
-            if (trimStaleTraceRows || notificationRows.Count > 0)
-            {
-                uploadTasks.Add(UploadAndMaybeTrimTraceTableRestApiAsync(
-                    baseUrl,
-                    apiKey,
-                    tableName: "notifications",
-                    entityName: "notification traces",
-                    notificationRows,
-                    batchSize,
-                    blockIndex,
-                    txHash,
-                    trimStaleTraceRows));
-            }
+            MaybeAddTraceUploadTask(
+                uploadTasks,
+                baseUrl,
+                apiKey,
+                tableName: "notifications",
+                entityName: "notification traces",
+                notificationRows,
+                batchSize,
+                blockIndex,
+                txHash,
+                trimStaleTraceRows);
 
             if (uploadTasks.Count == 0)
                 return false;
@@ -111,4 +101,3 @@ namespace Neo.Persistence
         }
     }
 }
-
