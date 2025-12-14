@@ -13,6 +13,7 @@
 
 using Neo.Network.P2P.Payloads;
 using Neo.SmartContract;
+using System.Threading;
 
 namespace Neo.Persistence
 {
@@ -24,7 +25,11 @@ namespace Neo.Persistence
         /// </summary>
         public bool TryAdd(IReadOnlyStore? store, StorageKey key, StorageItem value, string? source, UInt256? txHash)
         {
-            if (_isFull) return false;
+            if (_isFull)
+            {
+                Interlocked.Increment(ref _droppedEntries);
+                return false;
+            }
 
             int order = 0;
             bool accepted = false;
