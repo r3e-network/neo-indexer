@@ -1,32 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { SyscallCategory, SyscallStat, SyscallTraceEntry } from '../../types';
-
-const categoryColors: Record<SyscallCategory, string> = {
-  storage: 'bg-sky-400',
-  contract: 'bg-emerald-400',
-  runtime: 'bg-amber-400',
-  system: 'bg-rose-400',
-  crypto: 'bg-violet-400',
-  network: 'bg-indigo-400',
-  other: 'bg-slate-500',
-};
-
-function getSyscallCategory(name: string): SyscallCategory {
-  const normalized = name.toLowerCase();
-  if (normalized.includes('storage')) return 'storage';
-  if (normalized.includes('contract') || normalized.includes('call')) return 'contract';
-  if (normalized.includes('runtime') || normalized.includes('vm')) return 'runtime';
-  if (normalized.includes('policy') || normalized.includes('gas') || normalized.includes('system')) return 'system';
-  if (normalized.includes('sha') || normalized.includes('check') || normalized.includes('crypto')) return 'crypto';
-  if (normalized.includes('oracle') || normalized.includes('role') || normalized.includes('state.root')) return 'network';
-  return 'other';
-}
-
-function formatGasValue(value: number) {
-  const gas = value / 1e8;
-  if (gas >= 1) return `${gas.toFixed(2)} GAS`;
-  return `${gas.toFixed(5)} GAS`;
-}
+import { SyscallStatsTable } from './syscallTimeline/SyscallStatsTable';
+import { categoryColors, formatGasValue, getSyscallCategory } from './syscallTimeline/helpers';
 
 export interface SyscallTimelineProps {
   syscalls?: SyscallTraceEntry[];
@@ -154,33 +129,7 @@ export function SyscallTimeline({ syscalls = [], stats = [], isLoading = false, 
       )}
 
       {stats.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-sm font-semibold text-slate-200">Aggregated statistics</h4>
-          <div className="mt-3 overflow-hidden rounded-xl border border-slate-800">
-            <table className="min-w-full divide-y divide-slate-800 text-sm">
-              <thead className="bg-slate-950/70 text-left text-xs uppercase tracking-wide text-slate-400">
-                <tr>
-                  <th className="px-4 py-2">Syscall</th>
-                  <th className="px-4 py-2">Category</th>
-                  <th className="px-4 py-2">Invocations</th>
-                  <th className="px-4 py-2">Total GAS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-900/70 text-slate-100">
-                {stats.slice(0, 8).map((stat) => (
-                  <tr key={stat.syscallName}>
-                    <td className="px-4 py-2 font-mono">{stat.syscallName}</td>
-                    <td className="px-4 py-2 capitalize">
-                      <span className={`badge ${categoryColors[stat.category]} text-slate-900`}>{stat.category}</span>
-                    </td>
-                    <td className="px-4 py-2">{stat.callCount.toLocaleString()}</td>
-                    <td className="px-4 py-2">{formatGasValue(stat.totalGas)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <SyscallStatsTable stats={stats} />
       )}
     </div>
   );
