@@ -30,6 +30,7 @@ namespace Neo.Plugins.RpcServer.Model
         public IReadOnlyList<OpCodeTraceResult> OpCodeTraces { get; init; } = Array.Empty<OpCodeTraceResult>();
         public IReadOnlyList<SyscallTraceResult> SyscallTraces { get; init; } = Array.Empty<SyscallTraceResult>();
         public IReadOnlyList<ContractCallResult> ContractCalls { get; init; } = Array.Empty<ContractCallResult>();
+        public IReadOnlyList<StorageReadTraceResult> StorageReads { get; init; } = Array.Empty<StorageReadTraceResult>();
         public IReadOnlyList<StorageWriteTraceResult> StorageWrites { get; init; } = Array.Empty<StorageWriteTraceResult>();
         public IReadOnlyList<NotificationTraceResult> Notifications { get; init; } = Array.Empty<NotificationTraceResult>();
         public IReadOnlyList<RuntimeLogTraceResult> Logs { get; init; } = Array.Empty<RuntimeLogTraceResult>();
@@ -39,6 +40,7 @@ namespace Neo.Plugins.RpcServer.Model
         public int OpCodeTotal { get; init; }
         public int SyscallTotal { get; init; }
         public int ContractCallTotal { get; init; }
+        public int StorageReadTotal { get; init; }
         public int StorageWriteTotal { get; init; }
         public int NotificationTotal { get; init; }
         public int LogTotal { get; init; }
@@ -58,6 +60,7 @@ namespace Neo.Plugins.RpcServer.Model
             json["opcodes"] = BuildCollection(OpCodeTraces.Select(t => t.ToJson()), OpCodeTotal);
             json["syscalls"] = BuildCollection(SyscallTraces.Select(t => t.ToJson()), SyscallTotal);
             json["contractCalls"] = BuildCollection(ContractCalls.Select(t => t.ToJson()), ContractCallTotal);
+            json["storageReads"] = BuildCollection(StorageReads.Select(t => t.ToJson()), StorageReadTotal);
             json["storageWrites"] = BuildCollection(StorageWrites.Select(t => t.ToJson()), StorageWriteTotal);
             json["notifications"] = BuildCollection(Notifications.Select(t => t.ToJson()), NotificationTotal);
             json["logs"] = BuildCollection(Logs.Select(t => t.ToJson()), LogTotal);

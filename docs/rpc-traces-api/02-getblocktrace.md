@@ -7,11 +7,13 @@ Collections included:
 - `opcodes`
 - `syscalls`
 - `contractCalls`
+- `storageReads`
 - `storageWrites`
 - `notifications`
 - `logs`
 
 Notes:
+- `storageReads.items[*]` are *deduped per key per block* (first-observed value for each `(contract_id, key)` pair).
 - `opcodes.items[*].gasConsumed` is the opcode fee for that instruction (in datoshi).
 - `syscalls.items[*].gasCost` is the syscall fee (including any dynamic fees charged inside the handler).
 - `contractCalls.items[*].success` is `false` when the callee context unwinds due to an exception (including exceptions that are caught by the caller). For the overall transaction outcome, use `transactionResults`.
@@ -111,4 +113,3 @@ dynamic fees charged inside the handler), while `gasBase` is the fixed base pric
   }
 }
 ```
-

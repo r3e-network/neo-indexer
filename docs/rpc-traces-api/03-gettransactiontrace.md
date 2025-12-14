@@ -35,6 +35,7 @@ Same shape as `getblocktrace`, but includes `transactionHash` at the top‑level
   "opcodes": { "total": 0, "items": [] },
   "syscalls": { "total": 0, "items": [] },
   "contractCalls": { "total": 0, "items": [] },
+  "storageReads": { "total": 0, "items": [] },
   "storageWrites": { "total": 0, "items": [] },
   "notifications": { "total": 0, "items": [] },
   "logs": { "total": 0, "items": [] }
