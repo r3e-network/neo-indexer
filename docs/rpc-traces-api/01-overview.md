@@ -30,7 +30,7 @@ There are two ways to consume traces:
 2. **Neo JSON‑RPC proxy (optional)**  
    The `RpcServer.Traces` plugin exposes `getblocktrace`, `gettransactiontrace`,
    `gettransactionresult`, `getcontractcalls`, `getcontractcallstats`, `getsyscallstats`,
-   `getopcodestats`, `getlogstats`, `getblockstats`, and `getnotificationstats`. These are thin HTTPS
+   `getopcodestats`, `getlogstats`, `getblockstats`, `getnotificationstats`, `getstoragewritestats`, and `getstoragereadstats`. These are thin HTTPS
    proxies to Supabase PostgREST and are useful for non‑browser clients.
 
 ## RPC Proxy Configuration

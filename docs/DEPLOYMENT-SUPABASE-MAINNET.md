@@ -41,6 +41,8 @@ Run the SQL files in order in the Supabase SQL editor:
 24. `migrations/024_notification_stats.sql`
 25. `migrations/025_storage_write_stats.sql`
 26. `migrations/026_storage_read_stats.sql`
+27. `migrations/027_storage_write_stats_perf.sql`
+28. `migrations/028_storage_read_stats_perf.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -64,6 +66,8 @@ Notes:
 - `024_notification_stats.sql` adds `get_notification_stats(...)` so public RPC endpoints can expose bounded event analytics (`getnotificationstats`).
 - `025_storage_write_stats.sql` adds `get_storage_write_stats(...)` so public RPC endpoints can expose bounded storage write analytics (`getstoragewritestats`).
 - `026_storage_read_stats.sql` adds `get_storage_read_stats(...)` so public RPC endpoints can expose bounded storage read analytics (`getstoragereadstats`).
+- `027_storage_write_stats_perf.sql` optimizes `get_storage_write_stats(...)` to resolve `contract_hash` to `contract_id` (uses existing indexes).
+- `028_storage_read_stats_perf.sql` optimizes `get_storage_read_stats(...)` to resolve `contract_hash` to `contract_id` (uses existing indexes).
 
 Optional automation (runs migrations using a direct Postgres connection string):
 
