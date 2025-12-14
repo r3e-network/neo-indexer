@@ -33,7 +33,8 @@ namespace StateReplay
                 return (file.BlockIndex, entries, expectedKeys);
             }
 
-            using var json = JsonDocument.Parse(File.ReadAllBytes(filePath));
+            using var stream = File.OpenRead(filePath);
+            using var json = JsonDocument.Parse(stream);
             var root = json.RootElement;
 
             if (!root.TryGetProperty("block", out var blockElement) || blockElement.ValueKind != JsonValueKind.Number)
@@ -65,4 +66,3 @@ namespace StateReplay
         }
     }
 }
-

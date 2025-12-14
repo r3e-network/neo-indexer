@@ -95,7 +95,8 @@ namespace StateReplay
         {
             try
             {
-                return JsonDocument.Parse(File.ReadAllBytes(filePath));
+                using var stream = File.OpenRead(filePath);
+                return JsonDocument.Parse(stream);
             }
             catch (Exception ex)
             {
@@ -104,4 +105,3 @@ namespace StateReplay
         }
     }
 }
-
