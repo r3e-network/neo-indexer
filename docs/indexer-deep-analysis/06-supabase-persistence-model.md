@@ -40,4 +40,4 @@ Provides SECURITY DEFINER functions for:
 
 This is operationally important because mainnet grows indefinitely.
 
-Note: `ensure_trace_partitions` also creates partitions for `transaction_results` so per-tx result queries stay fast as mainnet grows.
+Note: `ensure_trace_partitions` and `prune_trace_partitions` also manage partitions for `transaction_results` so per-tx result queries stay fast as mainnet grows.
