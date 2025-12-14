@@ -22,7 +22,7 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class RecordingStoreProvider
     {
-        private sealed class RecordingStoreSnapshot : IStoreSnapshot, IReadOnlyStore
+        private sealed partial class RecordingStoreSnapshot : IStoreSnapshot, IReadOnlyStore
         {
             private readonly IStoreSnapshot _inner;
 
@@ -87,43 +87,6 @@ namespace Neo.Plugins.BlockStateIndexer
             {
                 _inner.Dispose();
             }
-
-            #region IReadOnlyStore (StorageKey, StorageItem)
-
-            public StorageItem? TryGet(StorageKey key)
-            {
-                return TryGet(key, out var item) ? item : null;
-            }
-
-            public bool TryGet(StorageKey key, [NotNullWhen(true)] out StorageItem? value)
-            {
-                if (_inner.TryGet(key.ToArray(), out var bytes) && bytes != null)
-                {
-                    value = new StorageItem(bytes);
-                    RecordingStoreProvider.RecordReadItem(this, key, value, nameof(TryGet));
-                    return true;
-                }
-
-                value = null;
-                return false;
-            }
-
-            public bool Contains(StorageKey key)
-            {
-                return Contains(key.ToArray());
-            }
-
-            public IEnumerable<(StorageKey Key, StorageItem Value)> Find(StorageKey? key_prefix = null, SeekDirection direction = SeekDirection.Forward)
-            {
-                var prefixBytes = key_prefix?.ToArray();
-                foreach (var (key, value) in Find(prefixBytes, direction))
-                {
-                    StorageKey storageKey = key;
-                    yield return (storageKey, new StorageItem(value));
-                }
-            }
-
-            #endregion
         }
     }
 }

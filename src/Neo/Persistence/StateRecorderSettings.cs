@@ -13,11 +13,10 @@
 
 using Neo.SmartContract;
 using System;
-using System.Globalization;
 
 namespace Neo.Persistence
 {
-    public sealed class StateRecorderSettings
+    public sealed partial class StateRecorderSettings
     {
         private const string Prefix = "NEO_STATE_RECORDER__";
 
@@ -87,48 +86,6 @@ namespace Neo.Persistence
                 UploadAuxFormats = GetEnvBool("UPLOAD_AUX_FORMATS"),
                 MaxStorageReadsPerBlock = GetEnvInt("MAX_STORAGE_READS_PER_BLOCK")
             };
-        }
-
-        private static UploadMode ParseUploadMode(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return UploadMode.Binary;
-
-            return Enum.TryParse(value, true, out UploadMode mode) ? mode : UploadMode.Binary;
-        }
-
-        private static ExecutionTraceLevel ParseTraceLevel(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return ExecutionTraceLevel.All;
-
-            // Support comma-separated lists of flags (e.g., "Syscalls,OpCodes")
-            var parts = value.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length > 1)
-            {
-                ExecutionTraceLevel combined = ExecutionTraceLevel.None;
-                foreach (var part in parts)
-                {
-                    if (Enum.TryParse(part.Trim(), true, out ExecutionTraceLevel parsed))
-                        combined |= parsed;
-                }
-                return combined == ExecutionTraceLevel.None ? ExecutionTraceLevel.All : combined;
-            }
-
-            return Enum.TryParse(value, true, out ExecutionTraceLevel mode) ? mode : ExecutionTraceLevel.All;
-        }
-
-        private static bool GetEnvBool(string name)
-        {
-            var value = Environment.GetEnvironmentVariable($"{Prefix}{name}");
-            return value != null && bool.TryParse(value, out var result) ? result : false;
-        }
-
-        private static int GetEnvInt(string name)
-        {
-            var value = Environment.GetEnvironmentVariable($"{Prefix}{name}");
-            if (value is null) return 0;
-            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? Math.Max(0, result) : 0;
         }
     }
 }

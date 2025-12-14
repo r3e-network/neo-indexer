@@ -11,11 +11,7 @@
 
 #nullable enable
 
-using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
-using Neo.VM;
-using System;
-using System.Collections.Generic;
 
 namespace Neo.SmartContract
 {
@@ -46,76 +42,5 @@ namespace Neo.SmartContract
             diagnostic.TraceOpCodes = (_traceLevel & ExecutionTraceLevel.OpCodes) != 0;
             diagnostic.TraceContractCalls = (_traceLevel & ExecutionTraceLevel.ContractCalls) != 0;
         }
-
-        private sealed class DiagnosticCollection : IDiagnostic
-        {
-            private readonly IReadOnlyList<IDiagnostic> _diagnostics;
-
-            public DiagnosticCollection(params IDiagnostic[] diagnostics)
-            {
-                _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
-            }
-
-            public void Initialized(ApplicationEngine engine)
-            {
-                foreach (var diagnostic in _diagnostics)
-                    diagnostic?.Initialized(engine);
-            }
-
-            public void Disposed()
-            {
-                foreach (var diagnostic in _diagnostics)
-                    diagnostic?.Disposed();
-            }
-
-            public void ContextLoaded(ExecutionContext context)
-            {
-                foreach (var diagnostic in _diagnostics)
-                    diagnostic?.ContextLoaded(context);
-            }
-
-            public void ContextUnloaded(ExecutionContext context)
-            {
-                foreach (var diagnostic in _diagnostics)
-                    diagnostic?.ContextUnloaded(context);
-            }
-
-            public void PreExecuteInstruction(Instruction instruction)
-            {
-                foreach (var diagnostic in _diagnostics)
-                    diagnostic?.PreExecuteInstruction(instruction);
-            }
-
-            public void PostExecuteInstruction(Instruction instruction)
-            {
-                foreach (var diagnostic in _diagnostics)
-                    diagnostic?.PostExecuteInstruction(instruction);
-            }
-        }
-
-        private sealed class StateReadTransactionDiagnostic : IDiagnostic
-        {
-            private IDisposable? _scope;
-
-            public void Initialized(ApplicationEngine engine)
-            {
-                if (engine.ScriptContainer is Transaction tx)
-                {
-                    _scope = StateReadRecorder.BeginTransaction(tx.Hash);
-                }
-            }
-
-            public void Disposed()
-            {
-                _scope?.Dispose();
-                _scope = null;
-            }
-
-            public void ContextLoaded(ExecutionContext context) { }
-            public void ContextUnloaded(ExecutionContext context) { }
-            public void PreExecuteInstruction(Instruction instruction) { }
-            public void PostExecuteInstruction(Instruction instruction) { }
-        }
     }
 }
-
