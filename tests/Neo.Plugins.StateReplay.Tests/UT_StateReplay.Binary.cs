@@ -1,6 +1,6 @@
 // Copyright (C) 2015-2025 The Neo Project.
 //
-// UT_BinaryFormatReader.cs file belongs to the neo project and is free
+// UT_StateReplay.Binary.cs file belongs to the neo project and is free
 // software distributed under the MIT software license, see the
 // accompanying file LICENSE in the main directory of the
 // repository or http://www.opensource.org/licenses/mit-license.php
@@ -10,13 +10,13 @@
 // modifications are permitted.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 using System.IO;
 using System.Text;
 
 namespace StateReplay.Tests
 {
-    [TestClass]
-    public partial class UT_BinaryFormatReader
+    public partial class UT_StateReplay
     {
         private static byte[] CreateValidBinaryFile(uint blockIndex, int entryCount = 0)
         {
@@ -38,18 +38,19 @@ namespace StateReplay.Tests
             // Entry count
             writer.Write(entryCount);
 
-            // Entries
+            // Create storage key format entries
             for (int i = 0; i < entryCount; i++)
             {
                 // ContractHash (20 bytes)
                 writer.Write(new byte[20]);
 
-                // Key length and key
-                var keyBytes = new byte[] { 0x01, 0x02 };
+                // Key: Use a format compatible with StorageKey
+                // StorageKey = [ContractId (4 bytes)][Key bytes]
+                var keyBytes = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x01, 0x02 };
                 writer.Write((ushort)keyBytes.Length);
                 writer.Write(keyBytes);
 
-                // Value length and value
+                // Value
                 var valueBytes = new byte[] { 0x03, 0x04, 0x05 };
                 writer.Write(valueBytes.Length);
                 writer.Write(valueBytes);
@@ -62,50 +63,41 @@ namespace StateReplay.Tests
         }
 
         [TestMethod]
-        public void Read_ValidFile_ReturnsCorrectBlockIndex()
+        public void ReplayBinary_AcceptsValidFile()
         {
-            var bytes = CreateValidBinaryFile(12345u);
+            var bytes = CreateValidBinaryFile(0u, 1);
             var path = Path.GetTempFileName();
             File.WriteAllBytes(path, bytes);
 
-            var result = BinaryFormatReader.Read(path);
-
-            Assert.AreEqual(12345u, result.BlockIndex);
-            Assert.AreEqual(0, result.Entries.Count);
+            // Should not throw - block 0 exists in test blockchain
+            _plugin.ReplayBinaryForTest(path);
         }
 
         [TestMethod]
-        public void Read_ValidFileWithEntries_ParsesEntriesCorrectly()
+        public void ReplayBinary_RejectsNonExistentBlock()
         {
-            var bytes = CreateValidBinaryFile(100u, 3);
+            var bytes = CreateValidBinaryFile(999999u, 0);
             var path = Path.GetTempFileName();
             File.WriteAllBytes(path, bytes);
 
-            var result = BinaryFormatReader.Read(path);
-
-            Assert.AreEqual(100u, result.BlockIndex);
-            Assert.AreEqual(3, result.Entries.Count);
-
-            foreach (var entry in result.Entries)
-            {
-                Assert.IsNotNull(entry.ContractHash);
-                Assert.IsNotNull(entry.Key);
-                Assert.IsNotNull(entry.Value);
-                Assert.AreEqual(2, entry.Key.Length);
-                Assert.AreEqual(3, entry.Value.Length);
-            }
+            Assert.ThrowsExactly<InvalidOperationException>(() => _plugin.ReplayBinaryForTest(path));
         }
 
         [TestMethod]
-        public void Read_FromStream_WorksCorrectly()
+        public void ReplayBinary_RejectsMissingFile()
         {
-            var bytes = CreateValidBinaryFile(999u, 1);
+            Assert.ThrowsExactly<FileNotFoundException>(() => _plugin.ReplayBinaryForTest("/nonexistent/path/file.bin"));
+        }
 
-            using var stream = new MemoryStream(bytes);
-            var result = BinaryFormatReader.Read(stream);
+        [TestMethod]
+        public void Replay_AutoDetectsBinaryFormat()
+        {
+            var bytes = CreateValidBinaryFile(0u, 1);
+            var path = Path.GetTempFileName();
+            File.WriteAllBytes(path, bytes);
 
-            Assert.AreEqual(999u, result.BlockIndex);
-            Assert.AreEqual(1, result.Entries.Count);
+            // ReplayForTest should auto-detect binary format and call ReplayBinaryForTest
+            _plugin.ReplayForTest(path);
         }
     }
 }
