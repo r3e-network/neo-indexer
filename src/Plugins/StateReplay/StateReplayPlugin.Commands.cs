@@ -11,18 +11,13 @@
 
 using Neo;
 using Neo.ConsoleService;
-using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
 using Neo.Persistence.Providers;
 using Neo.SmartContract;
 using Neo.SmartContract.Native;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
-using static System.IO.Path;
 
 namespace StateReplay
 {
@@ -132,122 +127,6 @@ namespace StateReplay
 
             ReplayBlock(block, snapshotCache);
             ConsoleHelper.Info("Replay", $"Loaded {binaryFile.Entries.Count} entries from binary snapshot (block {blockIndex}).");
-        }
-
-        [ConsoleCommand("replay supabase", Category = "Replay", Description = "Replay a block by fetching storage_reads from Supabase Postgres")]
-        internal void ReplayBlockStateFromSupabase(uint blockIndex)
-        {
-            if (_system is null)
-                throw new InvalidOperationException("NeoSystem is not ready.");
-
-            if (string.IsNullOrEmpty(Settings.Default.SupabaseUrl) || string.IsNullOrEmpty(Settings.Default.SupabaseApiKey))
-            {
-                ConsoleHelper.Error("Supabase not configured. Set SupabaseUrl and SupabaseApiKey in StateReplay.json");
-                return;
-            }
-
-            try
-            {
-                ReplayFromSupabaseAsync(blockIndex).GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                ConsoleHelper.Error($"Replay failed: {ex.Message}");
-            }
-        }
-
-        [ConsoleCommand("replay download", Category = "Replay", Description = "Download binary state file from Supabase")]
-        internal void DownloadBlockState(uint blockIndex)
-        {
-            if (string.IsNullOrEmpty(Settings.Default.SupabaseUrl) || string.IsNullOrEmpty(Settings.Default.SupabaseApiKey))
-            {
-                ConsoleHelper.Error("Supabase not configured. Set SupabaseUrl and SupabaseApiKey in StateReplay.json");
-                return;
-            }
-
-            var fileName = $"block-{blockIndex}.bin";
-            var localPath = Combine(Settings.Default.CacheDirectory, fileName);
-
-            try
-            {
-                var task = DownloadFromSupabaseAsync(blockIndex, localPath);
-                task.Wait();
-                ConsoleHelper.Info("Replay", $"Downloaded block {blockIndex} to {localPath}");
-            }
-            catch (Exception ex)
-            {
-                ConsoleHelper.Error($"Download failed: {ex.Message}");
-            }
-        }
-
-        [ConsoleCommand("replay compare", Category = "Replay", Description = "Compare replay execution with live execution and generate diff report")]
-        internal void CompareBlockExecution(string filePath)
-        {
-            if (_system is null)
-                throw new InvalidOperationException("NeoSystem is not ready.");
-
-            // Load state file
-            BinaryStateFile? binaryFile = null;
-            Dictionary<string, byte[]>? jsonEntries = null;
-            uint blockIndex;
-
-            if (BinaryFormatReader.IsBinaryFormat(filePath))
-            {
-                binaryFile = BinaryFormatReader.Read(filePath);
-                blockIndex = binaryFile.BlockIndex;
-            }
-            else
-            {
-                // JSON format
-                var json = JsonDocument.Parse(File.ReadAllBytes(filePath));
-                blockIndex = json.RootElement.GetProperty("block").GetUInt32();
-                jsonEntries = new Dictionary<string, byte[]>();
-                foreach (var entry in json.RootElement.GetProperty("keys").EnumerateArray())
-                {
-                    var key = entry.GetProperty("key").GetString()!;
-                    var value = Convert.FromBase64String(entry.GetProperty("value").GetString()!);
-                    jsonEntries[key] = value;
-                }
-            }
-
-            var block = NativeContract.Ledger.GetBlock(_system.StoreView, blockIndex);
-            if (block is null)
-            {
-                ConsoleHelper.Error($"Block {blockIndex} not found on this node.");
-                return;
-            }
-
-            // Capture reads during replay
-            var replayReads = new Dictionary<string, byte[]>();
-            var liveReads = new Dictionary<string, byte[]>();
-
-            // For comparison, we'd need to intercept reads during both executions
-            // This is a simplified implementation that compares the loaded state
-            var report = new StringBuilder();
-            report.AppendLine($"=== Block {blockIndex} Comparison Report ===");
-            report.AppendLine($"Block Hash: {block.Hash}");
-            report.AppendLine($"Transactions: {block.Transactions.Length}");
-            report.AppendLine();
-
-            if (binaryFile != null)
-            {
-                report.AppendLine($"Snapshot Entries: {binaryFile.Entries.Count}");
-                // Group by contract
-                var byContract = binaryFile.Entries.GroupBy(e => e.ContractHash.ToString());
-                foreach (var group in byContract.OrderBy(g => g.Key))
-                {
-                    report.AppendLine($"  Contract {group.Key}: {group.Count()} reads");
-                }
-            }
-            else if (jsonEntries != null)
-            {
-                report.AppendLine($"Snapshot Entries: {jsonEntries.Count}");
-            }
-
-            report.AppendLine();
-            report.AppendLine("Comparison complete. (Full diff requires live execution capture - not implemented in this version)");
-
-            ConsoleHelper.Info(report.ToString());
         }
     }
 }
