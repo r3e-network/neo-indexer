@@ -34,9 +34,13 @@ namespace StateReplay
                 throw new InvalidOperationException($"Download failed: {(int)response.StatusCode} {response.ReasonPhrase}");
             }
 
-            var bytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-            await File.WriteAllBytesAsync(localPath, bytes).ConfigureAwait(false);
+            var directory = global::System.IO.Path.GetDirectoryName(localPath);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            await using var fileStream = File.Create(localPath);
+            await responseStream.CopyToAsync(fileStream).ConfigureAwait(false);
         }
     }
 }
-

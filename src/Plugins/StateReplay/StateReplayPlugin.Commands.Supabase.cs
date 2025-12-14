@@ -52,8 +52,7 @@ namespace StateReplay
 
             try
             {
-                var task = DownloadFromSupabaseAsync(blockIndex, localPath);
-                task.Wait();
+                DownloadFromSupabaseAsync(blockIndex, localPath).GetAwaiter().GetResult();
                 ConsoleHelper.Info("Replay", $"Downloaded block {blockIndex} to {localPath}");
             }
             catch (Exception ex)
