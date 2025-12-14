@@ -93,6 +93,17 @@ namespace Neo.Plugins.RpcServer
             public uint? EndBlock { get; set; }
         }
 
+        private sealed class NotificationStatsQueryOptions
+        {
+            public int Limit { get; set; } = DefaultTraceLimit;
+            public int Offset { get; set; }
+            public uint? StartBlock { get; set; }
+            public uint? EndBlock { get; set; }
+            public string? ContractHash { get; set; }
+            public string? TransactionHash { get; set; }
+            public string? EventName { get; set; }
+        }
+
         private sealed class SupabaseResponse<T>
         {
             public SupabaseResponse(IReadOnlyList<T> items, int totalCount)

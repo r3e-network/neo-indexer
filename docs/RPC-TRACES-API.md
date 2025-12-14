@@ -22,7 +22,7 @@ There are two ways to consume traces:
    Service role callers are exempt.
 2. **Neo JSON‑RPC proxy (optional)**  
    The `RpcServer.Traces` plugin exposes `getblocktrace`, `gettransactiontrace`,
-   `gettransactionresult`, `getcontractcalls`, `getcontractcallstats`, `getsyscallstats`, `getopcodestats`, and `getlogstats`. These are thin HTTPS
+   `gettransactionresult`, `getcontractcalls`, `getcontractcallstats`, `getsyscallstats`, `getopcodestats`, `getlogstats`, `getblockstats`, and `getnotificationstats`. These are thin HTTPS
    proxies to Supabase PostgREST and are useful for non‑browser clients.
 
 ### RPC Proxy Configuration
@@ -533,6 +533,45 @@ Supports the same parameter patterns as `getsyscallstats`:
       "notificationCount": 50,
       "logCount": 10
     }
+  ]
+}
+```
+
+---
+
+## `getnotificationstats`
+
+Aggregates `System.Runtime.Notify` event volume over a block range (grouped by `contract_hash` + `event_name`).
+
+### Parameters
+
+Supports the same parameter patterns as `getsyscallstats`:
+
+- positional form: `startBlock`, `endBlock`, optional `options`
+- object form: `{ startBlock, endBlock, contractHash?, transactionHash?, eventName?, limit?, offset? }`
+
+### Example Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "getnotificationstats",
+  "params": [{ "startBlock": 5000000, "endBlock": 5001000, "eventName": "Transfer", "limit": 50 }]
+}
+```
+
+### Example Response
+
+```json
+{
+  "startBlock": 5000000,
+  "endBlock": 5001000,
+  "limit": 50,
+  "offset": 0,
+  "total": 123,
+  "stats": [
+    { "contractHash": "0x...", "eventName": "Transfer", "notificationCount": 42, "firstBlock": 5000001, "lastBlock": 5000999 }
   ]
 }
 ```

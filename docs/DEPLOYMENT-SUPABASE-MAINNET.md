@@ -38,6 +38,7 @@ Run the SQL files in order in the Supabase SQL editor:
 21. `migrations/021_block_stats_log_count.sql`
 22. `migrations/022_runtime_log_stats.sql`
 23. `migrations/023_block_stats_rpc.sql`
+24. `migrations/024_notification_stats.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -58,6 +59,7 @@ Notes:
 - `021_block_stats_log_count.sql` adds `log_count` to `block_stats` for fast per-block dashboards without scanning `runtime_logs`.
 - `022_runtime_log_stats.sql` adds `get_runtime_log_stats(...)` so public RPC endpoints can expose bounded log analytics (`getlogstats`).
 - `023_block_stats_rpc.sql` adds `get_block_stats(...)` so public RPC endpoints can fetch bounded per-block aggregates (`getblockstats`).
+- `024_notification_stats.sql` adds `get_notification_stats(...)` so public RPC endpoints can expose bounded event analytics (`getnotificationstats`).
 
 Optional automation (runs migrations using a direct Postgres connection string):
 
