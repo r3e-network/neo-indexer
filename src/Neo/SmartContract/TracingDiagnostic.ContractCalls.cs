@@ -33,20 +33,23 @@ namespace Neo.SmartContract
             try
             {
                 var state = context.GetState<ExecutionContextState>();
-                var methods = state.Contract?.Manifest?.Abi?.Methods;
+                var contract = state.Contract;
+                var methods = contract?.Manifest?.Abi?.Methods;
+                var updateCounter = contract?.UpdateCounter ?? (ushort)0;
                 var offset = context.InstructionPointer;
 
                 if (methods is { Length: > 0 })
                 {
-                    if (!_methodNameCache.TryGetValue(calleeHash, out var offsetMap))
+                    if (!_methodNameCache.TryGetValue(calleeHash, out var cached) || cached.UpdateCounter != updateCounter)
                     {
-                        offsetMap = new Dictionary<int, string?>(methods.Length);
+                        var offsetMap = new Dictionary<int, string?>(methods.Length);
                         foreach (var method in methods)
                             offsetMap[method.Offset] = method.Name;
-                        _methodNameCache[calleeHash] = offsetMap;
+                        cached = (updateCounter, offsetMap);
+                        _methodNameCache[calleeHash] = cached;
                     }
 
-                    offsetMap.TryGetValue(offset, out methodName);
+                    cached.Offsets.TryGetValue(offset, out methodName);
                 }
             }
             catch

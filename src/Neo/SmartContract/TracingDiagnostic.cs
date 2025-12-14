@@ -29,7 +29,7 @@ namespace Neo.SmartContract
         private ApplicationEngine? _engine;
         private PendingOpCodeData? _pendingOpCode;
         private readonly Stack<(ContractCallTrace Trace, long GasStart)> _callStack = new();
-        private readonly Dictionary<UInt160, Dictionary<int, string?>> _methodNameCache = new();
+        private readonly Dictionary<UInt160, (ushort UpdateCounter, Dictionary<int, string?> Offsets)> _methodNameCache = new();
 
         /// <summary>
         /// Gets the trace recorder associated with this diagnostic.
