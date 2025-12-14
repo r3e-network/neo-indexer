@@ -59,9 +59,12 @@ namespace StateReplay
             if (heightOverride.HasValue && heightOverride.Value != heightFromFile)
                 throw new InvalidOperationException("Height override does not match snapshot block height.");
 
-            var blockHash = root.TryGetProperty("hash", out var hashElem) ? UInt256.Parse(hashElem.GetString()) : throw new InvalidOperationException("Snapshot file missing 'hash' field.");
-            if (blockHash is null)
-                throw new InvalidOperationException($"Block {height} not found on this node.");
+            if (!root.TryGetProperty("hash", out var hashElem) || hashElem.ValueKind != JsonValueKind.String)
+                throw new InvalidOperationException("Snapshot file missing 'hash' field.");
+            var hashString = hashElem.GetString();
+            if (string.IsNullOrWhiteSpace(hashString))
+                throw new InvalidOperationException("Snapshot file missing 'hash' field.");
+            var blockHash = UInt256.Parse(hashString);
 
             var block = NativeContract.Ledger.GetBlock(_system.StoreView, blockHash);
             block ??= NativeContract.Ledger.GetBlock(_system.StoreView, height);
@@ -84,7 +87,6 @@ namespace StateReplay
                 var keyBase64 = keyProp.GetString() ?? throw new InvalidOperationException("Snapshot entry key is null.");
                 var valueBase64 = valueProp.GetString() ?? throw new InvalidOperationException("Snapshot entry value is null.");
                 if (keyBase64.Length == 0) throw new InvalidOperationException("Snapshot entry key is empty.");
-                if (valueBase64.Length == 0) throw new InvalidOperationException("Snapshot entry value is empty.");
                 var keyBytes = Convert.FromBase64String(keyBase64);
                 var valueBytes = Convert.FromBase64String(valueBase64);
                 snapshotCache.Add((StorageKey)keyBytes, new StorageItem(valueBytes));

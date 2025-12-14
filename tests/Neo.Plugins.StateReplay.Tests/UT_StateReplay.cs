@@ -67,6 +67,29 @@ namespace StateReplay.Tests
         }
 
         [TestMethod]
+        public void ReplayAcceptsEmptyValue()
+        {
+            var path = Path.GetTempFileName();
+            var key = StorageKey.Create(0, 0x01);
+            var doc = new
+            {
+                block = 0u,
+                hash = NativeContract.Ledger.GetBlockHash(_system.StoreView, 0)?.ToString(),
+                keyCount = 1,
+                keys = new[]
+                {
+                    new {
+                        key = Convert.ToBase64String(key.ToArray()),
+                        value = "",
+                        readOrder = 1
+                    }
+                }
+            };
+            File.WriteAllBytes(path, JsonSerializer.SerializeToUtf8Bytes(doc));
+            _plugin.ReplayForTest(path, 0);
+        }
+
+        [TestMethod]
         public void ReplayRejectsMissingKeys()
         {
             var path = Path.GetTempFileName();
@@ -168,4 +191,3 @@ namespace StateReplay.Tests
         }
     }
 }
-
