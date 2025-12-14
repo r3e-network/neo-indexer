@@ -293,6 +293,23 @@ When enabled (`NEO_STATE_RECORDER__TRACE_TRIM_STALE_ROWS=true`), the uploader de
 
 This improves correctness at the cost of extra DELETE statements.
 
+### 9.3 Chain reorganizations (reorgs) and “orphan” rows
+Neo can (rarely) reorganize the tip of the chain. When this happens, some block heights are **re-persisted** with a new block hash and a different transaction set.
+
+What is safe by construction:
+- `blocks` is keyed by `block_index` and uses upserts, so the `block_hash` row can be updated to the new canonical block.
+- `block_stats` is keyed by `block_index` and is also upserted.
+
+What can become stale without extra cleanup:
+- Trace tables are keyed by `(block_index, tx_hash, order)`. If a reorg replaces the tx set at a height, rows for tx hashes that no longer exist at that height can remain in:
+  - `opcode_traces`, `syscall_traces`, `contract_calls`, `storage_writes`, `notifications`
+- With migration `012` enabled, `storage_reads` uses a unique key on `(block_index, contract_id, key_base64)`. That makes uploads idempotent, but it also means keys that were read by the **old** block at that height can remain if the **new** block never reads them (because there is no conflicting row to overwrite).
+
+Operational implications:
+- For “append-only analytics”, stale rows are usually acceptable (they only affect a small reorg window).
+- For “exact state reconstruction / replay correctness”, reorg windows may require explicit cleanup (delete by `block_index` and re-upload).
+  - Trace table DELETE policies exist for service role deployments (see migration `009_trace_delete_policies_and_indexes.sql`).
+
 ## 10. Security considerations
 
 - Writes require Supabase service role key in most deployments (`NEO_STATE_RECORDER__SUPABASE_KEY`).
