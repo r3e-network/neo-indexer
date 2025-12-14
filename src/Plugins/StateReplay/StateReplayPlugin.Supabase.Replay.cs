@@ -71,11 +71,16 @@ namespace StateReplay
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
                 using var response = await HttpClient.SendAsync(request).ConfigureAwait(false);
-                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                     throw new InvalidOperationException($"Supabase query failed ({(int)response.StatusCode}): {body}");
+                }
 
-                var batch = JsonSerializer.Deserialize<List<SupabaseStorageReadRow>>(body, SupabaseJsonOptions) ?? new List<SupabaseStorageReadRow>();
+                await using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                var batch = await JsonSerializer
+                    .DeserializeAsync<List<SupabaseStorageReadRow>>(responseStream, SupabaseJsonOptions)
+                    .ConfigureAwait(false) ?? new List<SupabaseStorageReadRow>();
                 if (batch.Count == 0)
                     break;
 

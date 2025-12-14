@@ -28,7 +28,9 @@ namespace StateReplay
             request.Headers.TryAddWithoutValidation("apikey", Settings.Default.SupabaseApiKey);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Settings.Default.SupabaseApiKey);
 
-            using var response = await HttpClient.SendAsync(request).ConfigureAwait(false);
+            using var response = await HttpClient
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead)
+                .ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 throw new InvalidOperationException($"Download failed: {(int)response.StatusCode} {response.ReasonPhrase}");
@@ -39,7 +41,7 @@ namespace StateReplay
                 Directory.CreateDirectory(directory);
 
             await using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            await using var fileStream = File.Create(localPath);
+            await using var fileStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None);
             await responseStream.CopyToAsync(fileStream).ConfigureAwait(false);
         }
     }
