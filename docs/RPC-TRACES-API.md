@@ -17,12 +17,12 @@ There are two ways to consume traces:
    - `get_contract_call_stats(..., p_callee_hash, p_caller_hash, p_method_name, limit_rows, offset_rows)`
 
    **Guardrails:** when called with public `anon` / `authenticated` keys, all stats RPCs enforce:
-   - max block range of **500,000 blocks per request**
-   - `limit_rows` clamped to **1000**
+- max block range of **500,000 blocks per request**
+- `limit_rows` clamped to **1000**
    Service role callers are exempt.
 2. **Neo JSON‑RPC proxy (optional)**  
    The `RpcServer.Traces` plugin exposes `getblocktrace`, `gettransactiontrace`,
-   `gettransactionresult`, `getcontractcalls`, `getcontractcallstats`, `getsyscallstats`, and `getopcodestats`. These are thin HTTPS
+   `gettransactionresult`, `getcontractcalls`, `getcontractcallstats`, `getsyscallstats`, `getopcodestats`, and `getlogstats`. These are thin HTTPS
    proxies to Supabase PostgREST and are useful for non‑browser clients.
 
 ### RPC Proxy Configuration
@@ -432,6 +432,58 @@ Aggregates opcode usage over a block range. Supports the same parameter patterns
       "lastBlock": 1000
     }
   ]
+}
+```
+
+---
+
+## `getlogstats`
+
+Aggregates `System.Runtime.Log` volume over a block range (grouped by `contract_hash`).
+
+### Parameters
+
+Supports the same parameter patterns as `getsyscallstats`:
+
+- positional form: `startBlock`, `endBlock`, optional `options`
+- object form: `{ startBlock, endBlock, contractHash?, transactionHash?, limit?, offset? }`
+
+### Example Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "getlogstats",
+  "params": [{ "startBlock": 5000000, "endBlock": 5001000, "limit": 100 }]
+}
+```
+
+### Example Response
+
+```json
+{
+  "startBlock": 5000000,
+  "endBlock": 5001000,
+  "limit": 100,
+  "offset": 0,
+  "total": 123,
+  "stats": [
+    { "contractHash": "0x...", "logCount": 42, "firstBlock": 5000001, "lastBlock": 5000999 }
+  ]
+}
+```
+
+### Options Object
+
+```json
+{
+  "startBlock": 0,
+  "endBlock": 1000,
+  "contractHash": "0x...",
+  "transactionHash": "0x...",
+  "limit": 100,
+  "offset": 0
 }
 ```
 

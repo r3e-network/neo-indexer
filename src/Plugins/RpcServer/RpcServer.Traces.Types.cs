@@ -75,6 +75,16 @@ namespace Neo.Plugins.RpcServer
             public string? MethodName { get; set; }
         }
 
+        private sealed class RuntimeLogStatsQueryOptions
+        {
+            public int Limit { get; set; } = DefaultTraceLimit;
+            public int Offset { get; set; }
+            public uint? StartBlock { get; set; }
+            public uint? EndBlock { get; set; }
+            public string? ContractHash { get; set; }
+            public string? TransactionHash { get; set; }
+        }
+
         private sealed class SupabaseResponse<T>
         {
             public SupabaseResponse(IReadOnlyList<T> items, int totalCount)
@@ -88,4 +98,3 @@ namespace Neo.Plugins.RpcServer
         }
     }
 }
-

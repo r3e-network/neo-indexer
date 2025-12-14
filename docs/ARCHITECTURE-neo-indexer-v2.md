@@ -382,7 +382,7 @@ public sealed class StateRecorderSettings
     public string SupabaseConnectionString { get; init; } = string.Empty;
     public bool UploadAuxFormats { get; init; }
 
-    // Trace level flags (OpCodes, Syscalls, ContractCalls, Storage, Notifications)
+    // Trace level flags (OpCodes, Syscalls, ContractCalls, Storage, Notifications, Logs)
     public ExecutionTraceLevel TraceLevel { get; init; } = ExecutionTraceLevel.All;
 
     // Optional: deletes stale trace rows on re-sync/trace-level changes and performs per-height cleanup on tip reorgs.
@@ -410,7 +410,7 @@ NEO_STATE_RECORDER__SUPABASE_KEY=your-service-key
 NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=false
 
 # Trace configuration (comma-separated flags)
-NEO_STATE_RECORDER__TRACE_LEVEL=OpCodes,Syscalls,ContractCalls,Storage,Notifications
+NEO_STATE_RECORDER__TRACE_LEVEL=OpCodes,Syscalls,ContractCalls,Storage,Notifications,Logs
 
 # Performance / throttling
 NEO_STATE_RECORDER__TRACE_BATCH_SIZE=1000
