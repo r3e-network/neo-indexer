@@ -19,7 +19,7 @@ namespace Neo.Persistence
     /// <summary>
     /// Aggregates execution traces for an entire block.
     /// </summary>
-    public sealed class BlockTraceRecorder
+    public sealed partial class BlockTraceRecorder
     {
         private readonly ConcurrentDictionary<UInt256, ExecutionTraceRecorder> _txRecorders = new();
 
@@ -62,55 +62,5 @@ namespace Neo.Persistence
         {
             return _txRecorders;
         }
-
-        /// <summary>
-        /// Gets aggregated statistics for the entire block.
-        /// </summary>
-        public BlockStats GetBlockStats()
-        {
-            long totalGas = 0;
-            int opCodeCount = 0;
-            int syscallCount = 0;
-            int contractCallCount = 0;
-            int storageWriteCount = 0;
-            int notificationCount = 0;
-
-            foreach (var recorder in _txRecorders.Values)
-            {
-                var txStats = recorder.GetStats();
-                totalGas += txStats.TotalGasConsumed;
-                opCodeCount += txStats.OpCodeCount;
-                syscallCount += txStats.SyscallCount;
-                contractCallCount += txStats.ContractCallCount;
-                storageWriteCount += txStats.StorageWriteCount;
-                notificationCount += txStats.NotificationCount;
-            }
-
-            return new BlockStats
-            {
-                BlockIndex = BlockIndex,
-                TransactionCount = _txRecorders.Count,
-                TotalGasConsumed = totalGas,
-                OpCodeCount = opCodeCount,
-                SyscallCount = syscallCount,
-                ContractCallCount = contractCallCount,
-                StorageReadCount = 0, // Filled separately
-                StorageWriteCount = storageWriteCount,
-                NotificationCount = notificationCount
-            };
-        }
-
-        /// <summary>
-        /// Clears all recorded traces.
-        /// </summary>
-        public void Clear()
-        {
-            foreach (var recorder in _txRecorders.Values)
-            {
-                recorder.Clear();
-            }
-            _txRecorders.Clear();
-        }
     }
 }
-

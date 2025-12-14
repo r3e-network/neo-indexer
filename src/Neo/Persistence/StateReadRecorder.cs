@@ -13,12 +13,11 @@
 
 using Neo.Network.P2P.Payloads;
 using Neo.SmartContract;
-using System;
 using System.Threading;
 
 namespace Neo.Persistence
 {
-    public static class StateReadRecorder
+    public static partial class StateReadRecorder
     {
         private static readonly AsyncLocal<BlockReadRecorder?> CurrentRecorder = new();
         private static readonly AsyncLocal<UInt256?> CurrentTransaction = new();
@@ -55,15 +54,6 @@ namespace Neo.Persistence
         }
 
         /// <summary>
-        /// Begin a transaction scope for recording reads with transaction context.
-        /// </summary>
-        internal static IDisposable? BeginTransaction(UInt256? txHash)
-        {
-            if (!Enabled) return null;
-            return new TransactionScope(txHash);
-        }
-
-        /// <summary>
         /// Record a storage read. Only the first read of each key per block is recorded.
         /// </summary>
         public static void Record(IReadOnlyStore? store, StorageKey key, StorageItem value, string source, UInt256? txHash = null)
@@ -74,40 +64,6 @@ namespace Neo.Persistence
 
             txHash ??= TransactionHash;
             recorder.TryAdd(store, key, value, source, txHash);
-        }
-
-        /// <summary>
-        /// Suppress recording temporarily (used when querying contract metadata to avoid recursion).
-        /// </summary>
-        internal static IDisposable SuppressRecordingScope()
-        {
-            RecordingSuppressed.Value = RecordingSuppressed.Value + 1;
-            return new RecordingSuppressionScope();
-        }
-
-        private sealed class TransactionScope : IDisposable
-        {
-            private readonly UInt256? _previous;
-
-            public TransactionScope(UInt256? txHash)
-            {
-                _previous = TransactionHash;
-                TransactionHash = txHash;
-            }
-
-            public void Dispose()
-            {
-                TransactionHash = _previous;
-            }
-        }
-
-        private sealed class RecordingSuppressionScope : IDisposable
-        {
-            public void Dispose()
-            {
-                var current = RecordingSuppressed.Value - 1;
-                RecordingSuppressed.Value = current < 0 ? 0 : current;
-            }
         }
     }
 }
