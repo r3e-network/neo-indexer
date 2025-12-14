@@ -38,12 +38,8 @@ namespace Neo.SmartContract
             };
 
             ReadOnlyMemory<byte>? oldValue = null;
-            // Avoid polluting the storage read recorder with tracer-internal reads (old-value lookups).
-            using (StateReadRecorder.SuppressRecordingScope())
-            {
-                if (SnapshotCache.TryGet(storageKey, out var existingItem))
-                    oldValue = Clone(existingItem.Value);
-            }
+            if (SnapshotCache.TryGet(storageKey, out var existingItem))
+                oldValue = Clone(existingItem.Value);
 
             UInt160 contractHash = TryResolveContractHash(context.Id, out var hash) && hash is not null
                 ? hash
@@ -71,11 +67,7 @@ namespace Neo.SmartContract
             else
             {
                 StorageItem? updatedItem;
-                // Avoid polluting the storage read recorder with tracer-internal reads (new-value lookups).
-                using (StateReadRecorder.SuppressRecordingScope())
-                {
-                    updatedItem = SnapshotCache.TryGet(scope.StorageKey);
-                }
+                updatedItem = SnapshotCache.TryGet(scope.StorageKey);
                 newValue = updatedItem is null
                     ? ReadOnlyMemory<byte>.Empty
                     : Clone(updatedItem.Value);
