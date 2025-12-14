@@ -21,7 +21,7 @@ namespace Neo.Persistence
     public static partial class StateRecorderSupabase
     {
         /// <summary>
-        /// Upload aggregated block statistics via the Supabase REST API.
+        /// Upload aggregated block statistics via the configured database backend (REST API / Postgres).
         /// </summary>
         public static Task UploadBlockStatsAsync(BlockStats stats)
         {

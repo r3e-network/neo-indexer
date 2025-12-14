@@ -15,7 +15,7 @@ namespace Neo.Persistence
 {
     /// <summary>
     /// Handles uploading recorded block state to Supabase.
-    /// Supports binary uploads to Storage bucket and/or REST API inserts.
+    /// Supports binary uploads to Storage bucket and/or database upserts (REST API / Postgres).
     /// Robust design: Supports re-sync by automatically replacing existing block data.
     /// </summary>
     public static partial class StateRecorderSupabase
