@@ -378,6 +378,9 @@ public sealed class StateRecorderSettings
     // Trace level flags (OpCodes, Syscalls, ContractCalls, Storage, Notifications)
     public ExecutionTraceLevel TraceLevel { get; init; } = ExecutionTraceLevel.All;
 
+    // Optional: deletes stale trace rows on re-sync/trace-level changes and performs per-height cleanup on tip reorgs.
+    public bool TrimStaleTraceRows { get; init; }
+
     // Optional safety cap for mainnet operation
     public int MaxStorageReadsPerBlock { get; init; }
 }
@@ -404,8 +407,11 @@ NEO_STATE_RECORDER__TRACE_LEVEL=OpCodes,Syscalls,ContractCalls,Storage,Notificat
 
 # Performance / throttling
 NEO_STATE_RECORDER__TRACE_BATCH_SIZE=1000
-# Caps concurrent HTTPS uploads to Supabase (snapshots, reads, traces, stats)
+# Caps concurrent uploads to Supabase (snapshots, reads, traces, stats), including direct Postgres when enabled
 NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
+
+# Optional: keep trace/read tables exact on re-sync + tip reorgs (adds DELETE traffic)
+# NEO_STATE_RECORDER__TRACE_TRIM_STALE_ROWS=false
 
 # Optional: bounded upload queue (avoids unbounded background work when Supabase is slow/down)
 # High priority lane: reads + block_stats
