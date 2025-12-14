@@ -81,4 +81,14 @@ namespace Neo.Persistence
         [property: JsonPropertyName("contract_hash")] string ContractHash,
         [property: JsonPropertyName("event_name")] string EventName,
         [property: JsonPropertyName("state_json")] JsonElement? StateJson);
+
+    /// <summary>
+    /// DTO for runtime_logs trace table rows.
+    /// </summary>
+    internal readonly record struct RuntimeLogTraceRow(
+        [property: JsonPropertyName("block_index")] int BlockIndex,
+        [property: JsonPropertyName("tx_hash")] string TxHash,
+        [property: JsonPropertyName("log_order")] int LogOrder,
+        [property: JsonPropertyName("contract_hash")] string ContractHash,
+        [property: JsonPropertyName("message")] string Message);
 }

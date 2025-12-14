@@ -77,6 +77,7 @@ public static IReadOnlyDictionary<uint, InteropDescriptor> Services => services;
 |  |  - UploadContractCallsAsync()                               |  |
 |  |  - UploadStorageWritesAsync()                               |  |
 |  |  - UploadNotificationsAsync()                               |  |
+|  |  - UploadRuntimeLogsAsync()                                 |  |
 |  |  - UploadTransactionResultsAsync()                          |  |
 |  +------------------------------------------------------------+  |
 +------------------------------------------------------------------+
@@ -88,8 +89,9 @@ public static IReadOnlyDictionary<uint, InteropDescriptor> Services => services;
               |  | PostgreSQL (Partitioned)|  |
               |  | - opcode_traces         |  |
               |  | - syscall_traces        |  |
-	              |  | - contract_calls        |  |
+              |  | - contract_calls        |  |
 	              |  | - notifications         |  |
+	              |  | - runtime_logs          |  |
 	              |  | - storage_writes        |  |
 	              |  | - transaction_results  |  |
 	              |  | - block_stats           |  |
@@ -324,6 +326,7 @@ CREATE TABLE opcode_traces_100000_200000
 	SELECT prune_old_partitions('contract_calls', 1000000);
 	SELECT prune_old_partitions('storage_writes', 1000000);
 	SELECT prune_old_partitions('notifications', 1000000);
+	SELECT prune_old_partitions('runtime_logs', 1000000);
 	SELECT prune_old_partitions('transaction_results', 1000000);
 
 	-- Or prune all trace tables at once:

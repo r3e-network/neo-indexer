@@ -30,6 +30,7 @@ namespace Neo.Persistence
             List<ContractCallTraceRow> contractCallRows,
             List<StorageWriteTraceRow> storageWriteRows,
             List<NotificationTraceRow> notificationRows,
+            List<RuntimeLogTraceRow> runtimeLogRows,
             int batchSize)
         {
             if (opCodeRows.Count > 0)
@@ -46,8 +47,10 @@ namespace Neo.Persistence
 
             if (notificationRows.Count > 0)
                 await UpsertNotificationTracesPostgresAsync(connection, transaction, notificationRows, batchSize).ConfigureAwait(false);
+
+            if (runtimeLogRows.Count > 0)
+                await UpsertRuntimeLogTracesPostgresAsync(connection, transaction, runtimeLogRows, batchSize).ConfigureAwait(false);
         }
 #endif
     }
 }
-

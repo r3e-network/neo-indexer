@@ -26,6 +26,7 @@ namespace Neo.Persistence
             List<ContractCallTraceRow> contractCallRows,
             List<StorageWriteTraceRow> storageWriteRows,
             List<NotificationTraceRow> notificationRows,
+            List<RuntimeLogTraceRow> runtimeLogRows,
             int batchSize,
             bool trimStaleTraceRows,
             StateRecorderSettings settings)
@@ -42,6 +43,7 @@ namespace Neo.Persistence
                 contractCallRows,
                 storageWriteRows,
                 notificationRows,
+                runtimeLogRows,
                 batchSize,
                 trimStaleTraceRows,
                 settings);
@@ -51,4 +53,3 @@ namespace Neo.Persistence
         }
     }
 }
-

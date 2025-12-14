@@ -34,6 +34,7 @@ namespace Neo.Persistence
             await DeleteTraceRowsByBlockRestApiAsync(baseUrl, apiKey, "contract_calls", blockIndex).ConfigureAwait(false);
             await DeleteTraceRowsByBlockRestApiAsync(baseUrl, apiKey, "storage_writes", blockIndex).ConfigureAwait(false);
             await DeleteTraceRowsByBlockRestApiAsync(baseUrl, apiKey, "notifications", blockIndex).ConfigureAwait(false);
+            await DeleteTraceRowsByBlockRestApiAsync(baseUrl, apiKey, "runtime_logs", blockIndex).ConfigureAwait(false);
 
             // transaction_results is keyed by (block_index, tx_hash) and must be deleted on reorg
             // to avoid stale tx rows lingering at the same height when the tx set changes.

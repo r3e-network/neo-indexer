@@ -27,6 +27,7 @@ namespace Neo.SmartContract
         Notifications = 1 << 2,
         ContractCalls = 1 << 3,
         OpCodes = 1 << 4,
-        All = Syscalls | Storage | Notifications | ContractCalls | OpCodes
+        Logs = 1 << 5,
+        All = Syscalls | Storage | Notifications | ContractCalls | OpCodes | Logs
     }
 }

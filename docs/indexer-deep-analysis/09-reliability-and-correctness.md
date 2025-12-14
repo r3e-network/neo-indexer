@@ -21,7 +21,7 @@ What is safe by construction:
 
 What can become stale without extra cleanup:
 - Trace tables are keyed by `(block_index, tx_hash, order)`. If a reorg replaces the tx set at a height, rows for tx hashes that no longer exist at that height can remain in:
-  - `opcode_traces`, `syscall_traces`, `contract_calls`, `storage_writes`, `notifications`
+  - `opcode_traces`, `syscall_traces`, `contract_calls`, `storage_writes`, `notifications`, `runtime_logs`
 - `transaction_results` is keyed by `(block_index, tx_hash)`, so tx outcome rows from the old block can remain at the same height when the tx set changes.
 - With migration `012` enabled, `storage_reads` uses a unique key on `(block_index, contract_id, key_base64)`. That makes uploads idempotent, but it also means keys that were read by the **old** block at that height can remain if the **new** block never reads them (because there is no conflicting row to overwrite).
 
@@ -40,4 +40,4 @@ Code pointers:
 Operational implications:
 - For “append-only analytics”, stale rows are usually acceptable (they only affect a small reorg window), and you can leave trimming disabled.
 - For “exact state reconstruction / replay correctness”, enable trimming so reorgs trigger per-height cleanup (delete by `block_index` and re-upload).
-  - Trace table DELETE policies exist for service role deployments (see migration `009_trace_delete_policies_and_indexes.sql`).
+  - Trace table DELETE policies exist for service role deployments (see `migrations/009_trace_delete_policies_and_indexes.sql` and `migrations/019_runtime_logs.sql`).

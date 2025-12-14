@@ -31,7 +31,8 @@ namespace Neo.Persistence
             int syscallCount,
             int contractCallCount,
             int storageWriteCount,
-            int notificationCount)
+            int notificationCount,
+            int runtimeLogCount)
         {
             try
             {
@@ -40,6 +41,7 @@ namespace Neo.Persistence
                 await TrimTraceTailPostgresAsync(connection, transaction, "contract_calls", "trace_order", blockIndex, txHash, contractCallCount).ConfigureAwait(false);
                 await TrimTraceTailPostgresAsync(connection, transaction, "storage_writes", "write_order", blockIndex, txHash, storageWriteCount).ConfigureAwait(false);
                 await TrimTraceTailPostgresAsync(connection, transaction, "notifications", "notification_order", blockIndex, txHash, notificationCount).ConfigureAwait(false);
+                await TrimTraceTailPostgresAsync(connection, transaction, "runtime_logs", "log_order", blockIndex, txHash, runtimeLogCount).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -50,4 +52,3 @@ namespace Neo.Persistence
 #endif
     }
 }
-

@@ -31,6 +31,7 @@ namespace Neo.Persistence
             List<ContractCallTraceRow> contractCallRows,
             List<StorageWriteTraceRow> storageWriteRows,
             List<NotificationTraceRow> notificationRows,
+            List<RuntimeLogTraceRow> runtimeLogRows,
             int batchSize,
             bool trimStaleRows,
             StateRecorderSettings settings)
@@ -47,6 +48,7 @@ namespace Neo.Persistence
                 contractCallRows,
                 storageWriteRows,
                 notificationRows,
+                runtimeLogRows,
                 batchSize).ConfigureAwait(false);
 
             if (trimStaleRows)
@@ -60,15 +62,15 @@ namespace Neo.Persistence
                     syscallRows.Count,
                     contractCallRows.Count,
                     storageWriteRows.Count,
-                    notificationRows.Count).ConfigureAwait(false);
+                    notificationRows.Count,
+                    runtimeLogRows.Count).ConfigureAwait(false);
             }
 
             await transaction.CommitAsync(CancellationToken.None).ConfigureAwait(false);
 
             Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
-                $"PostgreSQL trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}");
+                $"PostgreSQL trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}, logs={runtimeLogRows.Count}");
         }
 #endif
     }
 }
-

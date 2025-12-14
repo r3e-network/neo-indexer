@@ -1,6 +1,6 @@
 # 14. SQL analytics examples (results + traces)
 
-The indexer writes a “thin but complete” transaction outcome row to `transaction_results` and (optionally) detailed traces to the partitioned trace tables (`opcode_traces`, `syscall_traces`, `contract_calls`, `storage_writes`, `notifications`).
+The indexer writes a “thin but complete” transaction outcome row to `transaction_results` and (optionally) detailed traces to the partitioned trace tables (`opcode_traces`, `syscall_traces`, `contract_calls`, `storage_writes`, `notifications`, `runtime_logs`).
 
 This enables most analytics to be done with plain SQL (or Supabase views/RPCs) without re-executing blocks.
 
@@ -93,6 +93,16 @@ FROM notifications
 WHERE block_index BETWEEN 5000000 AND 5010000
   AND event_name = 'Transfer'
 ORDER BY block_index DESC
+LIMIT 200;
+```
+
+```sql
+-- Runtime.Log volume per contract
+SELECT contract_hash, COUNT(*) AS n
+FROM runtime_logs
+WHERE block_index BETWEEN 5000000 AND 5010000
+GROUP BY contract_hash
+ORDER BY n DESC
 LIMIT 200;
 ```
 

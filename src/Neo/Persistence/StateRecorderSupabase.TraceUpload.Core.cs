@@ -43,7 +43,7 @@ namespace Neo.Persistence
                 var blockIndexValue = checked((int)blockIndex);
                 var batchSize = GetTraceUploadBatchSize();
 
-                var (opCodeRows, syscallRows, contractCallRows, storageWriteRows, notificationRows) =
+                var (opCodeRows, syscallRows, contractCallRows, storageWriteRows, notificationRows, runtimeLogRows) =
                     BuildTraceRows(blockIndexValue, txHash, recorder);
 
                 var backend = ResolveDatabaseBackend(settings.Mode, settings);
@@ -60,6 +60,7 @@ namespace Neo.Persistence
                         contractCallRows,
                         storageWriteRows,
                         notificationRows,
+                        runtimeLogRows,
                         batchSize,
                         trimStaleTraceRows,
                         settings).ConfigureAwait(false);
@@ -74,6 +75,7 @@ namespace Neo.Persistence
                     contractCallRows,
                     storageWriteRows,
                     notificationRows,
+                    runtimeLogRows,
                     batchSize,
                     blockIndexValue,
                     txHash,
@@ -83,7 +85,7 @@ namespace Neo.Persistence
                     return;
 
                 Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
-                    $"Trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}");
+                    $"Trace upload successful for tx {txHash} @ block {blockIndex}: opcode={opCodeRows.Count}, syscall={syscallRows.Count}, calls={contractCallRows.Count}, writes={storageWriteRows.Count}, notifications={notificationRows.Count}, logs={runtimeLogRows.Count}");
             }
             finally
             {

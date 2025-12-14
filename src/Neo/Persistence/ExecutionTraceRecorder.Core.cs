@@ -29,17 +29,20 @@ namespace Neo.Persistence
         private readonly ConcurrentQueue<ContractCallTrace> _contractCalls = new();
         private readonly ConcurrentQueue<StorageWriteTrace> _storageWrites = new();
         private readonly ConcurrentQueue<NotificationTrace> _notifications = new();
+        private readonly ConcurrentQueue<LogTrace> _logs = new();
 
         private int _opCodeOrder;
         private int _syscallOrder;
         private int _contractCallOrder;
         private int _storageWriteOrder;
         private int _notificationOrder;
+        private int _logOrder;
         private int _opCodeCount;
         private int _syscallCount;
         private int _contractCallCount;
         private int _storageWriteCount;
         private int _notificationCount;
+        private int _logCount;
 
         private static string GetSyscallHashString(uint syscallHash)
         {

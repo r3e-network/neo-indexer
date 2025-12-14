@@ -77,7 +77,7 @@ The `total` value reflects the total matching rows in Supabase (if PostgREST cou
 
 ## `getblocktrace`
 
-Returns per-transaction execution results plus opcode, syscall, contract-call, storage-write, and notification traces for a given block.
+Returns per-transaction execution results plus opcode, syscall, contract-call, storage-write, notification, and runtime log traces for a given block.
 
 Collections included:
 - `transactionResults`
@@ -86,12 +86,14 @@ Collections included:
 - `contractCalls`
 - `storageWrites`
 - `notifications`
+- `logs`
 
 Notes:
 - `opcodes.items[*].gasConsumed` is the opcode fee for that instruction (in datoshi).
 - `syscalls.items[*].gasCost` is the syscall fee (including any dynamic fees charged inside the handler).
 - `contractCalls.items[*].success` is `false` when the callee context unwinds due to an exception (including exceptions that are caught by the caller). For the overall transaction outcome, use `transactionResults`.
 - `storageWrites.items[*].isDelete` is `true` for delete operations; deletes set `newValueBase64` to an empty string (use `isDelete` to disambiguate from writes of an empty byte array).
+- `logs.items[*].message` is emitted by `System.Runtime.Log`.
 
 ### Parameters
 
@@ -168,6 +170,18 @@ dynamic fees charged inside the handler), while `gasBase` is the fixed base pric
           "traceOrder": 0,
           "success": true,
           "gasConsumed": 200000
+        }
+      ]
+    },
+    "logs": {
+      "total": 2,
+      "items": [
+        {
+          "blockIndex": 777,
+          "transactionHash": "0xtx...",
+          "logOrder": 0,
+          "contractHash": "0xcontract...",
+          "message": "hello world"
         }
       ]
     }

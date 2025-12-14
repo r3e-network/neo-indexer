@@ -32,6 +32,7 @@ namespace Neo.Plugins.RpcServer.Model
         public IReadOnlyList<ContractCallResult> ContractCalls { get; init; } = Array.Empty<ContractCallResult>();
         public IReadOnlyList<StorageWriteTraceResult> StorageWrites { get; init; } = Array.Empty<StorageWriteTraceResult>();
         public IReadOnlyList<NotificationTraceResult> Notifications { get; init; } = Array.Empty<NotificationTraceResult>();
+        public IReadOnlyList<RuntimeLogTraceResult> Logs { get; init; } = Array.Empty<RuntimeLogTraceResult>();
         public int Limit { get; init; }
         public int Offset { get; init; }
         public int TransactionResultTotal { get; init; }
@@ -40,6 +41,7 @@ namespace Neo.Plugins.RpcServer.Model
         public int ContractCallTotal { get; init; }
         public int StorageWriteTotal { get; init; }
         public int NotificationTotal { get; init; }
+        public int LogTotal { get; init; }
 
         public JObject ToJson()
         {
@@ -58,6 +60,7 @@ namespace Neo.Plugins.RpcServer.Model
             json["contractCalls"] = BuildCollection(ContractCalls.Select(t => t.ToJson()), ContractCallTotal);
             json["storageWrites"] = BuildCollection(StorageWrites.Select(t => t.ToJson()), StorageWriteTotal);
             json["notifications"] = BuildCollection(Notifications.Select(t => t.ToJson()), NotificationTotal);
+            json["logs"] = BuildCollection(Logs.Select(t => t.ToJson()), LogTotal);
             return json;
         }
 

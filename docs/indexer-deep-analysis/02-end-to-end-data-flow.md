@@ -8,7 +8,7 @@ Neo node
   │
   ├─ Transactions execute during block persist
   │    └─ TracingApplicationEngineProvider creates TracingApplicationEngine
-  │         └─ TracingDiagnostic/TracingEngine record opcodes/syscalls/calls/writes/notifications
+  │         └─ TracingDiagnostic/TracingEngine record opcodes/syscalls/calls/writes/notifications/runtime logs
   │             └─ ExecutionTraceRecorder (per tx)
   │
   └─ Block committed event fires

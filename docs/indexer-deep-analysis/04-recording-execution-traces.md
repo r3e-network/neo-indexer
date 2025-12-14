@@ -22,6 +22,9 @@ Syscall tracing notes:
 - Implemented by overriding `ApplicationEngine.OnSysCall` in `src/Neo/SmartContract/TracingApplicationEngine.Syscalls.cs`.
 - The recorded `gasCost` is computed from the engine’s `FeeConsumed` delta across the syscall, so it includes any dynamic fees charged inside the syscall handler.
 
+Runtime log tracing notes:
+- `System.Runtime.Log` messages are recorded to the partitioned `runtime_logs` table (best-effort, only on successful syscall execution).
+
 Opcode tracing notes:
 - Implemented by `TracingDiagnostic` (`src/Neo/SmartContract/TracingDiagnostic.OpCodes.cs`).
 - `gasConsumed` is the opcode fee (`OpCodePriceTable * ExecFeeFactor`). Syscall fees are recorded separately in `syscall_traces`.
@@ -36,13 +39,14 @@ Contract call tracing notes:
 - `src/Neo/Persistence/ExecutionTraceRecorder.Accessors.OpCodesSyscalls.cs`
 - `src/Neo/Persistence/ExecutionTraceRecorder.Accessors.CallsWrites.cs`
 - `src/Neo/Persistence/ExecutionTraceRecorder.Accessors.Notifications.cs`
+- `src/Neo/Persistence/ExecutionTraceRecorder.Accessors.Logs.cs`
 - `src/Neo/Persistence/ExecutionTraceRecorder.Recording.*.cs`
 - `src/Neo/Persistence/ExecutionTraceRecorder.Stats.cs`
 
 Characteristics:
 - Thread-safe queues (`ConcurrentQueue<T>`) for trace categories.
 - Per-category atomic counters and per-category “order” counters.
-- `HasTraces` indicates whether any per-opcode/syscall/call/write/notification traces were captured (tx results can still be uploaded even if trace capture is disabled).
+- `HasTraces` indicates whether any per-opcode/syscall/call/write/notification/log traces were captured (tx results can still be uploaded even if trace capture is disabled).
 - `Get*Traces()` returns a snapshot and sorts only if needed (fast-path if already ordered).
 - `GetStats()` provides per-transaction aggregated counts (used to build block-level aggregates).
 - Per-transaction “final result” fields are filled from the engine on disposal:

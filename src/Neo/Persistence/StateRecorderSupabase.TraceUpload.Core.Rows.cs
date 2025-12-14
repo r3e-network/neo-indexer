@@ -22,7 +22,8 @@ namespace Neo.Persistence
             List<SyscallTraceRow> SyscallRows,
             List<ContractCallTraceRow> ContractCallRows,
             List<StorageWriteTraceRow> StorageWriteRows,
-            List<NotificationTraceRow> NotificationRows) BuildTraceRows(
+            List<NotificationTraceRow> NotificationRows,
+            List<RuntimeLogTraceRow> RuntimeLogRows) BuildTraceRows(
             int blockIndex,
             string txHash,
             ExecutionTraceRecorder recorder)
@@ -34,9 +35,9 @@ namespace Neo.Persistence
             var contractCallRows = BuildContractCallTraceRows(blockIndex, txHash, recorder.GetContractCallTraces(), contractHashCache);
             var storageWriteRows = BuildStorageWriteTraceRows(blockIndex, txHash, recorder.GetStorageWriteTraces(), contractHashCache);
             var notificationRows = BuildNotificationTraceRows(blockIndex, txHash, recorder.GetNotificationTraces(), contractHashCache);
+            var runtimeLogRows = BuildRuntimeLogTraceRows(blockIndex, txHash, recorder.GetLogTraces(), contractHashCache);
 
-            return (opCodeRows, syscallRows, contractCallRows, storageWriteRows, notificationRows);
+            return (opCodeRows, syscallRows, contractCallRows, storageWriteRows, notificationRows, runtimeLogRows);
         }
     }
 }
-

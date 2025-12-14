@@ -26,6 +26,7 @@ namespace Neo.Persistence
             IReadOnlyList<ContractCallTraceRow> contractCallRows,
             IReadOnlyList<StorageWriteTraceRow> storageWriteRows,
             IReadOnlyList<NotificationTraceRow> notificationRows,
+            IReadOnlyList<RuntimeLogTraceRow> runtimeLogRows,
             int batchSize,
             int blockIndex,
             string txHash,
@@ -104,6 +105,21 @@ namespace Neo.Persistence
                     tableName: "notifications",
                     entityName: "notification traces",
                     notificationRows,
+                    batchSize,
+                    blockIndex,
+                    txHash,
+                    trimStaleTraceRows).ConfigureAwait(false);
+            }
+
+            if (trimStaleTraceRows || runtimeLogRows.Count > 0)
+            {
+                any = true;
+                await UploadAndMaybeTrimTraceTableRestApiAsync(
+                    baseUrl,
+                    apiKey,
+                    tableName: "runtime_logs",
+                    entityName: "runtime logs",
+                    runtimeLogRows,
                     batchSize,
                     blockIndex,
                     txHash,

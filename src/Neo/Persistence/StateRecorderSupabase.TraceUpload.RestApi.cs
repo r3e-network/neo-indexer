@@ -43,6 +43,11 @@ namespace Neo.Persistence
             return UploadTraceBatchRestApiAsync(baseUrl, apiKey, "notifications", "notification traces", rows, batchSize);
         }
 
+        private static Task UploadRuntimeLogTracesRestApiAsync(string baseUrl, string apiKey, IReadOnlyList<RuntimeLogTraceRow> rows, int batchSize)
+        {
+            return UploadTraceBatchRestApiAsync(baseUrl, apiKey, "runtime_logs", "runtime logs", rows, batchSize);
+        }
+
         private static string? GetTraceUpsertConflictTarget(string tableName)
         {
             return tableName switch
@@ -52,9 +57,9 @@ namespace Neo.Persistence
                 "contract_calls" => "block_index,tx_hash,trace_order",
                 "storage_writes" => "block_index,tx_hash,write_order",
                 "notifications" => "block_index,tx_hash,notification_order",
+                "runtime_logs" => "block_index,tx_hash,log_order",
                 _ => null
             };
         }
     }
 }
-

@@ -1,6 +1,6 @@
 // Copyright (C) 2015-2025 The Neo Project.
 //
-// ExecutionTraceRecorder.Accessors.Notifications.cs file belongs to the neo project and is free
+// ExecutionTraceRecorder.Accessors.Logs.cs file belongs to the neo project and is free
 // software distributed under the MIT software license, see the
 // accompanying file LICENSE in the main directory of the
 // repository or http://www.opensource.org/licenses/mit-license.php
@@ -19,11 +19,11 @@ namespace Neo.Persistence
     public sealed partial class ExecutionTraceRecorder
     {
         /// <summary>
-        /// Gets all recorded notification traces ordered by execution order.
+        /// Gets all recorded runtime log traces ordered by execution order.
         /// </summary>
-        public IReadOnlyList<NotificationTrace> GetNotificationTraces()
+        public IReadOnlyList<LogTrace> GetLogTraces()
         {
-            var snapshot = _notifications.ToArray();
+            var snapshot = _logs.ToArray();
             for (var i = 1; i < snapshot.Length; i++)
             {
                 if (snapshot[i].Order < snapshot[i - 1].Order)
@@ -34,16 +34,6 @@ namespace Neo.Persistence
             }
             return snapshot;
         }
-
-        /// <summary>
-        /// Returns true if any traces have been recorded.
-        /// </summary>
-        public bool HasTraces =>
-            !_opCodeTraces.IsEmpty ||
-            !_syscallTraces.IsEmpty ||
-            !_contractCalls.IsEmpty ||
-            !_storageWrites.IsEmpty ||
-            !_notifications.IsEmpty ||
-            !_logs.IsEmpty;
     }
 }
+

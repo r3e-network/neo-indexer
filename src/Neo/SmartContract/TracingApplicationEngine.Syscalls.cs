@@ -11,6 +11,8 @@
 
 #nullable enable
 
+using Neo.Extensions;
+
 namespace Neo.SmartContract
 {
     public partial class TracingApplicationEngine
@@ -31,15 +33,32 @@ namespace Neo.SmartContract
 
             StorageTraceScope? storageScope = PrepareStorageScope(descriptor, parameters);
             int notificationBaseline = ShouldTrace(ExecutionTraceLevel.Notifications) ? Notifications.Count : 0;
+            var shouldTraceLogs = ShouldTrace(ExecutionTraceLevel.Logs);
+            var callSucceeded = false;
 
             try
             {
                 object? returnValue = descriptor.Handler.Invoke(this, parameters);
+                callSucceeded = true;
                 if (descriptor.Handler.ReturnType != typeof(void))
                     Push(Convert(returnValue));
             }
             finally
             {
+                if (callSucceeded && shouldTraceLogs && string.Equals(descriptor.Name, "System.Runtime.Log", System.StringComparison.Ordinal))
+                {
+                    try
+                    {
+                        var message = ExtractRuntimeLogMessage(parameters);
+                        if (message is not null)
+                            _traceRecorder.RecordLog(CurrentScriptHash, message);
+                    }
+                    catch
+                    {
+                        // Best-effort tracing; never fail syscall execution.
+                    }
+                }
+
                 if (ShouldTrace(ExecutionTraceLevel.Syscalls))
                 {
                     try
@@ -84,6 +103,20 @@ namespace Neo.SmartContract
                     }
                 }
             }
+        }
+
+        private static string? ExtractRuntimeLogMessage(object[] parameters)
+        {
+            if (parameters.Length == 0 || parameters[0] is null)
+                return null;
+
+            return parameters[0] switch
+            {
+                string s => s,
+                byte[] bytes => bytes.ToStrictUtf8String(),
+                System.ReadOnlyMemory<byte> memory => memory.Span.ToArray().ToStrictUtf8String(),
+                _ => parameters[0].ToString()
+            };
         }
     }
 }

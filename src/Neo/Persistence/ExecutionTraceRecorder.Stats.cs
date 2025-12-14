@@ -70,17 +70,20 @@ namespace Neo.Persistence
             while (_contractCalls.TryDequeue(out _)) { }
             while (_storageWrites.TryDequeue(out _)) { }
             while (_notifications.TryDequeue(out _)) { }
+            while (_logs.TryDequeue(out _)) { }
 
             _opCodeOrder = 0;
             _syscallOrder = 0;
             _contractCallOrder = 0;
             _storageWriteOrder = 0;
             _notificationOrder = 0;
+            _logOrder = 0;
             _opCodeCount = 0;
             _syscallCount = 0;
             _contractCallCount = 0;
             _storageWriteCount = 0;
             _notificationCount = 0;
+            _logCount = 0;
         }
     }
 }

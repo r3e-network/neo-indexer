@@ -5,5 +5,5 @@
   - Prefer `NEO_RPC_TRACES__SUPABASE_KEY` with an anon key and rely on RLS policies from migrations.
 - Partition management functions are SECURITY DEFINER and must remain admin-only.
 - Reorg cleanup (when enabled) issues per-height DELETEs and requires service-role delete policies:
-  - trace tables: `migrations/009_trace_delete_policies_and_indexes.sql`
+  - trace tables: `migrations/009_trace_delete_policies_and_indexes.sql` and `migrations/019_runtime_logs.sql`
   - tx outcomes: `migrations/015_transaction_results_delete_policy.sql`

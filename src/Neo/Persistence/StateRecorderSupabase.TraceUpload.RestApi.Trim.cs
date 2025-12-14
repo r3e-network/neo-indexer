@@ -29,6 +29,7 @@ namespace Neo.Persistence
                 "contract_calls" => "trace_order",
                 "storage_writes" => "write_order",
                 "notifications" => "notification_order",
+                "runtime_logs" => "log_order",
                 _ => null
             };
         }

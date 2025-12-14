@@ -53,6 +53,7 @@ namespace Neo.Plugins.RpcServer
             var contractQuery = BuildTraceQuery(blockIndex, txFilter, options);
             var storageWritesQuery = BuildOrderedTraceQuery(blockIndex, txFilter, "write_order", options);
             var notificationsQuery = BuildOrderedTraceQuery(blockIndex, txFilter, "notification_order", options);
+            var logsQuery = BuildOrderedTraceQuery(blockIndex, txFilter, "log_order", options);
 
             var txResultsTask = SendSupabaseQueryAsync<TransactionResultResult>(settings, "transaction_results", txResultsQuery);
             var opcodeTask = SendSupabaseQueryAsync<OpCodeTraceResult>(settings, "opcode_traces", opcodeQuery);
@@ -60,8 +61,9 @@ namespace Neo.Plugins.RpcServer
             var contractTask = SendSupabaseQueryAsync<ContractCallResult>(settings, "contract_calls", contractQuery);
             var storageWritesTask = SendSupabaseQueryAsync<StorageWriteTraceResult>(settings, "storage_writes", storageWritesQuery);
             var notificationsTask = SendSupabaseQueryAsync<NotificationTraceResult>(settings, "notifications", notificationsQuery);
+            var logsTask = SendSupabaseQueryAsync<RuntimeLogTraceResult>(settings, "runtime_logs", logsQuery);
 
-            await Task.WhenAll(txResultsTask, opcodeTask, syscallTask, contractTask, storageWritesTask, notificationsTask).ConfigureAwait(false);
+            await Task.WhenAll(txResultsTask, opcodeTask, syscallTask, contractTask, storageWritesTask, notificationsTask, logsTask).ConfigureAwait(false);
 
             var txResultsResponse = await txResultsTask.ConfigureAwait(false);
             var opcodeResponse = await opcodeTask.ConfigureAwait(false);
@@ -69,6 +71,7 @@ namespace Neo.Plugins.RpcServer
             var contractResponse = await contractTask.ConfigureAwait(false);
             var storageWritesResponse = await storageWritesTask.ConfigureAwait(false);
             var notificationsResponse = await notificationsTask.ConfigureAwait(false);
+            var logsResponse = await logsTask.ConfigureAwait(false);
 
             return new TraceResult
             {
@@ -88,7 +91,9 @@ namespace Neo.Plugins.RpcServer
                 StorageWrites = storageWritesResponse.Items,
                 StorageWriteTotal = storageWritesResponse.TotalCount ?? storageWritesResponse.Items.Count,
                 Notifications = notificationsResponse.Items,
-                NotificationTotal = notificationsResponse.TotalCount ?? notificationsResponse.Items.Count
+                NotificationTotal = notificationsResponse.TotalCount ?? notificationsResponse.Items.Count,
+                Logs = logsResponse.Items,
+                LogTotal = logsResponse.TotalCount ?? logsResponse.Items.Count
             };
         }
 
