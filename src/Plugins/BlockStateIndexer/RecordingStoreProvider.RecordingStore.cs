@@ -42,7 +42,7 @@ namespace Neo.Plugins.BlockStateIndexer
             {
                 var success = _inner.TryGet(key, out value);
                 if (success && value != null)
-                    RecordReadBytes(key, value, nameof(TryGet));
+                    RecordingStoreProvider.RecordReadBytes(this, key, value, nameof(TryGet));
                 return success;
             }
 
@@ -53,7 +53,7 @@ namespace Neo.Plugins.BlockStateIndexer
 
                 if (_inner.TryGet(key, out var value) && value != null)
                 {
-                    RecordReadBytes(key, value, nameof(Contains));
+                    RecordingStoreProvider.RecordReadBytes(this, key, value, nameof(Contains));
                     return true;
                 }
 
@@ -64,7 +64,7 @@ namespace Neo.Plugins.BlockStateIndexer
             {
                 foreach (var (key, value) in _inner.Find(key_prefix, direction))
                 {
-                    RecordReadBytes(key, value, nameof(Find));
+                    RecordingStoreProvider.RecordReadBytes(this, key, value, nameof(Find));
                     yield return (key, value);
                 }
             }
@@ -101,7 +101,7 @@ namespace Neo.Plugins.BlockStateIndexer
                 if (_inner.TryGet(key.ToArray(), out var bytes) && bytes != null)
                 {
                     value = new StorageItem(bytes);
-                    RecordReadItem(key, value, nameof(TryGet));
+                    RecordingStoreProvider.RecordReadItem(this, key, value, nameof(TryGet));
                     return true;
                 }
 
@@ -125,24 +125,6 @@ namespace Neo.Plugins.BlockStateIndexer
             }
 
             #endregion
-
-            private void RecordReadBytes(byte[] keyBytes, byte[] valueBytes, string source)
-            {
-                if (!StateReadRecorder.IsRecording)
-                    return;
-
-                StorageKey storageKey = keyBytes;
-                var storageItem = new StorageItem(valueBytes);
-                StateReadRecorder.Record(this, storageKey, storageItem, source);
-            }
-
-            private void RecordReadItem(StorageKey key, StorageItem item, string source)
-            {
-                if (!StateReadRecorder.IsRecording)
-                    return;
-
-                StateReadRecorder.Record(this, key, item, source);
-            }
         }
     }
 }
