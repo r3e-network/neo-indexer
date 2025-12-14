@@ -31,73 +31,86 @@ namespace Neo.Persistence
             string txHash,
             bool trimStaleTraceRows)
         {
-            var uploadTasks = new List<Task>(5);
+            // Upload sequentially to avoid multiplying concurrent Supabase REST requests per transaction.
+            // Global concurrency is controlled by TraceUploadSemaphore; keep per-tx traffic predictable.
+            var any = false;
 
-            MaybeAddTraceUploadTask(
-                uploadTasks,
-                baseUrl,
-                apiKey,
-                tableName: "opcode_traces",
-                entityName: "opcode traces",
-                opCodeRows,
-                batchSize,
-                blockIndex,
-                txHash,
-                trimStaleTraceRows);
+            if (trimStaleTraceRows || opCodeRows.Count > 0)
+            {
+                any = true;
+                await UploadAndMaybeTrimTraceTableRestApiAsync(
+                    baseUrl,
+                    apiKey,
+                    tableName: "opcode_traces",
+                    entityName: "opcode traces",
+                    opCodeRows,
+                    batchSize,
+                    blockIndex,
+                    txHash,
+                    trimStaleTraceRows).ConfigureAwait(false);
+            }
 
-            MaybeAddTraceUploadTask(
-                uploadTasks,
-                baseUrl,
-                apiKey,
-                tableName: "syscall_traces",
-                entityName: "syscall traces",
-                syscallRows,
-                batchSize,
-                blockIndex,
-                txHash,
-                trimStaleTraceRows);
+            if (trimStaleTraceRows || syscallRows.Count > 0)
+            {
+                any = true;
+                await UploadAndMaybeTrimTraceTableRestApiAsync(
+                    baseUrl,
+                    apiKey,
+                    tableName: "syscall_traces",
+                    entityName: "syscall traces",
+                    syscallRows,
+                    batchSize,
+                    blockIndex,
+                    txHash,
+                    trimStaleTraceRows).ConfigureAwait(false);
+            }
 
-            MaybeAddTraceUploadTask(
-                uploadTasks,
-                baseUrl,
-                apiKey,
-                tableName: "contract_calls",
-                entityName: "contract call traces",
-                contractCallRows,
-                batchSize,
-                blockIndex,
-                txHash,
-                trimStaleTraceRows);
+            if (trimStaleTraceRows || contractCallRows.Count > 0)
+            {
+                any = true;
+                await UploadAndMaybeTrimTraceTableRestApiAsync(
+                    baseUrl,
+                    apiKey,
+                    tableName: "contract_calls",
+                    entityName: "contract call traces",
+                    contractCallRows,
+                    batchSize,
+                    blockIndex,
+                    txHash,
+                    trimStaleTraceRows).ConfigureAwait(false);
+            }
 
-            MaybeAddTraceUploadTask(
-                uploadTasks,
-                baseUrl,
-                apiKey,
-                tableName: "storage_writes",
-                entityName: "storage write traces",
-                storageWriteRows,
-                batchSize,
-                blockIndex,
-                txHash,
-                trimStaleTraceRows);
+            if (trimStaleTraceRows || storageWriteRows.Count > 0)
+            {
+                any = true;
+                await UploadAndMaybeTrimTraceTableRestApiAsync(
+                    baseUrl,
+                    apiKey,
+                    tableName: "storage_writes",
+                    entityName: "storage write traces",
+                    storageWriteRows,
+                    batchSize,
+                    blockIndex,
+                    txHash,
+                    trimStaleTraceRows).ConfigureAwait(false);
+            }
 
-            MaybeAddTraceUploadTask(
-                uploadTasks,
-                baseUrl,
-                apiKey,
-                tableName: "notifications",
-                entityName: "notification traces",
-                notificationRows,
-                batchSize,
-                blockIndex,
-                txHash,
-                trimStaleTraceRows);
+            if (trimStaleTraceRows || notificationRows.Count > 0)
+            {
+                any = true;
+                await UploadAndMaybeTrimTraceTableRestApiAsync(
+                    baseUrl,
+                    apiKey,
+                    tableName: "notifications",
+                    entityName: "notification traces",
+                    notificationRows,
+                    batchSize,
+                    blockIndex,
+                    txHash,
+                    trimStaleTraceRows).ConfigureAwait(false);
+            }
 
-            if (uploadTasks.Count == 0)
-                return false;
-
-            await Task.WhenAll(uploadTasks).ConfigureAwait(false);
-            return true;
+            return any;
         }
     }
 }
