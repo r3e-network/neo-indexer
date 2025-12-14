@@ -43,7 +43,8 @@ Key behaviors:
 - Maintains a `HashSet<StorageKey>` to ensure **first-read-only** semantics.
 - `TryAdd(...)` clones values (`StorageItem.Clone()`) so later mutations don’t change recorded state.
 - Optional cap: `NEO_STATE_RECORDER__MAX_STORAGE_READS_PER_BLOCK` can limit unique keys per block to prevent runaway memory and huge inserts.
-- Resolves contract metadata (`contract_hash`, `manifest_name`) using the ContractManagement native contract, with `StateReadRecorder.SuppressRecordingScope()` to avoid recursive recording during metadata lookups.
+- Resolves contract metadata (contract id → `contract_hash`, `manifest_name`) using the ContractManagement native contract, with `StateReadRecorder.SuppressRecordingScope()` to avoid recursive recording during metadata lookups.
+  - The `storage_reads` table stores `contract_id` (not `contract_hash`); metadata is upserted into the `contracts` reference table and can be joined in queries (or embedded via PostgREST).
 
 Trade-off:
 - This captures the “initial observed value” of each key for the block, which is what you want for replay/analysis, but it is not a full key-history timeline.

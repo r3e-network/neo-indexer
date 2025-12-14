@@ -56,6 +56,11 @@ namespace Neo.Plugins.RpcServer
             var notificationsQuery = BuildOrderedTraceQuery(blockIndex, txFilter, "notification_order", options);
             var logsQuery = BuildOrderedTraceQuery(blockIndex, txFilter, "log_order", options);
 
+            // Embed contract metadata (hash + manifest name) for storage reads via the FK on contract_id.
+            storageReadsQuery.Insert(0, new KeyValuePair<string, string?>(
+                "select",
+                "block_index,contract_id,key_base64,value_base64,read_order,tx_hash,source,contracts(contract_hash,manifest_name)"));
+
             var txResultsTask = SendSupabaseQueryAsync<TransactionResultResult>(settings, "transaction_results", txResultsQuery);
             var opcodeTask = SendSupabaseQueryAsync<OpCodeTraceResult>(settings, "opcode_traces", opcodeQuery);
             var syscallTask = SendSupabaseQueryAsync<SyscallTraceResult>(settings, "syscall_traces", syscallQuery);

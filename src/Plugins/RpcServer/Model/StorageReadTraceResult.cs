@@ -16,6 +16,15 @@ using System.Text.Json.Serialization;
 
 namespace Neo.Plugins.RpcServer.Model
 {
+    public sealed class ContractMetadataResult
+    {
+        [JsonPropertyName("contract_hash")]
+        public string ContractHash { get; set; } = string.Empty;
+
+        [JsonPropertyName("manifest_name")]
+        public string? ManifestName { get; set; }
+    }
+
     /// <summary>
     /// Represents a storage_reads row from Supabase.
     /// </summary>
@@ -42,6 +51,9 @@ namespace Neo.Plugins.RpcServer.Model
         [JsonPropertyName("source")]
         public string? Source { get; set; }
 
+        [JsonPropertyName("contracts")]
+        public ContractMetadataResult? Contract { get; set; }
+
         public JObject ToJson()
         {
             JObject json = new();
@@ -51,6 +63,10 @@ namespace Neo.Plugins.RpcServer.Model
             json["readOrder"] = ReadOrder;
             if (ContractId.HasValue)
                 json["contractId"] = ContractId.Value;
+            if (Contract != null && !string.IsNullOrEmpty(Contract.ContractHash))
+                json["contractHash"] = Contract.ContractHash;
+            if (Contract != null && !string.IsNullOrEmpty(Contract.ManifestName))
+                json["manifestName"] = Contract.ManifestName;
             json["keyBase64"] = KeyBase64;
             json["valueBase64"] = ValueBase64;
             if (!string.IsNullOrEmpty(Source))
@@ -59,4 +75,3 @@ namespace Neo.Plugins.RpcServer.Model
         }
     }
 }
-
