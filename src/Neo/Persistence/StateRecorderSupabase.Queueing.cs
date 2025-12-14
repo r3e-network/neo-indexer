@@ -52,7 +52,7 @@ namespace Neo.Persistence
                         blockIndex,
                         blockHash,
                         "trace upload",
-                        () => UploadBlockTraceAsync(blockIndex, recorder)),
+                        () => UploadBlockTraceAsync(blockIndex, blockHash, recorder)),
                     "trace upload",
                     blockIndex));
         }
@@ -88,7 +88,7 @@ namespace Neo.Persistence
                         stats.BlockIndex,
                         blockHash,
                         "block stats upload",
-                        () => UploadBlockStatsAsync(stats)),
+                        () => UploadBlockStatsAsync(stats, blockHash)),
                     "block stats upload",
                     stats.BlockIndex));
         }

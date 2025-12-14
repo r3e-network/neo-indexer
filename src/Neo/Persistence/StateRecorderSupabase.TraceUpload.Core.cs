@@ -22,7 +22,8 @@ namespace Neo.Persistence
             uint blockIndex,
             string txHash,
             ExecutionTraceRecorder recorder,
-            StateRecorderSettings settings)
+            StateRecorderSettings settings,
+            string expectedBlockHash)
         {
             var trimStaleTraceRows = settings.TrimStaleTraceRows;
 
@@ -30,6 +31,15 @@ namespace Neo.Persistence
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
+                if (!string.IsNullOrWhiteSpace(expectedBlockHash) &&
+                    TryGetCanonicalBlockHash(blockIndex, out var canonical) &&
+                    !string.Equals(canonical, expectedBlockHash, System.StringComparison.Ordinal))
+                {
+                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
+                        $"Skipping trace upload for block {blockIndex}: block hash no longer canonical.");
+                    return;
+                }
+
                 var blockIndexValue = checked((int)blockIndex);
                 var batchSize = GetTraceUploadBatchSize();
 

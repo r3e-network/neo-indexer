@@ -23,7 +23,12 @@ namespace Neo.Persistence
         /// <summary>
         /// Upload aggregated block statistics via the Supabase REST API.
         /// </summary>
-        public static async Task UploadBlockStatsAsync(BlockStats stats)
+        public static Task UploadBlockStatsAsync(BlockStats stats)
+        {
+            return UploadBlockStatsAsync(stats, expectedBlockHash: string.Empty);
+        }
+
+        private static async Task UploadBlockStatsAsync(BlockStats stats, string expectedBlockHash)
         {
             if (stats is null) throw new ArgumentNullException(nameof(stats));
 
@@ -34,6 +39,15 @@ namespace Neo.Persistence
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
+                if (!string.IsNullOrWhiteSpace(expectedBlockHash) &&
+                    TryGetCanonicalBlockHash(stats.BlockIndex, out var canonical) &&
+                    !string.Equals(canonical, expectedBlockHash, StringComparison.Ordinal))
+                {
+                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
+                        $"Skipping block stats upload for block {stats.BlockIndex}: block hash no longer canonical.");
+                    return;
+                }
+
                 var backend = ResolveDatabaseBackend(settings.Mode, settings);
                 if (backend == DatabaseBackend.None)
                     return;

@@ -23,6 +23,15 @@ namespace Neo.Persistence
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
+                var expectedBlockHash = recorder.BlockHash.ToString();
+                if (TryGetCanonicalBlockHash(recorder.BlockIndex, out var canonical) &&
+                    !string.Equals(canonical, expectedBlockHash, System.StringComparison.Ordinal))
+                {
+                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
+                        $"Skipping JSON upload for block {recorder.BlockIndex}: block hash no longer canonical.");
+                    return;
+                }
+
                 var entries = GetOrderedEntries(recorder);
                 var jsonPayload = BuildJsonPayload(recorder, entries);
 
@@ -42,4 +51,3 @@ namespace Neo.Persistence
         }
     }
 }
-

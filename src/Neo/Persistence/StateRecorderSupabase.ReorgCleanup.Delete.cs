@@ -45,6 +45,13 @@ namespace Neo.Persistence
                 for (; acquired < TraceUploadConcurrency; acquired++)
                     await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
 
+                // Canonical may have changed while we waited for in-flight uploads to finish.
+                if (TryGetCanonicalBlockHash(blockIndex, out var canonicalAfterDrain) &&
+                    !string.Equals(canonicalAfterDrain, expectedBlockHash, System.StringComparison.Ordinal))
+                {
+                    return;
+                }
+
                 if (backend == DatabaseBackend.Postgres)
                 {
                     await TryDeleteBlockDataPostgresAsync(blockIndexValue, settings).ConfigureAwait(false);

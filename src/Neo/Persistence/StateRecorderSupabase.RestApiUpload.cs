@@ -29,6 +29,15 @@ namespace Neo.Persistence
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
+                var expectedBlockHash = recorder.BlockHash.ToString();
+                if (TryGetCanonicalBlockHash(recorder.BlockIndex, out var canonical) &&
+                    !string.Equals(canonical, expectedBlockHash, System.StringComparison.Ordinal))
+                {
+                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Debug,
+                        $"Skipping REST API upsert for block {recorder.BlockIndex}: block hash no longer canonical.");
+                    return;
+                }
+
                 var entries = GetOrderedEntries(recorder);
                 var blockRecord = BuildBlockRecord(recorder, entries);
                 var storageReads = BuildStorageReadRecords(recorder, entries);

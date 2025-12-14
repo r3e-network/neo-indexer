@@ -39,8 +39,28 @@ namespace Neo.Persistence
                     "ExecutionTraceRecorder must include a transaction hash before uploading traces.");
             }
 
-            return UploadBlockTraceCoreAsync(blockIndex, txHash, recorder, settings);
+            return UploadBlockTraceCoreAsync(blockIndex, txHash, recorder, settings, expectedBlockHash: string.Empty);
+        }
+
+        private static Task UploadBlockTraceAsync(uint blockIndex, string expectedBlockHash, ExecutionTraceRecorder recorder)
+        {
+            if (recorder is null) throw new ArgumentNullException(nameof(recorder));
+
+            var settings = StateRecorderSettings.Current;
+            if (!settings.Enabled || !IsRestApiMode(settings.Mode))
+                return Task.CompletedTask;
+
+            if (!recorder.HasTraces)
+                return Task.CompletedTask;
+
+            var txHash = recorder.TxHash?.ToString();
+            if (string.IsNullOrEmpty(txHash))
+            {
+                throw new InvalidOperationException(
+                    "ExecutionTraceRecorder must include a transaction hash before uploading traces.");
+            }
+
+            return UploadBlockTraceCoreAsync(blockIndex, txHash, recorder, settings, expectedBlockHash);
         }
     }
 }
-
