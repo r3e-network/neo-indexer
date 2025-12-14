@@ -28,6 +28,10 @@ Run the SQL files in order in the Supabase SQL editor:
 11. `migrations/011_prune_storage_reads_batched.sql`
 12. `migrations/012_storage_reads_idempotent_upsert.sql`
 13. `migrations/013_storage_reads_update_policy.sql`
+14. `migrations/014_transaction_results.sql`
+15. `migrations/015_transaction_results_delete_policy.sql`
+16. `migrations/016_partition_management_transaction_results_support.sql`
+17. `migrations/017_prune_trace_partitions_include_transaction_results.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -38,6 +42,10 @@ Notes:
 - `011_prune_storage_reads_batched.sql` adds optional batched pruning (`batch_size`, `max_batches`) and makes the 1-arg function use batching internally.
 - `012_storage_reads_idempotent_upsert.sql` adds a unique index on `(block_index, contract_id, key_base64)` so REST/Postgres uploads can upsert reads without per-block deletes.
 - `013_storage_reads_update_policy.sql` allows service_role UPDATE on `storage_reads` so PostgREST upserts can merge duplicates during resync.
+- `014_transaction_results.sql` adds `transaction_results` (per-transaction VM state + gas + result stack) for SQL analytics and the trace RPC API.
+- `015_transaction_results_delete_policy.sql` allows service_role DELETE on `transaction_results` so reorg cleanup can remove stale tx outcomes by height.
+- `016_partition_management_transaction_results_support.sql` extends the partition helper allowlists (SECURITY DEFINER functions) so `ensure_trace_partitions` can manage `transaction_results` too.
+- `017_prune_trace_partitions_include_transaction_results.sql` makes `prune_trace_partitions(retention_blocks)` also prune old `transaction_results_*` partitions.
 
 Optional automation (runs migrations using a direct Postgres connection string):
 
