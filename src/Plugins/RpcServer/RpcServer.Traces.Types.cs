@@ -104,6 +104,27 @@ namespace Neo.Plugins.RpcServer
             public string? EventName { get; set; }
         }
 
+        private sealed class StorageWriteStatsQueryOptions
+        {
+            public int Limit { get; set; } = DefaultTraceLimit;
+            public int Offset { get; set; }
+            public uint? StartBlock { get; set; }
+            public uint? EndBlock { get; set; }
+            public string? ContractHash { get; set; }
+            public string? TransactionHash { get; set; }
+        }
+
+        private sealed class StorageReadStatsQueryOptions
+        {
+            public int Limit { get; set; } = DefaultTraceLimit;
+            public int Offset { get; set; }
+            public uint? StartBlock { get; set; }
+            public uint? EndBlock { get; set; }
+            public string? ContractHash { get; set; }
+            public string? TransactionHash { get; set; }
+            public string? Source { get; set; }
+        }
+
         private sealed class SupabaseResponse<T>
         {
             public SupabaseResponse(IReadOnlyList<T> items, int totalCount)

@@ -13,6 +13,8 @@ There are two ways to consume traces:
    - `get_runtime_log_stats(start_block, end_block, ...)`
    - `get_block_stats(start_block, end_block, ...)`
    - `get_notification_stats(start_block, end_block, ...)`
+   - `get_storage_write_stats(start_block, end_block, ...)`
+   - `get_storage_read_stats(start_block, end_block, ...)`
 
    Optional filter parameters for Supabase RPC are prefixed with `p_` (to avoid PL/pgSQL name collisions), e.g.:
    - `get_syscall_stats(..., p_contract_hash, p_transaction_hash, p_syscall_name, limit_rows, offset_rows)`
@@ -78,4 +80,3 @@ Responses that include trace collections wrap them as:
 ```
 
 The `total` value reflects the total matching rows in Supabase (if PostgREST count headers are enabled) or the returned count otherwise.
-

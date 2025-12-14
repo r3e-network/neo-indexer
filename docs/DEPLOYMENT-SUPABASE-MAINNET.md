@@ -39,6 +39,8 @@ Run the SQL files in order in the Supabase SQL editor:
 22. `migrations/022_runtime_log_stats.sql`
 23. `migrations/023_block_stats_rpc.sql`
 24. `migrations/024_notification_stats.sql`
+25. `migrations/025_storage_write_stats.sql`
+26. `migrations/026_storage_read_stats.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -60,6 +62,8 @@ Notes:
 - `022_runtime_log_stats.sql` adds `get_runtime_log_stats(...)` so public RPC endpoints can expose bounded log analytics (`getlogstats`).
 - `023_block_stats_rpc.sql` adds `get_block_stats(...)` so public RPC endpoints can fetch bounded per-block aggregates (`getblockstats`).
 - `024_notification_stats.sql` adds `get_notification_stats(...)` so public RPC endpoints can expose bounded event analytics (`getnotificationstats`).
+- `025_storage_write_stats.sql` adds `get_storage_write_stats(...)` so public RPC endpoints can expose bounded storage write analytics (`getstoragewritestats`).
+- `026_storage_read_stats.sql` adds `get_storage_read_stats(...)` so public RPC endpoints can expose bounded storage read analytics (`getstoragereadstats`).
 
 Optional automation (runs migrations using a direct Postgres connection string):
 
