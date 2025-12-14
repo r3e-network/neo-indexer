@@ -22,7 +22,7 @@ namespace Neo.SmartContract
     /// IDiagnostic implementation that captures OpCode execution traces
     /// and contract call graph information.
     /// </summary>
-	public sealed class TracingDiagnostic : IDiagnostic
+	public sealed partial class TracingDiagnostic : IDiagnostic
 	{
 	    private readonly ExecutionTraceRecorder _recorder;
 	    private ApplicationEngine? _engine;
@@ -69,9 +69,9 @@ namespace Neo.SmartContract
         /// <summary>
         /// Called when the ApplicationEngine is disposed.
         /// </summary>
-	    public void Disposed()
-	    {
-	        var engine = _engine;
+		    public void Disposed()
+		    {
+		        var engine = _engine;
 	        if (engine is null)
 	        {
 	            _callStack.Clear();
@@ -109,123 +109,7 @@ namespace Neo.SmartContract
                     trace.Success = false;
             }
 
-	        _engine = null;
-	    }
-
-        /// <summary>
-        /// Called when a new execution context is loaded (contract call starts).
-        /// </summary>
-        public void ContextLoaded(ExecutionContext context)
-        {
-            if (!TraceContractCalls || _engine == null) return;
-
-            var calleeHash = context.GetScriptHash();
-            var callerHash = _engine.CallingScriptHash;
-            var callDepth = _engine.InvocationStack.Count;
-
-            string? methodName = null;
-            try
-            {
-                var state = context.GetState<ExecutionContextState>();
-                var methods = state.Contract?.Manifest?.Abi?.Methods;
-                var offset = context.InstructionPointer;
-
-                if (methods is { Length: > 0 })
-                {
-                    if (!_methodNameCache.TryGetValue(calleeHash, out var offsetMap))
-                    {
-                        offsetMap = new Dictionary<int, string?>(methods.Length);
-                        foreach (var method in methods)
-                            offsetMap[method.Offset] = method.Name;
-                        _methodNameCache[calleeHash] = offsetMap;
-                    }
-
-                    offsetMap.TryGetValue(offset, out methodName);
-                }
-            }
-            catch
-            {
-                methodName = null;
-            }
-
-            // Record the contract call
-            var trace = _recorder.RecordContractCall(
-                callerHash,
-                calleeHash,
-                methodName: methodName,
-                callDepth);
-
-            // Push to call stack for tracking completion
-            _callStack.Push((trace, _engine.FeeConsumed));
-        }
-
-        /// <summary>
-        /// Called when an execution context is unloaded (contract call ends).
-        /// </summary>
-        public void ContextUnloaded(ExecutionContext context)
-        {
-            if (!TraceContractCalls || _engine == null) return;
-
-            if (_callStack.Count > 0)
-            {
-                var (trace, gasStart) = _callStack.Pop();
-                var gasConsumed = _engine.FeeConsumed - gasStart;
-
-                trace.GasConsumed = gasConsumed;
-                if (_engine.State == VMState.FAULT || _engine.FaultException is not null)
-                    trace.Success = false;
-            }
-        }
-
-        /// <summary>
-        /// Called before each instruction is executed.
-        /// </summary>
-	    public void PreExecuteInstruction(Instruction instruction)
-	    {
-	        if (!TraceOpCodes || _engine == null) return;
-
-	        var currentContext = _engine.CurrentContext;
-	        if (currentContext == null) return;
-
-	        var contractHash = currentContext.GetScriptHash();
-	        var instructionPointer = currentContext.InstructionPointer;
-	        var stackDepth = currentContext.EvaluationStack.Count;
-
-	        _lastFeeConsumed = _engine.FeeConsumed;
-	        _pendingOpCode = new PendingOpCodeData(
-	            contractHash,
-	            instructionPointer,
-	            instruction.OpCode,
-	            instruction.Operand,
-	            stackDepth);
-	    }
-
-        /// <summary>
-        /// Called after each instruction is executed.
-        /// </summary>
-	    public void PostExecuteInstruction(Instruction instruction)
-	    {
-	        if (!TraceOpCodes || _engine == null) return;
-
-	        if (_pendingOpCode is not { } pending) return;
-
-	        var delta = _engine.FeeConsumed - _lastFeeConsumed;
-	        _recorder.RecordOpCode(
-	            pending.ContractHash,
-	            pending.InstructionPointer,
-	            pending.OpCode,
-	            pending.Operand,
-	            gasConsumed: delta < 0 ? 0 : delta,
-	            pending.StackDepth);
-	        _lastFeeConsumed = _engine.FeeConsumed;
-	        _pendingOpCode = null;
-	    }
-
-	    private readonly record struct PendingOpCodeData(
-	        UInt160 ContractHash,
-	        int InstructionPointer,
-	        OpCode OpCode,
-	        ReadOnlyMemory<byte> Operand,
-	        int StackDepth);
+		        _engine = null;
+		    }
 	}
 }
