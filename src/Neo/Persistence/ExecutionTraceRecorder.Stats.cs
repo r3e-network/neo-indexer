@@ -22,7 +22,7 @@ namespace Neo.Persistence
         /// </summary>
         public BlockStats GetStats()
         {
-            var resolvedTotalGasConsumed = TotalGasConsumed ?? ResolveTotalGasFromOpCodes();
+            var resolvedTotalGasConsumed = TotalGasConsumed ?? ResolveTotalGasFromTraces();
 
             return new BlockStats
             {
@@ -38,35 +38,26 @@ namespace Neo.Persistence
             };
         }
 
-        private long ResolveTotalGasFromOpCodes()
+        private long ResolveTotalGasFromTraces()
         {
             // Fallback path: TotalGasConsumed is normally filled by TracingDiagnostic.Disposed.
-            // Avoid materializing/sorting a list here; just scan the recorded opcodes.
+            // Best-effort estimate by scanning recorded opcode and syscall fees.
             long sum = 0;
             bool hasAny = false;
-            bool looksCumulative = true;
-            long previous = 0;
-            long last = 0;
 
             foreach (var trace in _opCodeTraces)
             {
-                var gas = trace.GasConsumed;
-                if (!hasAny)
-                {
-                    hasAny = true;
-                }
-                else if (gas < previous)
-                {
-                    looksCumulative = false;
-                }
-
-                previous = gas;
-                last = gas;
-                sum += gas;
+                sum += trace.GasConsumed;
+                hasAny = true;
             }
 
-            if (!hasAny) return 0;
-            return looksCumulative ? last : sum;
+            foreach (var trace in _syscallTraces)
+            {
+                sum += trace.GasCost;
+                hasAny = true;
+            }
+
+            return hasAny ? sum : 0;
         }
 
         /// <summary>
@@ -93,4 +84,3 @@ namespace Neo.Persistence
         }
     }
 }
-
