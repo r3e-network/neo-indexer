@@ -62,16 +62,16 @@ namespace Neo.Plugins.BlockStateIndexer
 
             var pluginMode = Settings.Default.UploadMode;
             var pluginAllowsBinary = pluginMode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
-            var pluginAllowsRestApi = pluginMode is StateRecorderSettings.UploadMode.RestApi
+            var pluginAllowsDatabase = pluginMode is StateRecorderSettings.UploadMode.RestApi
                 or StateRecorderSettings.UploadMode.Postgres
                 or StateRecorderSettings.UploadMode.Both;
 
             var envAllowsBinary = recorderSettings.Mode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
-            var envAllowsRestApi = recorderSettings.Mode is StateRecorderSettings.UploadMode.RestApi
+            var envAllowsDatabase = recorderSettings.Mode is StateRecorderSettings.UploadMode.RestApi
                 or StateRecorderSettings.UploadMode.Postgres
                 or StateRecorderSettings.UploadMode.Both;
 
-            if (pluginAllowsRestApi && !envAllowsRestApi)
+            if (pluginAllowsDatabase && !envAllowsDatabase)
             {
                 ConsoleHelper.Info(
                     $"BlockStateIndexer: Warning - plugin UploadMode {pluginMode} expects RestApi/Postgres uploads, " +
