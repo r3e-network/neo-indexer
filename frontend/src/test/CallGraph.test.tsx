@@ -5,6 +5,7 @@ import type { ContractCallTraceEntry } from '../types';
 
 const calls: ContractCallTraceEntry[] = [
   {
+    blockIndex: 1,
     txHash: '0xtx1',
     callerHash: null,
     calleeHash: '0xaaaa',
@@ -14,6 +15,7 @@ const calls: ContractCallTraceEntry[] = [
     gasConsumed: 50000000,
   },
   {
+    blockIndex: 1,
     txHash: '0xtx1',
     callerHash: '0xaaaa',
     calleeHash: '0xbbbb',
