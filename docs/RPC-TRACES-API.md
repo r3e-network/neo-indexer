@@ -56,7 +56,7 @@ Most trace queries accept an optional options object:
 }
 ```
 
-- `limit` (optional): number of rows to return per trace type. Default `1000`, max `5000`.
+- `limit` (optional): number of rows to return per collection. Default `1000`, max `5000`.
 - `offset` (optional): pagination offset, default `0`.
 - `transactionHash` (optional): filter to a single transaction within a block.
 
@@ -77,7 +77,15 @@ The `total` value reflects the total matching rows in Supabase (if PostgREST cou
 
 ## `getblocktrace`
 
-Returns opcode, syscall, and contract‑call traces for a given block.
+Returns per-transaction execution results plus opcode, syscall, contract-call, storage-write, and notification traces for a given block.
+
+Collections included:
+- `transactionResults`
+- `opcodes`
+- `syscalls`
+- `contractCalls`
+- `storageWrites`
+- `notifications`
 
 ### Parameters
 
@@ -184,7 +192,7 @@ Returns traces for a single transaction.
 
 ### Response Notes
 
-Same shape as `getblocktrace`, but includes `transactionHash` at the top‑level and only rows for that transaction.
+Same shape as `getblocktrace`, but includes `transactionHash` at the top‑level and only rows for that transaction (including a single `transactionResults` row when available).
 
 ---
 

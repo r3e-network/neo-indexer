@@ -26,14 +26,20 @@ namespace Neo.Plugins.RpcServer.Model
         public uint BlockIndex { get; init; }
         public string? BlockHash { get; init; }
         public string? TransactionHash { get; init; }
+        public IReadOnlyList<TransactionResultResult> TransactionResults { get; init; } = Array.Empty<TransactionResultResult>();
         public IReadOnlyList<OpCodeTraceResult> OpCodeTraces { get; init; } = Array.Empty<OpCodeTraceResult>();
         public IReadOnlyList<SyscallTraceResult> SyscallTraces { get; init; } = Array.Empty<SyscallTraceResult>();
         public IReadOnlyList<ContractCallResult> ContractCalls { get; init; } = Array.Empty<ContractCallResult>();
+        public IReadOnlyList<StorageWriteTraceResult> StorageWrites { get; init; } = Array.Empty<StorageWriteTraceResult>();
+        public IReadOnlyList<NotificationTraceResult> Notifications { get; init; } = Array.Empty<NotificationTraceResult>();
         public int Limit { get; init; }
         public int Offset { get; init; }
+        public int TransactionResultTotal { get; init; }
         public int OpCodeTotal { get; init; }
         public int SyscallTotal { get; init; }
         public int ContractCallTotal { get; init; }
+        public int StorageWriteTotal { get; init; }
+        public int NotificationTotal { get; init; }
 
         public JObject ToJson()
         {
@@ -46,9 +52,12 @@ namespace Neo.Plugins.RpcServer.Model
             json["limit"] = Limit;
             json["offset"] = Offset;
 
+            json["transactionResults"] = BuildCollection(TransactionResults.Select(t => t.ToJson()), TransactionResultTotal);
             json["opcodes"] = BuildCollection(OpCodeTraces.Select(t => t.ToJson()), OpCodeTotal);
             json["syscalls"] = BuildCollection(SyscallTraces.Select(t => t.ToJson()), SyscallTotal);
             json["contractCalls"] = BuildCollection(ContractCalls.Select(t => t.ToJson()), ContractCallTotal);
+            json["storageWrites"] = BuildCollection(StorageWrites.Select(t => t.ToJson()), StorageWriteTotal);
+            json["notifications"] = BuildCollection(Notifications.Select(t => t.ToJson()), NotificationTotal);
             return json;
         }
 

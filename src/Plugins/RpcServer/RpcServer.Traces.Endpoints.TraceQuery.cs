@@ -47,19 +47,28 @@ namespace Neo.Plugins.RpcServer
             string? explicitTransactionHash = null)
         {
             var txFilter = transactionHashFilter ?? options.TransactionHash;
+            var txResultsQuery = BuildTransactionResultsQuery(blockIndex, txFilter, options);
             var opcodeQuery = BuildTraceQuery(blockIndex, txFilter, options);
             var syscallQuery = BuildTraceQuery(blockIndex, txFilter, options);
             var contractQuery = BuildTraceQuery(blockIndex, txFilter, options);
+            var storageWritesQuery = BuildOrderedTraceQuery(blockIndex, txFilter, "write_order", options);
+            var notificationsQuery = BuildOrderedTraceQuery(blockIndex, txFilter, "notification_order", options);
 
+            var txResultsTask = SendSupabaseQueryAsync<TransactionResultResult>(settings, "transaction_results", txResultsQuery);
             var opcodeTask = SendSupabaseQueryAsync<OpCodeTraceResult>(settings, "opcode_traces", opcodeQuery);
             var syscallTask = SendSupabaseQueryAsync<SyscallTraceResult>(settings, "syscall_traces", syscallQuery);
             var contractTask = SendSupabaseQueryAsync<ContractCallResult>(settings, "contract_calls", contractQuery);
+            var storageWritesTask = SendSupabaseQueryAsync<StorageWriteTraceResult>(settings, "storage_writes", storageWritesQuery);
+            var notificationsTask = SendSupabaseQueryAsync<NotificationTraceResult>(settings, "notifications", notificationsQuery);
 
-            await Task.WhenAll(opcodeTask, syscallTask, contractTask).ConfigureAwait(false);
+            await Task.WhenAll(txResultsTask, opcodeTask, syscallTask, contractTask, storageWritesTask, notificationsTask).ConfigureAwait(false);
 
+            var txResultsResponse = await txResultsTask.ConfigureAwait(false);
             var opcodeResponse = await opcodeTask.ConfigureAwait(false);
             var syscallResponse = await syscallTask.ConfigureAwait(false);
             var contractResponse = await contractTask.ConfigureAwait(false);
+            var storageWritesResponse = await storageWritesTask.ConfigureAwait(false);
+            var notificationsResponse = await notificationsTask.ConfigureAwait(false);
 
             return new TraceResult
             {
@@ -68,12 +77,18 @@ namespace Neo.Plugins.RpcServer
                 TransactionHash = explicitTransactionHash ?? txFilter,
                 Limit = options.Limit,
                 Offset = options.Offset,
+                TransactionResults = txResultsResponse.Items,
+                TransactionResultTotal = txResultsResponse.TotalCount ?? txResultsResponse.Items.Count,
                 OpCodeTraces = opcodeResponse.Items,
                 OpCodeTotal = opcodeResponse.TotalCount ?? opcodeResponse.Items.Count,
                 SyscallTraces = syscallResponse.Items,
                 SyscallTotal = syscallResponse.TotalCount ?? syscallResponse.Items.Count,
                 ContractCalls = contractResponse.Items,
-                ContractCallTotal = contractResponse.TotalCount ?? contractResponse.Items.Count
+                ContractCallTotal = contractResponse.TotalCount ?? contractResponse.Items.Count,
+                StorageWrites = storageWritesResponse.Items,
+                StorageWriteTotal = storageWritesResponse.TotalCount ?? storageWritesResponse.Items.Count,
+                Notifications = notificationsResponse.Items,
+                NotificationTotal = notificationsResponse.TotalCount ?? notificationsResponse.Items.Count
             };
         }
 
@@ -92,6 +107,44 @@ namespace Neo.Plugins.RpcServer
 
             return parameters;
         }
+
+        private static List<KeyValuePair<string, string?>> BuildOrderedTraceQuery(
+            uint blockIndex,
+            string? transactionHash,
+            string orderColumn,
+            TraceRequestOptions options)
+        {
+            var parameters = new List<KeyValuePair<string, string?>>
+            {
+                new("block_index", $"eq.{blockIndex}"),
+                new("order", $"{orderColumn}.asc"),
+                new("limit", options.Limit.ToString(CultureInfo.InvariantCulture)),
+                new("offset", options.Offset.ToString(CultureInfo.InvariantCulture))
+            };
+
+            if (!string.IsNullOrEmpty(transactionHash))
+                parameters.Insert(1, new KeyValuePair<string, string?>("tx_hash", $"eq.{transactionHash}"));
+
+            return parameters;
+        }
+
+        private static List<KeyValuePair<string, string?>> BuildTransactionResultsQuery(
+            uint blockIndex,
+            string? transactionHash,
+            TraceRequestOptions options)
+        {
+            var parameters = new List<KeyValuePair<string, string?>>
+            {
+                new("block_index", $"eq.{blockIndex}"),
+                new("order", "tx_hash.asc"),
+                new("limit", options.Limit.ToString(CultureInfo.InvariantCulture)),
+                new("offset", options.Offset.ToString(CultureInfo.InvariantCulture))
+            };
+
+            if (!string.IsNullOrEmpty(transactionHash))
+                parameters.Insert(1, new KeyValuePair<string, string?>("tx_hash", $"eq.{transactionHash}"));
+
+            return parameters;
+        }
     }
 }
-
