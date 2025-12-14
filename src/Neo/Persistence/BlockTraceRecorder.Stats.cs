@@ -26,6 +26,7 @@ namespace Neo.Persistence
             int contractCallCount = 0;
             int storageWriteCount = 0;
             int notificationCount = 0;
+            int logCount = 0;
 
             foreach (var recorder in _txRecorders.Values)
             {
@@ -36,6 +37,7 @@ namespace Neo.Persistence
                 contractCallCount += txStats.ContractCallCount;
                 storageWriteCount += txStats.StorageWriteCount;
                 notificationCount += txStats.NotificationCount;
+                logCount += txStats.LogCount;
             }
 
             return new BlockStats
@@ -48,9 +50,9 @@ namespace Neo.Persistence
                 ContractCallCount = contractCallCount,
                 StorageReadCount = 0, // Filled separately
                 StorageWriteCount = storageWriteCount,
-                NotificationCount = notificationCount
+                NotificationCount = notificationCount,
+                LogCount = logCount
             };
         }
     }
 }
-

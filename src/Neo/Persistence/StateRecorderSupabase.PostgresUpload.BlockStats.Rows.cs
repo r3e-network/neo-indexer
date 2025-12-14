@@ -26,7 +26,8 @@ namespace Neo.Persistence
             "contract_call_count",
             "storage_read_count",
             "storage_write_count",
-            "notification_count"
+            "notification_count",
+            "log_count"
         };
 
         private static object?[] BuildBlockStatsRow(BlockStats stats)
@@ -41,10 +42,10 @@ namespace Neo.Persistence
                 stats.ContractCallCount,
                 stats.StorageReadCount,
                 stats.StorageWriteCount,
-                stats.NotificationCount
+                stats.NotificationCount,
+                stats.LogCount
             };
         }
 #endif
     }
 }
-

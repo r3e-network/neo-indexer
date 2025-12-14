@@ -62,6 +62,10 @@ namespace Neo.Persistence
         /// Total number of notifications.
         /// </summary>
         public int NotificationCount { get; init; }
+
+        /// <summary>
+        /// Total number of runtime logs (System.Runtime.Log).
+        /// </summary>
+        public int LogCount { get; init; }
     }
 }
-

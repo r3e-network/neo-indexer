@@ -34,6 +34,7 @@ Block-level aggregates:
 
 Note: `storage_writes` includes an `is_delete` boolean to disambiguate deletes from writes that set an empty byte array (`migrations/018_storage_writes_is_delete.sql`).
 Note: `transaction_results` includes `log_count` (`migrations/020_transaction_results_log_count.sql`) to support fast log volume queries without joining `runtime_logs`.
+Note: `block_stats` includes `log_count` (`migrations/021_block_stats_log_count.sql`) to support fast per-block dashboards without scanning `runtime_logs`.
 
 ## 6.3 Partition management and pruning
 

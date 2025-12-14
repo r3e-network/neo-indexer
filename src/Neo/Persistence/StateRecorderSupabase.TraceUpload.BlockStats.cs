@@ -72,7 +72,8 @@ namespace Neo.Persistence
                     stats.ContractCallCount,
                     stats.StorageReadCount,
                     stats.StorageWriteCount,
-                    stats.NotificationCount);
+                    stats.NotificationCount,
+                    stats.LogCount);
 
                 var payload = JsonSerializer.SerializeToUtf8Bytes(new[] { row });
                 // Explicit on_conflict for robustness.

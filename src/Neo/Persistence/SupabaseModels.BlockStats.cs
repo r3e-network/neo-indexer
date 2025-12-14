@@ -27,6 +27,6 @@ namespace Neo.Persistence
         [property: JsonPropertyName("contract_call_count")] int ContractCallCount,
         [property: JsonPropertyName("storage_read_count")] int StorageReadCount,
         [property: JsonPropertyName("storage_write_count")] int StorageWriteCount,
-        [property: JsonPropertyName("notification_count")] int NotificationCount);
+        [property: JsonPropertyName("notification_count")] int NotificationCount,
+        [property: JsonPropertyName("log_count")] int LogCount);
 }
-

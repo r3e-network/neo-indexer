@@ -39,7 +39,8 @@ namespace Neo.Persistence
                 ContractCallCount = Volatile.Read(ref _contractCallCount),
                 StorageReadCount = 0, // Filled by BlockReadRecorder
                 StorageWriteCount = Volatile.Read(ref _storageWriteCount),
-                NotificationCount = Volatile.Read(ref _notificationCount)
+                NotificationCount = Volatile.Read(ref _notificationCount),
+                LogCount = Volatile.Read(ref _logCount)
             };
         }
 

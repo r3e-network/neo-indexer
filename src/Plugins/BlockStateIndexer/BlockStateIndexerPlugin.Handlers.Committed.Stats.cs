@@ -27,6 +27,7 @@ namespace Neo.Plugins.BlockStateIndexer
             int contractCallCount = 0;
             int storageWriteCount = 0;
             int notificationCount = 0;
+            int logCount = 0;
 
             foreach (var recorder in recorders)
             {
@@ -37,6 +38,7 @@ namespace Neo.Plugins.BlockStateIndexer
                 contractCallCount += txStats.ContractCallCount;
                 storageWriteCount += txStats.StorageWriteCount;
                 notificationCount += txStats.NotificationCount;
+                logCount += txStats.LogCount;
             }
 
             return new BlockStats
@@ -49,7 +51,8 @@ namespace Neo.Plugins.BlockStateIndexer
                 ContractCallCount = contractCallCount,
                 StorageReadCount = storageReadCount,
                 StorageWriteCount = storageWriteCount,
-                NotificationCount = notificationCount
+                NotificationCount = notificationCount,
+                LogCount = logCount
             };
         }
     }

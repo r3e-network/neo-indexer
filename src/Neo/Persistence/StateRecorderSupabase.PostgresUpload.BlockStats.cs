@@ -38,7 +38,7 @@ namespace Neo.Persistence
                 "block_stats",
                 BlockStatsColumns,
                 "block_index",
-                "tx_count = EXCLUDED.tx_count, total_gas_consumed = EXCLUDED.total_gas_consumed, opcode_count = EXCLUDED.opcode_count, syscall_count = EXCLUDED.syscall_count, contract_call_count = EXCLUDED.contract_call_count, storage_read_count = EXCLUDED.storage_read_count, storage_write_count = EXCLUDED.storage_write_count, notification_count = EXCLUDED.notification_count, updated_at = NOW()",
+                "tx_count = EXCLUDED.tx_count, total_gas_consumed = EXCLUDED.total_gas_consumed, opcode_count = EXCLUDED.opcode_count, syscall_count = EXCLUDED.syscall_count, contract_call_count = EXCLUDED.contract_call_count, storage_read_count = EXCLUDED.storage_read_count, storage_write_count = EXCLUDED.storage_write_count, notification_count = EXCLUDED.notification_count, log_count = EXCLUDED.log_count, updated_at = NOW()",
                 values,
                 batchSize: 1).ConfigureAwait(false);
 
