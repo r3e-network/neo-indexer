@@ -36,7 +36,7 @@ namespace Neo.Persistence
                 for (var c = 0; c < columns.Length; c++)
                 {
                     var parameter = command.Parameters.AddWithValue($"p{i}_{c}", row[c] ?? DBNull.Value);
-                    if (columns[c] == "state_json" && row[c] is string)
+                    if ((columns[c] == "state_json" || columns[c] == "result_stack_json") && row[c] is string)
                     {
                         parameter.NpgsqlDbType = NpgsqlDbType.Jsonb;
                     }
@@ -46,4 +46,3 @@ namespace Neo.Persistence
 #endif
     }
 }
-

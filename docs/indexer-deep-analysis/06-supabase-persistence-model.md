@@ -16,6 +16,7 @@ Important detail: idempotent `storage_reads` upsert requires migration `012_stor
 
 Defined in:
 - `migrations/002_trace_tables.sql`
+- `migrations/014_transaction_results.sql`
 
 Partitioned by `block_index` (range). Primary keys enforce idempotency:
 - `opcode_traces`: `(block_index, tx_hash, trace_order)`
@@ -23,6 +24,7 @@ Partitioned by `block_index` (range). Primary keys enforce idempotency:
 - `contract_calls`: `(block_index, tx_hash, trace_order)`
 - `storage_writes`: `(block_index, tx_hash, write_order)`
 - `notifications`: `(block_index, tx_hash, notification_order)`
+- `transaction_results`: `(block_index, tx_hash)`
 
 Block-level aggregates:
 - `block_stats` keyed by `block_index`
@@ -37,3 +39,5 @@ Provides SECURITY DEFINER functions for:
 - pruning old partitions (`prune_trace_partitions`)
 
 This is operationally important because mainnet grows indefinitely.
+
+Note: `ensure_trace_partitions` also creates partitions for `transaction_results` so per-tx result queries stay fast as mainnet grows.

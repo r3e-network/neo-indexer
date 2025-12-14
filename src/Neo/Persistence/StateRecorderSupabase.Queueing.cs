@@ -18,8 +18,32 @@ namespace Neo.Persistence
     public static partial class StateRecorderSupabase
     {
         /// <summary>
-        /// Queue a transaction trace upload (low priority). Returns false if the queue is full and the work was dropped.
+        /// Queue a per-transaction upload (tx result always; traces optionally). Returns false if the queue is full and the work was dropped.
         /// </summary>
+        public static bool TryQueueTransactionUpload(uint blockIndex, string blockHash, ExecutionTraceRecorder recorder, bool uploadTraces)
+        {
+            if (recorder is null) throw new ArgumentNullException(nameof(recorder));
+
+            var txHash = recorder.TxHash?.ToString();
+            if (string.IsNullOrWhiteSpace(txHash))
+                return true; // Nothing to do without a transaction hash.
+
+            return UploadQueue.TryEnqueueLow(
+                blockIndex,
+                uploadTraces ? $"tx upload (traces, tx={txHash})" : $"tx upload (result-only, tx={txHash})",
+                () => ExecuteWithRetryAsync(
+                    () => ExecuteIfCanonicalAsync(
+                        blockIndex,
+                        blockHash,
+                        "tx upload",
+                        () => UploadTransactionAsync(blockIndex, blockHash, txHash, recorder, uploadTraces)),
+                    "tx upload",
+                    blockIndex));
+        }
+
+        /// <summary>
+         /// Queue a transaction trace upload (low priority). Returns false if the queue is full and the work was dropped.
+         /// </summary>
         public static bool TryQueueTraceUpload(uint blockIndex, ExecutionTraceRecorder recorder)
         {
             if (recorder is null) throw new ArgumentNullException(nameof(recorder));

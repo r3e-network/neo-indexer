@@ -15,6 +15,7 @@ using Neo.Persistence;
 using Neo.VM;
 using System;
 using System.Collections.Generic;
+using Neo.Json;
 
 namespace Neo.SmartContract
 {
@@ -80,6 +81,9 @@ namespace Neo.SmartContract
             }
 
             _recorder.TotalGasConsumed = engine.FeeConsumed;
+            _recorder.VmState = engine.State;
+            _recorder.FaultException = engine.FaultException?.ToString();
+            _recorder.ResultStackJson = TrySerializeResultStack(engine);
 
             // If the engine terminates between PreExecuteInstruction and PostExecuteInstruction,
             // emit the last pending opcode trace using the current FeeConsumed.
@@ -110,6 +114,24 @@ namespace Neo.SmartContract
             }
 
             _engine = null;
+        }
+
+        private static string? TrySerializeResultStack(ApplicationEngine engine)
+        {
+            if (engine.ResultStack is null || engine.ResultStack.Count == 0)
+                return null;
+
+            try
+            {
+                var json = new JArray();
+                foreach (var item in engine.ResultStack)
+                    json.Add(JsonSerializer.Serialize(item));
+                return json.ToString();
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

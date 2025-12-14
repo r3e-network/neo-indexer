@@ -25,7 +25,7 @@ SET search_path = public
 AS $$
 DECLARE
     partition_name TEXT;
-    allowed_tables TEXT[] := ARRAY['opcode_traces','syscall_traces','contract_calls','storage_writes','notifications'];
+    allowed_tables TEXT[] := ARRAY['opcode_traces','syscall_traces','contract_calls','storage_writes','notifications','transaction_results'];
 BEGIN
     IF table_name IS NULL OR NOT (table_name = ANY(allowed_tables)) THEN
         RAISE EXCEPTION 'invalid trace table name: %', table_name
@@ -68,6 +68,10 @@ BEGIN
         EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
         EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (contract_hash)', partition_name || '_contract_hash_idx', partition_name);
         EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (event_name)', partition_name || '_event_name_idx', partition_name);
+    ELSIF table_name = 'transaction_results' THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (tx_hash)', partition_name || '_tx_hash_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (success)', partition_name || '_success_idx', partition_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (vm_state)', partition_name || '_vm_state_idx', partition_name);
     END IF;
 
     RAISE NOTICE 'Created partition: %', partition_name;
@@ -92,7 +96,7 @@ DECLARE
     start_block INTEGER;
     end_block INTEGER;
     table_name TEXT;
-    tables TEXT[] := ARRAY['opcode_traces','syscall_traces','contract_calls','storage_writes','notifications'];
+    tables TEXT[] := ARRAY['opcode_traces','syscall_traces','contract_calls','storage_writes','notifications','transaction_results'];
 BEGIN
     IF partition_size IS NULL OR partition_size <= 0 THEN
         RAISE EXCEPTION 'partition_size must be positive'
@@ -247,4 +251,3 @@ GRANT EXECUTE ON FUNCTION ensure_trace_partitions(INTEGER, INTEGER) TO service_r
 GRANT EXECUTE ON FUNCTION prune_old_partitions(TEXT, INTEGER) TO service_role, postgres;
 GRANT EXECUTE ON FUNCTION prune_trace_partitions(INTEGER) TO service_role, postgres;
 GRANT EXECUTE ON FUNCTION get_partition_stats(TEXT) TO service_role, postgres;
-

@@ -10,7 +10,7 @@ On `Blockchain.Committed`:
 - decides what to upload based on:
   - plugin config (`BlockStateIndexer.json`)
   - environment recorder config (`StateRecorderSettings`)
-  - minimum transaction count threshold for trace uploads (`MinTransactionCount`)
+  - minimum transaction count threshold for trace uploads (`MinTransactionCount`) (tx results are still uploaded)
 
 Uploads are queued rather than executed inline with block persistence.
 
@@ -20,7 +20,7 @@ Uploads are queued rather than executed inline with block persistence.
 
 There is a bounded background queue with two lanes:
 - **High priority**: block state (binary/json/csv), REST/PG block + reads upserts, block stats.
-- **Low priority**: per-transaction trace uploads.
+- **Low priority**: per-transaction uploads (tx result always; traces optionally).
 
 This prevents slow trace uploads from starving “index baseline” uploads (blocks + reads + stats).
 

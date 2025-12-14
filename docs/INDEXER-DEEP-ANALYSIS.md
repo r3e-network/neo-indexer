@@ -22,3 +22,4 @@ The deep analysis is split into smaller files for easier navigation:
 - [11. Block state file exports (Supabase Storage)](indexer-deep-analysis/11-block-state-file-exports.md)
 - [12. StateReplay plugin (replaying blocks against captured state)](indexer-deep-analysis/12-state-replay-plugin.md)
 - [13. Enablement + mode matrix (plugin config vs env)](indexer-deep-analysis/13-enablement-mode-matrix.md)
+- [14. SQL analytics examples (results + traces)](indexer-deep-analysis/14-sql-analytics-examples.md)

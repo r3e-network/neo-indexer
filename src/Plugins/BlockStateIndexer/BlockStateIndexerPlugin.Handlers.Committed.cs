@@ -36,7 +36,7 @@ namespace Neo.Plugins.BlockStateIndexer
 
             var recorders = provider.DrainBlock(block.Index);
             if (recorders.Count == 0 && readRecorder == null) return;
-            TryQueueTraceUploads(block, recorders, allowRestApiUploads);
+            TryQueueTransactionUploads(block, recorders, allowRestApiUploads);
 
             var blockStats = BuildBlockStats(block, recorders, storageReadCount);
             if (allowRestApiUploads)

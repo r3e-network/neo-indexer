@@ -19,21 +19,22 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class BlockStateIndexerPlugin
     {
-        private void TryQueueTraceUploads(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
+        private void TryQueueTransactionUploads(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowRestApiUploads)
         {
-            if (allowRestApiUploads &&
-                block.Transactions.Length >= Settings.Default.MinTransactionCount &&
-                recorders.Count > 0)
+            if (!allowRestApiUploads || recorders.Count == 0)
+                return;
+
+            var uploadTraces = block.Transactions.Length >= Settings.Default.MinTransactionCount;
+
+            foreach (var recorder in recorders)
             {
-                foreach (var recorder in recorders)
-                {
-                    StateRecorderSupabase.TryQueueTraceUpload(block.Index, block.Hash.ToString(), recorder);
-                }
+                StateRecorderSupabase.TryQueueTransactionUpload(block.Index, block.Hash.ToString(), recorder, uploadTraces);
             }
-            else if (recorders.Count > 0 && block.Transactions.Length < Settings.Default.MinTransactionCount)
+
+            if (!uploadTraces)
             {
                 Utility.Log(Name, LogLevel.Debug,
-                    $"Block {block.Index}: Skipping trace upload (tx count {block.Transactions.Length} below minimum {Settings.Default.MinTransactionCount})");
+                    $"Block {block.Index}: Skipping trace upload (tx count {block.Transactions.Length} below minimum {Settings.Default.MinTransactionCount}); uploading tx results only.");
             }
         }
     }

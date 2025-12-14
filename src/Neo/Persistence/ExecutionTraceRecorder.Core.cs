@@ -12,6 +12,7 @@
 #nullable enable
 
 using System.Collections.Concurrent;
+using Neo.VM;
 
 namespace Neo.Persistence
 {
@@ -65,9 +66,23 @@ namespace Neo.Persistence
         public long? TotalGasConsumed { get; set; }
 
         /// <summary>
+        /// Final VM state for this transaction execution (HALT/FAULT).
+        /// </summary>
+        public VMState VmState { get; set; } = VMState.NONE;
+
+        /// <summary>
+        /// Fault exception details when <see cref="VmState"/> is FAULT.
+        /// </summary>
+        public string? FaultException { get; set; }
+
+        /// <summary>
+        /// Final result stack serialized as JSON (best effort).
+        /// </summary>
+        public string? ResultStackJson { get; set; }
+
+        /// <summary>
         /// Whether tracing is enabled.
         /// </summary>
         public bool IsEnabled { get; set; } = true;
     }
 }
-

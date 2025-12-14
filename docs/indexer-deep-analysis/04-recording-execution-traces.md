@@ -29,9 +29,14 @@ Trace/write interactions:
 Characteristics:
 - Thread-safe queues (`ConcurrentQueue<T>`) for trace categories.
 - Per-category atomic counters and per-category “order” counters.
-- `HasTraces` is used to avoid enqueuing empty trace uploads.
+- `HasTraces` indicates whether any per-opcode/syscall/call/write/notification traces were captured (tx results can still be uploaded even if trace capture is disabled).
 - `Get*Traces()` returns a snapshot and sorts only if needed (fast-path if already ordered).
 - `GetStats()` provides per-transaction aggregated counts (used to build block-level aggregates).
+- Per-transaction “final result” fields are filled from the engine on disposal:
+  - `VmState` (`HALT` / `FAULT`)
+  - `TotalGasConsumed`
+  - `FaultException` (best-effort string)
+  - `ResultStackJson` (best-effort JSON array)
 
 ## 4.3 Per-block aggregation: `BlockTraceRecorder`
 
