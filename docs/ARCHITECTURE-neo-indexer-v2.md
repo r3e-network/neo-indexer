@@ -75,7 +75,9 @@ public static IReadOnlyDictionary<uint, InteropDescriptor> Services => services;
 |  |  - UploadOpCodeTracesAsync()                                |  |
 |  |  - UploadSyscallTracesAsync()                               |  |
 |  |  - UploadContractCallsAsync()                               |  |
+|  |  - UploadStorageWritesAsync()                               |  |
 |  |  - UploadNotificationsAsync()                               |  |
+|  |  - UploadTransactionResultsAsync()                          |  |
 |  +------------------------------------------------------------+  |
 +------------------------------------------------------------------+
                               |
@@ -86,12 +88,13 @@ public static IReadOnlyDictionary<uint, InteropDescriptor> Services => services;
               |  | PostgreSQL (Partitioned)|  |
               |  | - opcode_traces         |  |
               |  | - syscall_traces        |  |
-              |  | - contract_calls        |  |
-              |  | - notifications         |  |
-              |  | - storage_writes        |  |
-              |  | - block_stats           |  |
-              |  +-------------------------+  |
-              +-------------------------------+
+	              |  | - contract_calls        |  |
+	              |  | - notifications         |  |
+	              |  | - storage_writes        |  |
+	              |  | - transaction_results  |  |
+	              |  | - block_stats           |  |
+	              |  +-------------------------+  |
+	              +-------------------------------+
 ```
 
 ## 4. Core Components
@@ -313,18 +316,19 @@ CREATE TABLE opcode_traces_100000_200000
 
 ### 6.2 Pruning Function
 
-```sql
--- Drop old partitions for instant pruning
--- (see migrations/002_trace_tables.sql)
-SELECT prune_old_partitions('opcode_traces', 1000000);
-SELECT prune_old_partitions('syscall_traces', 1000000);
-SELECT prune_old_partitions('contract_calls', 1000000);
-SELECT prune_old_partitions('storage_writes', 1000000);
-SELECT prune_old_partitions('notifications', 1000000);
+	```sql
+	-- Drop old partitions for instant pruning
+	-- (see migrations/002_trace_tables.sql)
+	SELECT prune_old_partitions('opcode_traces', 1000000);
+	SELECT prune_old_partitions('syscall_traces', 1000000);
+	SELECT prune_old_partitions('contract_calls', 1000000);
+	SELECT prune_old_partitions('storage_writes', 1000000);
+	SELECT prune_old_partitions('notifications', 1000000);
+	SELECT prune_old_partitions('transaction_results', 1000000);
 
--- Or prune all trace tables at once:
-SELECT * FROM prune_trace_partitions(1000000);
-```
+	-- Or prune all trace tables at once:
+	SELECT * FROM prune_trace_partitions(1000000);
+	```
 
 On mainnet you should run pruning on a schedule (for example weekly) using a Supabase
 scheduled SQL job. Choose `retention_blocks` based on your storage budget.
