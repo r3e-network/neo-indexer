@@ -38,8 +38,11 @@ namespace Neo.SmartContract
             };
 
             ReadOnlyMemory<byte>? oldValue = null;
-            if (SnapshotCache.TryGet(storageKey, out var existingItem))
-                oldValue = Clone(existingItem.Value);
+            using (StateReadRecorder.SuppressRecordingScope())
+            {
+                if (SnapshotCache.TryGet(storageKey, out var existingItem))
+                    oldValue = Clone(existingItem.Value);
+            }
 
             UInt160 contractHash = TryResolveContractHash(context.Id, out var hash) && hash is not null
                 ? hash
@@ -67,7 +70,10 @@ namespace Neo.SmartContract
             else
             {
                 StorageItem? updatedItem;
-                updatedItem = SnapshotCache.TryGet(scope.StorageKey);
+                using (StateReadRecorder.SuppressRecordingScope())
+                {
+                    updatedItem = SnapshotCache.TryGet(scope.StorageKey);
+                }
                 newValue = updatedItem is null
                     ? ReadOnlyMemory<byte>.Empty
                     : Clone(updatedItem.Value);

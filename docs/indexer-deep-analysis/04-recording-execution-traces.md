@@ -14,7 +14,7 @@ This provider replaces `ApplicationEngine.Provider` when enabled by the plugin. 
 
 Trace/write interactions:
 - Storage write tracing (`System.Storage.Put/Delete`) needs to read the old/new values and resolve contract metadata.
-- The tracer-only contract metadata lookup (contract id → contract hash) is wrapped in `StateReadRecorder.SuppressRecordingScope()` to avoid polluting `storage_reads`.
+- The tracer-only old/new value reads and contract metadata lookup (contract id → contract hash) are wrapped in `StateReadRecorder.SuppressRecordingScope()` to avoid polluting `storage_reads`.
   - See `src/Neo/SmartContract/TracingApplicationEngine.Storage.cs`
 
 Syscall tracing notes:
