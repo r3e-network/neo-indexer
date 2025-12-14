@@ -90,6 +90,7 @@ Collections included:
 Notes:
 - `opcodes.items[*].gasConsumed` is the opcode fee for that instruction (in datoshi).
 - `syscalls.items[*].gasCost` is the syscall fee (including any dynamic fees charged inside the handler).
+- `storageWrites.items[*].isDelete` is `true` for delete operations; deletes set `newValueBase64` to an empty string (use `isDelete` to disambiguate from writes of an empty byte array).
 
 ### Parameters
 

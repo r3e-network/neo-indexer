@@ -32,6 +32,7 @@ Run the SQL files in order in the Supabase SQL editor:
 15. `migrations/015_transaction_results_delete_policy.sql`
 16. `migrations/016_partition_management_transaction_results_support.sql`
 17. `migrations/017_prune_trace_partitions_include_transaction_results.sql`
+18. `migrations/018_storage_writes_is_delete.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -46,6 +47,7 @@ Notes:
 - `015_transaction_results_delete_policy.sql` allows service_role DELETE on `transaction_results` so reorg cleanup can remove stale tx outcomes by height.
 - `016_partition_management_transaction_results_support.sql` extends the partition helper allowlists (SECURITY DEFINER functions) so `ensure_trace_partitions` can manage `transaction_results` too.
 - `017_prune_trace_partitions_include_transaction_results.sql` makes `prune_trace_partitions(retention_blocks)` also prune old `transaction_results_*` partitions.
+- `018_storage_writes_is_delete.sql` adds an explicit `is_delete` flag to `storage_writes` to disambiguate deletes from empty-value writes.
 
 Optional automation (runs migrations using a direct Postgres connection string):
 

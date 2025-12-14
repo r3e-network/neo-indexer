@@ -36,6 +36,7 @@ namespace Neo.Persistence
                 "write_order",
                 "contract_id",
                 "contract_hash",
+                "is_delete",
                 "key_base64",
                 "old_value_base64",
                 "new_value_base64"
@@ -48,6 +49,7 @@ namespace Neo.Persistence
                 r.WriteOrder,
                 r.ContractId,
                 r.ContractHash,
+                r.IsDelete,
                 r.KeyBase64,
                 r.OldValueBase64,
                 r.NewValueBase64
@@ -59,11 +61,10 @@ namespace Neo.Persistence
                 "storage_writes",
                 columns,
                 "block_index, tx_hash, write_order",
-                "contract_id = EXCLUDED.contract_id, contract_hash = EXCLUDED.contract_hash, key_base64 = EXCLUDED.key_base64, old_value_base64 = EXCLUDED.old_value_base64, new_value_base64 = EXCLUDED.new_value_base64",
+                "contract_id = EXCLUDED.contract_id, contract_hash = EXCLUDED.contract_hash, is_delete = EXCLUDED.is_delete, key_base64 = EXCLUDED.key_base64, old_value_base64 = EXCLUDED.old_value_base64, new_value_base64 = EXCLUDED.new_value_base64",
                 values,
                 batchSize);
         }
 #endif
     }
 }
-

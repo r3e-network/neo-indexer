@@ -36,12 +36,14 @@ namespace Neo.Persistence
             UInt160 contractHash,
             ReadOnlyMemory<byte> key,
             ReadOnlyMemory<byte>? oldValue,
-            ReadOnlyMemory<byte> newValue)
+            ReadOnlyMemory<byte> newValue,
+            bool isDelete = false)
         {
             var trace = new StorageWriteTrace
             {
                 ContractId = contractId,
                 ContractHash = contractHash,
+                IsDelete = isDelete,
                 Key = key,
                 OldValue = oldValue,
                 NewValue = newValue,
@@ -58,4 +60,3 @@ namespace Neo.Persistence
         }
     }
 }
-

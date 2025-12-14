@@ -36,6 +36,9 @@ namespace Neo.Plugins.RpcServer.Model
         [JsonPropertyName("contract_hash")]
         public string ContractHash { get; set; } = string.Empty;
 
+        [JsonPropertyName("is_delete")]
+        public bool IsDelete { get; set; }
+
         [JsonPropertyName("key_base64")]
         public string KeyBase64 { get; set; } = string.Empty;
 
@@ -54,6 +57,7 @@ namespace Neo.Plugins.RpcServer.Model
             if (ContractId.HasValue)
                 json["contractId"] = ContractId.Value;
             json["contractHash"] = ContractHash;
+            json["isDelete"] = IsDelete;
             json["keyBase64"] = KeyBase64;
             if (!string.IsNullOrEmpty(OldValueBase64))
                 json["oldValueBase64"] = OldValueBase64;
@@ -62,4 +66,3 @@ namespace Neo.Plugins.RpcServer.Model
         }
     }
 }
-

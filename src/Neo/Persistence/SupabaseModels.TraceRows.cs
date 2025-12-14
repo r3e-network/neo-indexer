@@ -66,6 +66,7 @@ namespace Neo.Persistence
         [property: JsonPropertyName("write_order")] int WriteOrder,
         [property: JsonPropertyName("contract_id")] int? ContractId,
         [property: JsonPropertyName("contract_hash")] string ContractHash,
+        [property: JsonPropertyName("is_delete")] bool IsDelete,
         [property: JsonPropertyName("key_base64")] string KeyBase64,
         [property: JsonPropertyName("old_value_base64")] string? OldValueBase64,
         [property: JsonPropertyName("new_value_base64")] string NewValueBase64);
@@ -81,4 +82,3 @@ namespace Neo.Persistence
         [property: JsonPropertyName("event_name")] string EventName,
         [property: JsonPropertyName("state_json")] JsonElement? StateJson);
 }
-

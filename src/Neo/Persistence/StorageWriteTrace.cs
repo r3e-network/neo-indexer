@@ -31,6 +31,14 @@ namespace Neo.Persistence
         public UInt160 ContractHash { get; init; }
 
         /// <summary>
+        /// Whether the operation is a delete (as opposed to put/update).
+        /// </summary>
+        /// <remarks>
+        /// This disambiguates deletes from writes that set an empty byte array value.
+        /// </remarks>
+        public bool IsDelete { get; init; }
+
+        /// <summary>
         /// The storage key being written.
         /// </summary>
         public ReadOnlyMemory<byte> Key { get; init; }
@@ -51,4 +59,3 @@ namespace Neo.Persistence
         public int Order { get; init; }
     }
 }
-

@@ -124,7 +124,7 @@ LIMIT 100;
 
 ## 14.6 Storage write diffs (before/after)
 
-`storage_writes` stores `old_value_base64` (pre-write value at the time of the write) and `new_value_base64` (value being written). This enables “state diff” style queries without replay.
+`storage_writes` stores `old_value_base64` (pre-write value at the time of the write) and `new_value_base64` (value being written). It also stores `is_delete` to disambiguate deletes from writes that set an empty byte array.
 
 ```sql
 -- Contracts with the most distinct keys written in a block range
@@ -151,12 +151,13 @@ WITH first_write AS (
 last_write AS (
   SELECT DISTINCT ON (block_index, tx_hash, contract_hash, key_base64)
          block_index, tx_hash, contract_hash, key_base64,
+         is_delete,
          new_value_base64 AS value_after
   FROM storage_writes
   WHERE tx_hash = '0x...'
   ORDER BY block_index, tx_hash, contract_hash, key_base64, write_order DESC
 )
-SELECT f.block_index, f.tx_hash, f.contract_hash, f.key_base64, f.value_before, l.value_after
+SELECT f.block_index, f.tx_hash, f.contract_hash, f.key_base64, f.value_before, l.value_after, l.is_delete
 FROM first_write f
 JOIN last_write l
   USING (block_index, tx_hash, contract_hash, key_base64)
@@ -187,6 +188,7 @@ first_write AS (
 ),
 last_write AS (
   SELECT k.block_index, k.contract_id, k.key_base64,
+         w.is_delete,
          w.new_value_base64
   FROM keys_written k
   JOIN storage_writes w
@@ -198,6 +200,7 @@ last_write AS (
 SELECT f.key_base64,
        COALESCE(r.value_base64, f.old_value_base64) AS value_at_block_start,
        l.new_value_base64 AS value_after_last_write,
+       l.is_delete,
        f.tx_hash AS first_writer_tx
 FROM first_write f
 LEFT JOIN storage_reads r

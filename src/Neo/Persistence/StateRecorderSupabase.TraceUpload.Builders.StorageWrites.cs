@@ -35,6 +35,7 @@ namespace Neo.Persistence
                     trace.Order,
                     trace.ContractId,
                     contractHashString,
+                    trace.IsDelete,
                     Convert.ToBase64String(trace.Key.Span),
                     trace.OldValue.HasValue ? Convert.ToBase64String(trace.OldValue.Value.Span) : null,
                     Convert.ToBase64String(trace.NewValue.Span)));
@@ -43,4 +44,3 @@ namespace Neo.Persistence
         }
     }
 }
-

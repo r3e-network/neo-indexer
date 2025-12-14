@@ -84,7 +84,8 @@ namespace Neo.SmartContract
                 scope.ContractHash,
                 scope.Key,
                 scope.OldValue,
-                newValue);
+                newValue,
+                isDelete: scope.IsDelete);
         }
 
         private bool TryResolveContractHash(int contractId, out UInt160? hash)
