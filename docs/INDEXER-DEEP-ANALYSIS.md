@@ -227,11 +227,20 @@ This is operationally important because mainnet grows indefinitely.
 
 The RpcServer plugin offers trace-related endpoints that query Supabase directly:
 - `src/Plugins/RpcServer/RpcServer.Traces.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Types.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Supabase.Settings.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Supabase.Client.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Supabase.Http.cs`
 - `src/Plugins/RpcServer/RpcServer.Traces.Endpoints.cs`
 - `src/Plugins/RpcServer/RpcServer.Traces.Endpoints.ContractCalls.cs`
-- `src/Plugins/RpcServer/RpcServer.Traces.Endpoints.Stats.cs`
-- `src/Plugins/RpcServer/RpcServer.Traces.Parsing.cs`
-- `src/Plugins/RpcServer/RpcServer.Traces.Types.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Endpoints.Stats.Syscalls.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Endpoints.Stats.OpCodes.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Endpoints.Stats.ContractCalls.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Parsing.BlockIdentifier.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Parsing.TraceRequestOptions.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Parsing.ContractCalls.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Parsing.Stats.cs`
+- `src/Plugins/RpcServer/RpcServer.Traces.Parsing.Helpers.cs`
 
 Key behaviors:
 - Uses Supabase PostgREST reads for trace tables (and Supabase RPC functions for stats).
