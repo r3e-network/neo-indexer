@@ -13,7 +13,6 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 
@@ -45,45 +44,5 @@ namespace Neo.Persistence
         private static readonly SemaphoreSlim TraceUploadLaneSemaphore = new(GetLowPriorityTraceLaneConcurrency());
 
         private static readonly UploadWorkQueue UploadQueue = new();
-
-        private static string[] BuildOpCodeNameCache()
-        {
-            var names = new string[256];
-            foreach (var opCode in (VM.OpCode[])Enum.GetValues(typeof(VM.OpCode)))
-            {
-                names[(byte)opCode] = opCode.ToString();
-            }
-            return names;
-        }
-
-        private static string GetOpCodeName(VM.OpCode opCode)
-        {
-            return OpCodeNameCache[(byte)opCode] ?? opCode.ToString();
-        }
-
-        private static string GetContractHashString(UInt160 contractHash, Dictionary<UInt160, string> cache)
-        {
-            if (!cache.TryGetValue(contractHash, out var value))
-            {
-                value = contractHash.ToString();
-                cache[contractHash] = value;
-            }
-            return value;
-        }
-
-        private static string? GetContractHashStringOrNull(UInt160? contractHash, Dictionary<UInt160, string> cache)
-        {
-            if (contractHash is null) return null;
-            return GetContractHashString(contractHash, cache);
-        }
-
-        private static bool IsBinaryMode(StateRecorderSettings.UploadMode mode)
-            => mode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
-
-        private static bool IsRestApiMode(StateRecorderSettings.UploadMode mode)
-            => mode is StateRecorderSettings.UploadMode.RestApi
-                or StateRecorderSettings.UploadMode.Postgres
-                or StateRecorderSettings.UploadMode.Both;
     }
 }
-
