@@ -1,6 +1,6 @@
 // Copyright (C) 2015-2025 The Neo Project.
 //
-// RpcServer.Node.cs file belongs to the neo project and is free
+// RpcServer.Node.Relay.cs file belongs to the neo project and is free
 // software distributed under the MIT software license, see the
 // accompanying file LICENSE in the main directory of the
 // repository or http://www.opensource.org/licenses/mit-license.php
@@ -13,53 +13,14 @@ using Akka.Actor;
 using Neo.Extensions;
 using Neo.Json;
 using Neo.Ledger;
-using Neo.Network.P2P;
 using Neo.Network.P2P.Payloads;
 using System;
-using System.Linq;
 using static Neo.Ledger.Blockchain;
 
 namespace Neo.Plugins.RpcServer
 {
     partial class RpcServer
     {
-
-        /// <summary>
-        /// Gets the current number of connections to the node.
-        /// </summary>
-        /// <returns>The number of connections as a JToken.</returns>
-        [RpcMethodWithParams]
-        protected internal virtual JToken GetConnectionCount()
-        {
-            return localNode.ConnectedCount;
-        }
-
-        /// <summary>
-        /// Gets information about the peers connected to the node.
-        /// </summary>
-        /// <returns>A JObject containing information about unconnected, bad, and connected peers.</returns>
-        [RpcMethodWithParams]
-        protected internal virtual JToken GetPeers()
-        {
-            JObject json = new();
-            json["unconnected"] = new JArray(localNode.GetUnconnectedPeers().Select(p =>
-            {
-                JObject peerJson = new();
-                peerJson["address"] = p.Address.ToString();
-                peerJson["port"] = p.Port;
-                return peerJson;
-            }));
-            json["bad"] = new JArray(); //badpeers has been removed
-            json["connected"] = new JArray(localNode.GetRemoteNodes().Select(p =>
-            {
-                JObject peerJson = new();
-                peerJson["address"] = p.Remote.Address.ToString();
-                peerJson["port"] = p.ListenerTcpPort;
-                return peerJson;
-            }));
-            return json;
-        }
-
         /// <summary>
         /// Processes the result of a transaction or block relay and returns appropriate response or throws an exception.
         /// </summary>
@@ -121,58 +82,6 @@ namespace Neo.Plugins.RpcServer
                         throw new RpcException(RpcError.VerificationFailed.WithData(reason.ToString()));
                     }
             }
-        }
-
-        /// <summary>
-        /// Gets version information about the node, including network, protocol, and RPC settings.
-        /// </summary>
-        /// <returns>A JObject containing detailed version and configuration information.</returns>
-        [RpcMethodWithParams]
-        protected internal virtual JToken GetVersion()
-        {
-            JObject json = new();
-            json["tcpport"] = localNode.ListenerTcpPort;
-            json["nonce"] = LocalNode.Nonce;
-            json["useragent"] = LocalNode.UserAgent;
-            // rpc settings
-            JObject rpc = new();
-            rpc["maxiteratorresultitems"] = settings.MaxIteratorResultItems;
-            rpc["sessionenabled"] = settings.SessionEnabled;
-            // protocol settings
-            JObject protocol = new();
-            protocol["addressversion"] = system.Settings.AddressVersion;
-            protocol["network"] = system.Settings.Network;
-            protocol["validatorscount"] = system.Settings.ValidatorsCount;
-            protocol["msperblock"] = system.GetTimePerBlock().TotalMilliseconds;
-            protocol["maxtraceableblocks"] = system.GetMaxTraceableBlocks();
-            protocol["maxvaliduntilblockincrement"] = system.GetMaxValidUntilBlockIncrement();
-            protocol["maxtransactionsperblock"] = system.Settings.MaxTransactionsPerBlock;
-            protocol["memorypoolmaxtransactions"] = system.Settings.MemoryPoolMaxTransactions;
-            protocol["initialgasdistribution"] = system.Settings.InitialGasDistribution;
-            protocol["hardforks"] = new JArray(system.Settings.Hardforks.Select(hf =>
-            {
-                JObject forkJson = new();
-                // Strip "HF_" prefix.
-                forkJson["name"] = StripPrefix(hf.Key.ToString(), "HF_");
-                forkJson["blockheight"] = hf.Value;
-                return forkJson;
-            }));
-            protocol["standbycommittee"] = new JArray(system.Settings.StandbyCommittee.Select(u => new JString(u.ToString())));
-            protocol["seedlist"] = new JArray(system.Settings.SeedList.Select(u => new JString(u)));
-            json["rpc"] = rpc;
-            json["protocol"] = protocol;
-            return json;
-        }
-
-        /// <summary>
-        /// Removes a specified prefix from a string if it exists.
-        /// </summary>
-        /// <param name="s">The input string.</param>
-        /// <param name="prefix">The prefix to remove.</param>
-        /// <returns>The string with the prefix removed if it existed, otherwise the original string.</returns>
-        private static string StripPrefix(string s, string prefix)
-        {
-            return s.StartsWith(prefix) ? s.Substring(prefix.Length) : s;
         }
 
         /// <summary>
