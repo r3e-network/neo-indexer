@@ -1,18 +1,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import {
-  fetchBlockTrace,
-  fetchContractCallStats,
-  fetchContractCalls,
-  fetchOpCodeStats,
-  fetchSyscallStats,
-  fetchTransactionTrace,
-} from '../../services/api';
 import type { ContractCallTraceEntry, SyscallStat, TransactionTraceResult } from '../../types';
 import { MAX_STATS_RANGE, type TraceMode, type TraceTab } from './constants';
-
-type StatsRangeInput = { start: string; end: string };
-type StatsRangeParams = { start?: number; end?: number };
+import type { StatsRangeInput, StatsRangeParams } from './types';
+import { useTraceBrowserQueries } from './useTraceBrowserQueries';
 
 export function useTraceBrowser() {
   const [mode, setMode] = useState<TraceMode>('block');
@@ -33,51 +23,20 @@ export function useTraceBrowser() {
   const [opcodeStatsParams, setOpcodeStatsParams] = useState<StatsRangeParams>({});
   const [contractCallStatsParams, setContractCallStatsParams] = useState<StatsRangeParams>({});
 
-  const blockTraceQuery = useQuery({
-    queryKey: ['block-trace', submittedBlock],
-    queryFn: () => fetchBlockTrace(submittedBlock!),
-    enabled: submittedBlock !== null,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
-
-  const transactionTraceQuery = useQuery({
-    queryKey: ['transaction-trace', submittedTx],
-    queryFn: () => fetchTransactionTrace(submittedTx!),
-    enabled: Boolean(submittedTx),
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
-
-  const contractCallsQuery = useQuery({
-    queryKey: ['contract-calls', contractQueryHash],
-    queryFn: () => fetchContractCalls(contractQueryHash!),
-    enabled: Boolean(contractQueryHash),
-    staleTime: 300_000,
-  });
-
-  const syscallStatsQuery = useQuery({
-    queryKey: ['syscall-stats', statsParams.start, statsParams.end],
-    queryFn: () => fetchSyscallStats(statsParams.start!, statsParams.end!),
-    enabled: typeof statsParams.start === 'number' && typeof statsParams.end === 'number',
-    staleTime: 300_000,
-  });
-
-  const opcodeStatsQuery = useQuery({
-    queryKey: ['opcode-stats', opcodeStatsParams.start, opcodeStatsParams.end],
-    queryFn: () => fetchOpCodeStats(opcodeStatsParams.start!, opcodeStatsParams.end!),
-    enabled: typeof opcodeStatsParams.start === 'number' && typeof opcodeStatsParams.end === 'number',
-    staleTime: 300_000,
-  });
-
-  const contractCallStatsQuery = useQuery({
-    queryKey: ['contract-call-stats', contractCallStatsParams.start, contractCallStatsParams.end, contractQueryHash],
-    queryFn: () =>
-      fetchContractCallStats(contractCallStatsParams.start!, contractCallStatsParams.end!, {
-        calleeHash: contractQueryHash || undefined,
-      }),
-    enabled: typeof contractCallStatsParams.start === 'number' && typeof contractCallStatsParams.end === 'number',
-    staleTime: 300_000,
+  const {
+    blockTraceQuery,
+    transactionTraceQuery,
+    contractCallsQuery,
+    syscallStatsQuery,
+    opcodeStatsQuery,
+    contractCallStatsQuery,
+  } = useTraceBrowserQueries({
+    submittedBlock,
+    submittedTx,
+    contractQueryHash,
+    statsParams,
+    opcodeStatsParams,
+    contractCallStatsParams,
   });
 
   useEffect(() => {
