@@ -14,7 +14,6 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -33,19 +32,13 @@ namespace Neo.Persistence
 
             for (var attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                using var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
-                {
-                    Content = new ByteArrayContent(jsonPayload)
-                };
-                request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" };
-                AddRestApiHeaders(request, apiKey);
-                request.Headers.TryAddWithoutValidation("Prefer", "resolution=merge-duplicates,return=minimal");
+                using var request = CreateTracePostRequest(requestUri, apiKey, jsonPayload);
 
                 using var response = await HttpClient.SendAsync(request, CancellationToken.None).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                     return;
 
-                if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
+                if (IsRetryableTraceUploadStatus(response.StatusCode))
                 {
                     Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
                         $"Supabase REST API throttled ({(int)response.StatusCode}) for {entityName} batch attempt {attempt}/{maxAttempts}. Retrying…");
@@ -68,4 +61,3 @@ namespace Neo.Persistence
         }
     }
 }
-
