@@ -19,6 +19,6 @@ namespace StateReplay
         public void LoadForTest(NeoSystem system) => OnSystemLoaded(system);
         public void ReplayForTest(string filePath, uint? heightOverride = null) => ReplayBlockState(filePath, heightOverride);
         public void ReplayBinaryForTest(string filePath) => ReplayBlockStateBinary(filePath);
+        public string CompareForTest(string filePath) => BuildComparisonReport(filePath);
     }
 }
-

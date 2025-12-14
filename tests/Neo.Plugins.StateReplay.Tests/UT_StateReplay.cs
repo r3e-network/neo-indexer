@@ -189,5 +189,32 @@ namespace StateReplay.Tests
             File.WriteAllBytes(path, JsonSerializer.SerializeToUtf8Bytes(doc));
             Assert.ThrowsExactly<InvalidOperationException>(() => _plugin.ReplayForTest(path, 1));
         }
+
+        [TestMethod]
+        public void CompareProducesReport()
+        {
+            var path = Path.GetTempFileName();
+            var key = StorageKey.Create(0, 0x01);
+            var doc = new
+            {
+                block = 0u,
+                hash = NativeContract.Ledger.GetBlockHash(_system.StoreView, 0)?.ToString(),
+                keyCount = 1,
+                keys = new[]
+                {
+                    new {
+                        key = Convert.ToBase64String(key.ToArray()),
+                        value = Convert.ToBase64String(new byte[]{0x01}),
+                        readOrder = 1
+                    }
+                }
+            };
+            File.WriteAllBytes(path, JsonSerializer.SerializeToUtf8Bytes(doc));
+
+            var report = _plugin.CompareForTest(path);
+            Assert.IsTrue(report.Contains("Comparison Report", StringComparison.Ordinal));
+            Assert.IsTrue(report.Contains("Snapshot Keys (unique):", StringComparison.Ordinal));
+            Assert.IsTrue(report.Contains("Replay Read Hits:", StringComparison.Ordinal));
+        }
     }
 }
