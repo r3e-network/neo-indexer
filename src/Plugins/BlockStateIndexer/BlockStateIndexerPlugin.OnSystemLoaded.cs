@@ -37,9 +37,27 @@ namespace Neo.Plugins.BlockStateIndexer
             ConsoleHelper.Info($"  - Recorder Upload Mode (env): {recorderSettings.Mode}");
             ConsoleHelper.Info($"  - MaxStorageReadsPerBlock: {(recorderSettings.MaxStorageReadsPerBlock <= 0 ? "(unlimited)" : recorderSettings.MaxStorageReadsPerBlock)}");
 
-            if (recorderSettings.Enabled && !recorderSettings.UploadEnabled)
+            if (recorderSettings.Enabled)
             {
-                ConsoleHelper.Info("BlockStateIndexer: State recorder enabled but Supabase URL/KEY are missing; uploads are disabled.");
+                var hasRestApi = recorderSettings.UploadEnabled;
+                var hasPostgres = !string.IsNullOrWhiteSpace(recorderSettings.SupabaseConnectionString);
+
+                var modeAllowsBinary = recorderSettings.Mode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
+                var modeAllowsDatabase = recorderSettings.Mode is StateRecorderSettings.UploadMode.RestApi
+                    or StateRecorderSettings.UploadMode.Postgres
+                    or StateRecorderSettings.UploadMode.Both;
+
+                if (modeAllowsBinary && !hasRestApi)
+                {
+                    ConsoleHelper.Info(
+                        "BlockStateIndexer: Supabase URL/KEY missing; binary snapshot uploads (Storage) are disabled.");
+                }
+
+                if (modeAllowsDatabase && !hasRestApi && !hasPostgres)
+                {
+                    ConsoleHelper.Info(
+                        "BlockStateIndexer: Supabase REST API key/url and Postgres connection string are both missing; database uploads are disabled.");
+                }
             }
 
             var pluginMode = Settings.Default.UploadMode;
@@ -58,7 +76,7 @@ namespace Neo.Plugins.BlockStateIndexer
                 ConsoleHelper.Info(
                     $"BlockStateIndexer: Warning - plugin UploadMode {pluginMode} expects RestApi/Postgres uploads, " +
                     $"but env NEO_STATE_RECORDER__UPLOAD_MODE is {recorderSettings.Mode}. " +
-                    "Set NEO_STATE_RECORDER__UPLOAD_MODE=RestApi or Both to enable database writes.");
+                    "Set NEO_STATE_RECORDER__UPLOAD_MODE=RestApi, Postgres, or Both to enable database writes.");
             }
 
             if (pluginAllowsBinary && !envAllowsBinary)
@@ -82,4 +100,3 @@ namespace Neo.Plugins.BlockStateIndexer
         }
     }
 }
-
