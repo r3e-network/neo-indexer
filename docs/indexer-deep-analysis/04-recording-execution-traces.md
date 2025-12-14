@@ -16,6 +16,7 @@ Trace/write interactions:
 - Storage write tracing (`System.Storage.Put/Delete`) needs to read the old/new values and resolve contract metadata.
 - The tracer-only old/new value reads and contract metadata lookup (contract id → contract hash) are wrapped in `StateReadRecorder.SuppressRecordingScope()` to avoid polluting `storage_reads`.
   - See `src/Neo/SmartContract/TracingApplicationEngine.Storage.cs`
+- Deletes are recorded with an explicit `is_delete` flag (so deletes can be distinguished from writes that set an empty byte array value).
 
 Syscall tracing notes:
 - Implemented by overriding `ApplicationEngine.OnSysCall` in `src/Neo/SmartContract/TracingApplicationEngine.Syscalls.cs`.

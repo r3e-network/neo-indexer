@@ -17,6 +17,7 @@ Important detail: idempotent `storage_reads` upsert requires migration `012_stor
 Defined in:
 - `migrations/002_trace_tables.sql`
 - `migrations/014_transaction_results.sql`
+- `migrations/018_storage_writes_is_delete.sql`
 
 Partitioned by `block_index` (range). Primary keys enforce idempotency:
 - `opcode_traces`: `(block_index, tx_hash, trace_order)`

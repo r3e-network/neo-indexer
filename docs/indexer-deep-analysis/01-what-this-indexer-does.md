@@ -8,7 +8,7 @@ At a high level the system captures **two classes of data**:
 - Includes contract metadata enrichment (`contract_hash`, `manifest_name`) and optional `tx_hash` attribution.
 
 2) **Execution traces for persisted transactions**
-- Captures traces at VM/diagnostic level: opcode execution, syscalls, contract calls, storage writes, notifications.
+- Captures traces at VM/diagnostic level: opcode execution, syscalls, contract calls, storage writes (before/after + explicit delete flag), notifications.
 - Stored in partitioned Postgres tables keyed by `(block_index, tx_hash, order)` for idempotent upserts.
 
 The “indexer” is therefore a **recorder + uploader**:
