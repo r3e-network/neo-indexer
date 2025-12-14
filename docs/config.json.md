@@ -126,3 +126,5 @@ This fork includes the Block State Indexer v2 plugins (`BlockStateIndexer` and `
 `UploadMode` here acts as an extra filter on top of `NEO_STATE_RECORDER__UPLOAD_MODE`.
 For mainnet Supabase deployments we recommend keeping this at `RestApi` (write traces/reads into Postgres),
 and enabling binary snapshot uploads via `NEO_STATE_RECORDER__UPLOAD_MODE=Both` only if you need replayable `.bin` files.
+
+Note: `MinTransactionCount` gates only **detailed trace uploads**. The indexer still uploads per‑transaction outcomes (`transaction_results`) and block search metadata even when trace uploads are skipped for small blocks.

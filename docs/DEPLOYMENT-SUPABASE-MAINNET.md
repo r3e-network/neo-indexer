@@ -128,6 +128,8 @@ NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
 
 (`UploadMode` here is a filter on top of the env `NEO_STATE_RECORDER__UPLOAD_MODE`.)
 
+Note: `MinTransactionCount` gates only **detailed trace uploads**. The indexer still uploads per‑transaction outcomes (`transaction_results`) and block metadata even when traces are skipped for small blocks.
+
 ## 6. Run Mainnet Node + Indexer
 
 From repo root:
