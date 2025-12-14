@@ -1,6 +1,6 @@
 // Copyright (C) 2015-2025 The Neo Project.
 //
-// StateReplayPlugin.Commands.cs file belongs to the neo project and is free
+// StateReplayPlugin.Commands.BlockState.cs file belongs to the neo project and is free
 // software distributed under the MIT software license, see the
 // accompanying file LICENSE in the main directory of the
 // repository or http://www.opensource.org/licenses/mit-license.php
@@ -31,24 +31,15 @@ namespace StateReplay
             if (!File.Exists(filePath))
                 throw new FileNotFoundException("Snapshot file not found", filePath);
 
-            // Check if it's binary format
             if (BinaryFormatReader.IsBinaryFormat(filePath))
             {
                 ReplayBlockStateBinary(filePath);
                 return;
             }
 
-            JsonDocument snapshotJson;
-            try
-            {
-                snapshotJson = JsonDocument.Parse(File.ReadAllBytes(filePath));
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("Snapshot file is not valid JSON.", ex);
-            }
-
+            using var snapshotJson = ParseSnapshotJson(filePath);
             var root = snapshotJson.RootElement;
+
             if (!root.TryGetProperty("keys", out var keysElement) || keysElement.ValueKind != JsonValueKind.Array)
                 throw new InvalidOperationException("Snapshot file missing 'keys' array.");
             if (!root.TryGetProperty("block", out var blockProperty))
@@ -75,7 +66,7 @@ namespace StateReplay
 
             var expectedCount = root.TryGetProperty("keyCount", out var kcElem) && kcElem.ValueKind == JsonValueKind.Number ? kcElem.GetInt32() : (int?)null;
 
-            var memoryStore = new MemoryStore();
+            using var memoryStore = new MemoryStore();
             using var storeSnapshot = memoryStore.GetSnapshot();
             using var snapshotCache = new StoreCache(storeSnapshot);
 
@@ -100,35 +91,17 @@ namespace StateReplay
             ConsoleHelper.Info("Replay", $"Loaded {loaded} entries from JSON snapshot.");
         }
 
-        [ConsoleCommand("replay block-binary", Category = "Replay", Description = "Replay a block using a binary NSBR format file")]
-        internal void ReplayBlockStateBinary(string filePath)
+        private static JsonDocument ParseSnapshotJson(string filePath)
         {
-            if (_system is null)
-                throw new InvalidOperationException("NeoSystem is not ready.");
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException("Binary snapshot file not found", filePath);
-
-            var binaryFile = BinaryFormatReader.Read(filePath);
-            var blockIndex = binaryFile.BlockIndex;
-
-            var block = NativeContract.Ledger.GetBlock(_system.StoreView, blockIndex);
-            if (block is null)
-                throw new InvalidOperationException($"Block {blockIndex} not found on this node.");
-
-            var memoryStore = new MemoryStore();
-            using var storeSnapshot = memoryStore.GetSnapshot();
-            using var snapshotCache = new StoreCache(storeSnapshot);
-
-            foreach (var entry in binaryFile.Entries)
+            try
             {
-                // Cast byte array directly to StorageKey - it expects explicit conversion from byte[]
-                var storageKey = (StorageKey)entry.Key;
-                var storageItem = new StorageItem(entry.Value);
-                snapshotCache.Add(storageKey, storageItem);
+                return JsonDocument.Parse(File.ReadAllBytes(filePath));
             }
-
-            ReplayBlock(block, snapshotCache);
-            ConsoleHelper.Info("Replay", $"Loaded {binaryFile.Entries.Count} entries from binary snapshot (block {blockIndex}).");
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Snapshot file is not valid JSON.", ex);
+            }
         }
     }
 }
+

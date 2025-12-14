@@ -351,7 +351,8 @@ The `StateReplay` plugin is a debugging tool: it can replay a given block using 
 
 Where this is implemented:
 - `src/Plugins/StateReplay/StateReplayPlugin.Replay.cs`
-- `src/Plugins/StateReplay/StateReplayPlugin.Commands.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Commands.BlockState.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Commands.Binary.cs`
 - `src/Plugins/StateReplay/StateReplayPlugin.Commands.Supabase.cs`
 - `src/Plugins/StateReplay/StateReplayPlugin.Supabase.cs`
 - `src/Plugins/StateReplay/BinaryFormatReader.cs`
