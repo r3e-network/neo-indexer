@@ -1,0 +1,54 @@
+/* Block List */
+.results-section {
+  margin-bottom: 2rem;
+}
+
+.results-section h2 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+.block-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.block-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.block-card:hover {
+  border-color: var(--accent-dim);
+}
+
+.block-card.selected {
+  border-color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+.block-index {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.block-hash {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.block-meta {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 1rem;
+}
