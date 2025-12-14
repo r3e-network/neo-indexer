@@ -40,7 +40,7 @@ internal static partial class CreateTablesCommands
         Console.WriteLine("                                  Drop old trace partitions and return counts.");
         Console.WriteLine("  prune-storage-reads <retention_blocks> [batch_size] [max_batches]");
         Console.WriteLine("                                  Delete old rows from storage_reads (see migrations/010, 011).");
-        Console.WriteLine("  partition-stats <table_name>    List partition row/size stats for a trace table.");
+        Console.WriteLine("  partition-stats <table_name>    List partition row/size stats for a partitioned table.");
         Console.WriteLine();
         Console.WriteLine("Environment:");
         Console.WriteLine("  NEO_STATE_RECORDER__SUPABASE_CONNECTION_STRING   Direct Postgres connection string (required).");
