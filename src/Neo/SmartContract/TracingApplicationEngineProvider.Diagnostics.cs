@@ -21,14 +21,15 @@ namespace Neo.SmartContract
             IDiagnostic? requested,
             ExecutionTraceRecorder recorder)
         {
+            var readTxDiagnostic = new StateReadTransactionDiagnostic();
+
             if (requested is TracingDiagnostic tracingDiagnostic)
             {
                 ConfigureDiagnostic(tracingDiagnostic);
-                return (tracingDiagnostic.Recorder, tracingDiagnostic);
+                return (tracingDiagnostic.Recorder, new DiagnosticCollection(tracingDiagnostic, readTxDiagnostic));
             }
 
             var tracing = new TracingDiagnostic(recorder);
-            var readTxDiagnostic = new StateReadTransactionDiagnostic();
             ConfigureDiagnostic(tracing);
 
             if (requested is null)
