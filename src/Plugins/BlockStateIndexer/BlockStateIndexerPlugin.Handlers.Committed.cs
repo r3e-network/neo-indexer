@@ -32,7 +32,7 @@ namespace Neo.Plugins.BlockStateIndexer
             var readRecorder = provider.DrainReadRecorder(block.Index);
             var storageReadCount = readRecorder?.Entries.Count ?? 0;
             if (readRecorder != null)
-                TryUploadStorageReads(readRecorder, allowBinaryUploads, allowRestApiUploads, storageReadCount);
+                TryUploadStorageReads(readRecorder, recorderSettings, allowBinaryUploads, allowRestApiUploads, storageReadCount);
 
             var recorders = provider.DrainBlock(block.Index);
             if (recorders.Count == 0 && readRecorder == null) return;

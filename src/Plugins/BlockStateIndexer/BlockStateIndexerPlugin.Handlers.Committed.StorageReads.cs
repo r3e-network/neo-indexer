@@ -19,32 +19,36 @@ namespace Neo.Plugins.BlockStateIndexer
     {
         private static void TryUploadStorageReads(
             BlockReadRecorder readRecorder,
+            StateRecorderSettings recorderSettings,
             bool allowBinaryUploads,
-            bool allowRestApiUploads,
+            bool allowDatabaseUploads,
             int storageReadCount)
         {
-            if (!allowBinaryUploads && !allowRestApiUploads)
+            if (!allowBinaryUploads && !allowDatabaseUploads)
                 return;
+
+            var allowBinaryAndDatabase = allowBinaryUploads && allowDatabaseUploads;
+            var databaseOnlyMode = recorderSettings.Mode == StateRecorderSettings.UploadMode.Postgres
+                ? StateRecorderSettings.UploadMode.Postgres
+                : StateRecorderSettings.UploadMode.RestApi;
 
             if (storageReadCount > 0)
             {
-                var effectiveReadMode =
-                    allowBinaryUploads && allowRestApiUploads
-                        ? StateRecorderSettings.UploadMode.Both
-                        : allowBinaryUploads
-                            ? StateRecorderSettings.UploadMode.Binary
-                            : StateRecorderSettings.UploadMode.RestApi;
+                var effectiveReadMode = allowBinaryAndDatabase
+                    ? StateRecorderSettings.UploadMode.Both
+                    : allowBinaryUploads
+                        ? StateRecorderSettings.UploadMode.Binary
+                        : databaseOnlyMode;
 
                 StateRecorderSupabase.TryUpload(readRecorder, effectiveReadMode);
             }
-            else if (allowRestApiUploads)
+            else if (allowDatabaseUploads)
             {
                 // Still upsert the block row (read_key_count=0) so the frontend can
                 // search blocks even when no storage keys were touched. Avoid binary
                 // snapshot uploads for empty read sets to prevent file explosion.
-                StateRecorderSupabase.TryUpload(readRecorder, StateRecorderSettings.UploadMode.RestApi);
+                StateRecorderSupabase.TryUpload(readRecorder, databaseOnlyMode);
             }
         }
     }
 }
-
