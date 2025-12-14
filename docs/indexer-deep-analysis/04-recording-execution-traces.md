@@ -21,6 +21,10 @@ Syscall tracing notes:
 - Implemented by overriding `ApplicationEngine.OnSysCall` in `src/Neo/SmartContract/TracingApplicationEngine.Syscalls.cs`.
 - The recorded `gasCost` is computed from the engine’s `FeeConsumed` delta across the syscall, so it includes any dynamic fees charged inside the syscall handler.
 
+Opcode tracing notes:
+- Implemented by `TracingDiagnostic` (`src/Neo/SmartContract/TracingDiagnostic.OpCodes.cs`).
+- `gasConsumed` is the opcode fee (`OpCodePriceTable * ExecFeeFactor`). Syscall fees are recorded separately in `syscall_traces`.
+
 ## 4.2 Trace aggregation: `ExecutionTraceRecorder`
 
 - `src/Neo/Persistence/ExecutionTraceRecorder.Core.cs`

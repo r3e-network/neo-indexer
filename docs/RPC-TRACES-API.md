@@ -87,6 +87,10 @@ Collections included:
 - `storageWrites`
 - `notifications`
 
+Notes:
+- `opcodes.items[*].gasConsumed` is the opcode fee for that instruction (in datoshi).
+- `syscalls.items[*].gasCost` is the syscall fee (including any dynamic fees charged inside the handler).
+
 ### Parameters
 
 1. `blockHashOrIndex` (string|number): block hash (`0x...`) or block index.

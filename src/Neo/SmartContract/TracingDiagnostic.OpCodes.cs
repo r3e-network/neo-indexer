@@ -32,12 +32,15 @@ namespace Neo.SmartContract
             var instructionPointer = currentContext.InstructionPointer;
             var stackDepth = currentContext.EvaluationStack.Count;
 
-            _lastFeeConsumed = _engine.FeeConsumed;
+            var gasConsumed = ApplicationEngine.OpCodePriceTable[(byte)instruction.OpCode] * _engine.ExecFeeFactor;
+            if (gasConsumed < 0)
+                gasConsumed = 0;
             _pendingOpCode = new PendingOpCodeData(
                 contractHash,
                 instructionPointer,
                 instruction.OpCode,
                 instruction.Operand,
+                gasConsumed,
                 stackDepth);
         }
 
@@ -50,15 +53,13 @@ namespace Neo.SmartContract
 
             if (_pendingOpCode is not { } pending) return;
 
-            var delta = _engine.FeeConsumed - _lastFeeConsumed;
             _recorder.RecordOpCode(
                 pending.ContractHash,
                 pending.InstructionPointer,
                 pending.OpCode,
                 pending.Operand,
-                gasConsumed: delta < 0 ? 0 : delta,
+                gasConsumed: pending.GasConsumed,
                 pending.StackDepth);
-            _lastFeeConsumed = _engine.FeeConsumed;
             _pendingOpCode = null;
         }
 
@@ -67,6 +68,7 @@ namespace Neo.SmartContract
             int InstructionPointer,
             OpCode OpCode,
             ReadOnlyMemory<byte> Operand,
+            long GasConsumed,
             int StackDepth);
     }
 }

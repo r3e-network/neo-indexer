@@ -27,7 +27,6 @@ namespace Neo.SmartContract
     {
         private readonly ExecutionTraceRecorder _recorder;
         private ApplicationEngine? _engine;
-        private long _lastFeeConsumed;
         private PendingOpCodeData? _pendingOpCode;
         private readonly Stack<(ContractCallTrace Trace, long GasStart)> _callStack = new();
         private readonly Dictionary<UInt160, Dictionary<int, string?>> _methodNameCache = new();
@@ -61,7 +60,6 @@ namespace Neo.SmartContract
         public void Initialized(ApplicationEngine engine)
         {
             _engine = engine;
-            _lastFeeConsumed = engine.FeeConsumed;
             _pendingOpCode = null;
             _callStack.Clear();
             _methodNameCache.Clear();
@@ -86,18 +84,16 @@ namespace Neo.SmartContract
             _recorder.ResultStackJson = TrySerializeResultStack(engine);
 
             // If the engine terminates between PreExecuteInstruction and PostExecuteInstruction,
-            // emit the last pending opcode trace using the current FeeConsumed.
+            // emit the last pending opcode trace using the opcode's base fee.
             if (_pendingOpCode is { } pending)
             {
-                var delta = engine.FeeConsumed - _lastFeeConsumed;
                 _recorder.RecordOpCode(
                     pending.ContractHash,
                     pending.InstructionPointer,
                     pending.OpCode,
                     pending.Operand,
-                    gasConsumed: delta < 0 ? 0 : delta,
+                    gasConsumed: pending.GasConsumed,
                     pending.StackDepth);
-                _lastFeeConsumed = engine.FeeConsumed;
                 _pendingOpCode = null;
             }
 
