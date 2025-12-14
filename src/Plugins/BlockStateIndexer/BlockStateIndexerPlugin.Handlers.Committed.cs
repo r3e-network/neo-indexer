@@ -41,7 +41,7 @@ namespace Neo.Plugins.BlockStateIndexer
             var blockStats = BuildBlockStats(block, recorders, storageReadCount);
             if (allowRestApiUploads)
             {
-                StateRecorderSupabase.TryQueueBlockStatsUpload(blockStats);
+                StateRecorderSupabase.TryQueueBlockStatsUpload(blockStats, block.Hash.ToString());
             }
 
             Utility.Log(Name, LogLevel.Info,

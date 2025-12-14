@@ -27,7 +27,7 @@ namespace Neo.Plugins.BlockStateIndexer
             {
                 foreach (var recorder in recorders)
                 {
-                    StateRecorderSupabase.TryQueueTraceUpload(block.Index, recorder);
+                    StateRecorderSupabase.TryQueueTraceUpload(block.Index, block.Hash.ToString(), recorder);
                 }
             }
             else if (recorders.Count > 0 && block.Transactions.Length < Settings.Default.MinTransactionCount)

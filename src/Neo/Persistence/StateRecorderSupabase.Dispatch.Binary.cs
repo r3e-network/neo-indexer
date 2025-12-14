@@ -18,7 +18,8 @@ namespace Neo.Persistence
         private static void TryQueueBinaryUploads(
             BlockReadRecorder recorder,
             StateRecorderSettings settings,
-            StateRecorderSettings.UploadMode effectiveMode)
+            StateRecorderSettings.UploadMode effectiveMode,
+            string blockHash)
         {
             if (!IsBinaryMode(effectiveMode) || !settings.UploadEnabled)
                 return;
@@ -27,7 +28,11 @@ namespace Neo.Persistence
                 recorder.BlockIndex,
                 "binary upload",
                 () => ExecuteWithRetryAsync(
-                    () => UploadBinaryAsync(recorder, settings),
+                    () => ExecuteIfCanonicalAsync(
+                        recorder.BlockIndex,
+                        blockHash,
+                        "binary upload",
+                        () => UploadBinaryAsync(recorder, settings)),
                     "binary upload",
                     recorder.BlockIndex));
 
@@ -38,7 +43,11 @@ namespace Neo.Persistence
                 recorder.BlockIndex,
                 "json upload",
                 () => ExecuteWithRetryAsync(
-                    () => UploadJsonAsync(recorder, settings),
+                    () => ExecuteIfCanonicalAsync(
+                        recorder.BlockIndex,
+                        blockHash,
+                        "json upload",
+                        () => UploadJsonAsync(recorder, settings)),
                     "json upload",
                     recorder.BlockIndex));
 
@@ -46,10 +55,13 @@ namespace Neo.Persistence
                 recorder.BlockIndex,
                 "csv upload",
                 () => ExecuteWithRetryAsync(
-                    () => UploadCsvAsync(recorder, settings),
+                    () => ExecuteIfCanonicalAsync(
+                        recorder.BlockIndex,
+                        blockHash,
+                        "csv upload",
+                        () => UploadCsvAsync(recorder, settings)),
                     "csv upload",
                     recorder.BlockIndex));
         }
     }
 }
-

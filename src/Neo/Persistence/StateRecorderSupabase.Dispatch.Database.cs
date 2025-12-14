@@ -18,7 +18,8 @@ namespace Neo.Persistence
         private static void TryQueueDatabaseUploads(
             BlockReadRecorder recorder,
             StateRecorderSettings settings,
-            StateRecorderSettings.UploadMode effectiveMode)
+            StateRecorderSettings.UploadMode effectiveMode,
+            string blockHash)
         {
             // Database upload:
             // - RestApi/Both prefer Supabase PostgREST when configured, otherwise fall back to direct Postgres.
@@ -31,7 +32,11 @@ namespace Neo.Persistence
                         recorder.BlockIndex,
                         "PostgreSQL upsert",
                         () => ExecuteWithRetryAsync(
-                            () => UploadPostgresAsync(recorder, settings),
+                            () => ExecuteIfCanonicalAsync(
+                                recorder.BlockIndex,
+                                blockHash,
+                                "PostgreSQL upsert",
+                                () => UploadPostgresAsync(recorder, settings)),
                             "PostgreSQL upsert",
                             recorder.BlockIndex));
                 }
@@ -41,7 +46,11 @@ namespace Neo.Persistence
                         recorder.BlockIndex,
                         "REST API upsert",
                         () => ExecuteWithRetryAsync(
-                            () => UploadRestApiAsync(recorder, settings),
+                            () => ExecuteIfCanonicalAsync(
+                                recorder.BlockIndex,
+                                blockHash,
+                                "REST API upsert",
+                                () => UploadRestApiAsync(recorder, settings)),
                             "REST API upsert",
                             recorder.BlockIndex));
                 }
@@ -54,7 +63,11 @@ namespace Neo.Persistence
                         recorder.BlockIndex,
                         "REST API upsert",
                         () => ExecuteWithRetryAsync(
-                            () => UploadRestApiAsync(recorder, settings),
+                            () => ExecuteIfCanonicalAsync(
+                                recorder.BlockIndex,
+                                blockHash,
+                                "REST API upsert",
+                                () => UploadRestApiAsync(recorder, settings)),
                             "REST API upsert",
                             recorder.BlockIndex));
                 }
@@ -64,7 +77,11 @@ namespace Neo.Persistence
                         recorder.BlockIndex,
                         "PostgreSQL upsert",
                         () => ExecuteWithRetryAsync(
-                            () => UploadPostgresAsync(recorder, settings),
+                            () => ExecuteIfCanonicalAsync(
+                                recorder.BlockIndex,
+                                blockHash,
+                                "PostgreSQL upsert",
+                                () => UploadPostgresAsync(recorder, settings)),
                             "PostgreSQL upsert",
                             recorder.BlockIndex));
                 }
@@ -72,4 +89,3 @@ namespace Neo.Persistence
         }
     }
 }
-

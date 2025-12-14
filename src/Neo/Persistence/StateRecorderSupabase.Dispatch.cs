@@ -30,10 +30,29 @@ namespace Neo.Persistence
             if (!settings.Enabled) return;
 
             var effectiveMode = modeOverride ?? settings.Mode;
+            var blockHash = recorder.BlockHash.ToString();
 
-            TryQueueBinaryUploads(recorder, settings, effectiveMode);
+            // Track the latest canonical block hash per height (in-process) so queued uploads
+            // can avoid writing stale data during short tip reorgs.
+            var (hadPrevious, previousHash) = UpdateCanonicalBlockHash(recorder.BlockIndex, blockHash);
 
-            TryQueueDatabaseUploads(recorder, settings, effectiveMode);
+            // If the same height is observed again with a different hash (tip reorg), and trimming is enabled,
+            // delete per-block rows (reads + traces) before re-uploading to avoid orphan data.
+            if (settings.TrimStaleTraceRows &&
+                IsRestApiMode(effectiveMode) &&
+                hadPrevious &&
+                !string.IsNullOrWhiteSpace(previousHash) &&
+                !string.Equals(previousHash, blockHash, System.StringComparison.Ordinal) &&
+                (settings.UploadEnabled || !string.IsNullOrWhiteSpace(settings.SupabaseConnectionString)))
+            {
+                Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
+                    $"Detected block hash replacement at height {recorder.BlockIndex} (reorg). Scheduling per-block cleanup before re-upload.");
+                TryQueueReorgCleanup(recorder.BlockIndex, blockHash, settings);
+            }
+
+            TryQueueBinaryUploads(recorder, settings, effectiveMode, blockHash);
+
+            TryQueueDatabaseUploads(recorder, settings, effectiveMode, blockHash);
         }
 
         /// <summary>
