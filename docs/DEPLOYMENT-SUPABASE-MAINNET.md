@@ -90,6 +90,11 @@ NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=false
 # Throttle concurrent HTTPS writes
 NEO_STATE_RECORDER__TRACE_UPLOAD_CONCURRENCY=4
 
+# Optional: keep trace/read tables exact on re-sync + tip reorgs (adds DELETE traffic)
+# - trims per-transaction stale trace rows when counts shrink
+# - deletes per-height rows (reads + traces) when a tip reorg replaces a block hash
+# NEO_STATE_RECORDER__TRACE_TRIM_STALE_ROWS=false
+
 # Optional: bounded background upload queues (avoid unbounded memory growth if Supabase is slow/down)
 # NEO_STATE_RECORDER__UPLOAD_QUEUE_CAPACITY=2048
 # NEO_STATE_RECORDER__TRACE_UPLOAD_QUEUE_CAPACITY=16384
