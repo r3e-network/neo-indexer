@@ -30,6 +30,8 @@ Partitioned by `block_index` (range). Primary keys enforce idempotency:
 Block-level aggregates:
 - `block_stats` keyed by `block_index`
 
+Note: `storage_writes` includes an `is_delete` boolean to disambiguate deletes from writes that set an empty byte array (`migrations/018_storage_writes_is_delete.sql`).
+
 ## 6.3 Partition management and pruning
 
 See:
