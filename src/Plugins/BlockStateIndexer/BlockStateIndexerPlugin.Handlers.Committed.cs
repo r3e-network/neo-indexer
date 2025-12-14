@@ -27,63 +27,16 @@ namespace Neo.Plugins.BlockStateIndexer
             if (provider == null) return;
 
             var recorderSettings = StateRecorderSettings.Current;
-            var pluginMode = Settings.Default.UploadMode;
-
-            var pluginAllowsBinary = pluginMode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
-            var pluginAllowsRestApi = pluginMode is StateRecorderSettings.UploadMode.RestApi
-                or StateRecorderSettings.UploadMode.Postgres
-                or StateRecorderSettings.UploadMode.Both;
-
-            var envAllowsBinary = recorderSettings.Mode is StateRecorderSettings.UploadMode.Binary or StateRecorderSettings.UploadMode.Both;
-            var envAllowsRestApi = recorderSettings.Mode is StateRecorderSettings.UploadMode.RestApi
-                or StateRecorderSettings.UploadMode.Postgres
-                or StateRecorderSettings.UploadMode.Both;
-
-            var allowBinaryUploads = pluginAllowsBinary && envAllowsBinary;
-            var allowRestApiUploads = pluginAllowsRestApi && envAllowsRestApi;
+            var (allowBinaryUploads, allowRestApiUploads) = ResolveUploadAllows(recorderSettings);
 
             var readRecorder = provider.DrainReadRecorder(block.Index);
             var storageReadCount = readRecorder?.Entries.Count ?? 0;
-
-            if (readRecorder != null && (allowBinaryUploads || allowRestApiUploads))
-            {
-                if (storageReadCount > 0)
-                {
-                    var effectiveReadMode =
-                        allowBinaryUploads && allowRestApiUploads
-                            ? StateRecorderSettings.UploadMode.Both
-                            : allowBinaryUploads
-                                ? StateRecorderSettings.UploadMode.Binary
-                                : StateRecorderSettings.UploadMode.RestApi;
-
-                    StateRecorderSupabase.TryUpload(readRecorder, effectiveReadMode);
-                }
-                else if (allowRestApiUploads)
-                {
-                    // Still upsert the block row (read_key_count=0) so the frontend can
-                    // search blocks even when no storage keys were touched. Avoid binary
-                    // snapshot uploads for empty read sets to prevent file explosion.
-                    StateRecorderSupabase.TryUpload(readRecorder, StateRecorderSettings.UploadMode.RestApi);
-                }
-            }
+            if (readRecorder != null)
+                TryUploadStorageReads(readRecorder, allowBinaryUploads, allowRestApiUploads, storageReadCount);
 
             var recorders = provider.DrainBlock(block.Index);
             if (recorders.Count == 0 && readRecorder == null) return;
-
-            if (allowRestApiUploads &&
-                block.Transactions.Length >= Settings.Default.MinTransactionCount &&
-                recorders.Count > 0)
-            {
-                foreach (var recorder in recorders)
-                {
-                    StateRecorderSupabase.TryQueueTraceUpload(block.Index, recorder);
-                }
-            }
-            else if (recorders.Count > 0 && block.Transactions.Length < Settings.Default.MinTransactionCount)
-            {
-                Utility.Log(Name, LogLevel.Debug,
-                    $"Block {block.Index}: Skipping trace upload (tx count {block.Transactions.Length} below minimum {Settings.Default.MinTransactionCount})");
-            }
+            TryQueueTraceUploads(block, recorders, allowRestApiUploads);
 
             var blockStats = BuildBlockStats(block, recorders, storageReadCount);
             if (allowRestApiUploads)
@@ -96,4 +49,3 @@ namespace Neo.Plugins.BlockStateIndexer
         }
     }
 }
-
