@@ -111,8 +111,11 @@ This provider replaces `ApplicationEngine.Provider` when enabled by the plugin. 
 
 ### 4.2 Trace aggregation: `ExecutionTraceRecorder`
 
-- `src/Neo/Persistence/ExecutionTraceRecorder.cs`
-- `src/Neo/Persistence/ExecutionTraceRecorder.Accessors.cs`
+- `src/Neo/Persistence/ExecutionTraceRecorder.Core.cs`
+- `src/Neo/Persistence/ExecutionTraceRecorder.Accessors.OpCodesSyscalls.cs`
+- `src/Neo/Persistence/ExecutionTraceRecorder.Accessors.CallsWrites.cs`
+- `src/Neo/Persistence/ExecutionTraceRecorder.Accessors.Notifications.cs`
+- `src/Neo/Persistence/ExecutionTraceRecorder.Recording.*.cs`
 - `src/Neo/Persistence/ExecutionTraceRecorder.Stats.cs`
 
 Characteristics:
@@ -170,7 +173,7 @@ Relevant env vars:
 
 ### 5.4 Retry behavior
 
-- `src/Neo/Persistence/StateRecorderSupabase.cs`
+- `src/Neo/Persistence/StateRecorderSupabase.Retry.cs`
 
 Each queued upload runs in `ExecuteWithRetryAsync`:
 - 3 attempts
@@ -282,4 +285,3 @@ This improves correctness at the cost of extra DELETE statements.
 - Query-only RPC endpoints should not expose service role keys.
   - Prefer `NEO_RPC_TRACES__SUPABASE_KEY` with an anon key and rely on RLS policies from migrations.
 - Partition management functions are SECURITY DEFINER and must remain admin-only.
-
