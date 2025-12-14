@@ -13,12 +13,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 #if NET9_0_OR_GREATER
 using Npgsql;
-using NpgsqlTypes;
 #endif
 
 namespace Neo.Persistence
@@ -44,45 +42,9 @@ namespace Neo.Persistence
             for (var offset = 0; offset < rows.Count; offset += effectiveBatchSize)
             {
                 var count = Math.Min(effectiveBatchSize, rows.Count - offset);
-                var sb = new StringBuilder();
-                sb.Append("INSERT INTO ").Append(tableName).Append(" (")
-                    .Append(string.Join(", ", columns)).Append(") VALUES ");
-
-                for (var i = 0; i < count; i++)
-                {
-                    if (i > 0) sb.Append(", ");
-                    sb.Append('(');
-                    for (var c = 0; c < columns.Length; c++)
-                    {
-                        if (c > 0) sb.Append(", ");
-                        sb.Append("@p").Append(i).Append('_').Append(c);
-                    }
-                    sb.Append(')');
-                }
-
-                if (!string.IsNullOrWhiteSpace(conflictTarget))
-                {
-                    sb.Append(" ON CONFLICT (").Append(conflictTarget).Append(')');
-                    if (!string.IsNullOrWhiteSpace(updateSet))
-                        sb.Append(" DO UPDATE SET ").Append(updateSet);
-                    else
-                        sb.Append(" DO NOTHING");
-                }
-
-                await using var command = new NpgsqlCommand(sb.ToString(), connection, transaction);
-
-                for (var i = 0; i < count; i++)
-                {
-                    var row = rows[offset + i];
-                    for (var c = 0; c < columns.Length; c++)
-                    {
-                        var parameter = command.Parameters.AddWithValue($"p{i}_{c}", row[c] ?? DBNull.Value);
-                        if (columns[c] == "state_json" && row[c] is string)
-                        {
-                            parameter.NpgsqlDbType = NpgsqlDbType.Jsonb;
-                        }
-                    }
-                }
+                var sql = BuildInsertRowsSql(tableName, columns, conflictTarget, updateSet, count);
+                await using var command = new NpgsqlCommand(sql, connection, transaction);
+                AddInsertRowsParameters(command, columns, rows, offset, count);
 
                 await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
             }
@@ -90,4 +52,3 @@ namespace Neo.Persistence
 #endif
     }
 }
-

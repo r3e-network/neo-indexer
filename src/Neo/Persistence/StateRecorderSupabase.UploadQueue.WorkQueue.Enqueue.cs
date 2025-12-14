@@ -68,20 +68,10 @@ namespace Neo.Persistence
                 var dropped = isHighPriority
                     ? Interlocked.Increment(ref _droppedHighPriority)
                     : Interlocked.Increment(ref _droppedLowPriority);
-
-                if (dropped == 1 || dropped % 100 == 0)
-                {
-                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
-                        $"Supabase upload queue full; dropped {(isHighPriority ? "high" : "low")} priority work. " +
-                        $"pending_high={Volatile.Read(ref _pendingHighPriority)}/{_highPriorityCapacity}, " +
-                        $"pending_low={Volatile.Read(ref _pendingLowPriority)}/{_lowPriorityCapacity}, " +
-                        $"dropped_high={Interlocked.Read(ref _droppedHighPriority)}, dropped_low={Interlocked.Read(ref _droppedLowPriority)}. " +
-                        $"Last dropped item: {description} (block {blockIndex}).");
-                }
+                MaybeLogQueueDrop(isHighPriority, dropped, description, blockIndex);
 
                 return false;
             }
         }
     }
 }
-

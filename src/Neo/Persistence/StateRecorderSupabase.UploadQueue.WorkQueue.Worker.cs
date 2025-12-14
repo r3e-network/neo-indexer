@@ -42,27 +42,6 @@ namespace Neo.Persistence
                     await Task.WhenAny(highWait, lowWait).ConfigureAwait(false);
                 }
             }
-
-            private async Task ProcessAsync(UploadWorkItem item)
-            {
-                try
-                {
-                    await item.Work().ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    Utility.Log(nameof(StateRecorderSupabase), LogLevel.Warning,
-                        $"Supabase queued {item.Description} failed for block {item.BlockIndex}: {ex.Message}");
-                }
-                finally
-                {
-                    if (item.IsHighPriority)
-                        Interlocked.Decrement(ref _pendingHighPriority);
-                    else
-                        Interlocked.Decrement(ref _pendingLowPriority);
-                }
-            }
         }
     }
 }
-
