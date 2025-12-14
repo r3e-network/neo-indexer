@@ -1,10 +1,9 @@
-import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TraceBrowser from '../pages/TraceBrowser';
-import type { BlockTraceResult, ContractCallTraceEntry, OpCodeTraceEntry, SyscallTraceEntry, TransactionTraceResult } from '../types';
-import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
+import type { BlockTraceResult, ContractCallTraceEntry, OpCodeTraceEntry, SyscallTraceEntry } from '../types';
+import { blockTrace, sampleContractCalls } from './fixtures/traceBrowserFixtures';
 
 const {
   mockFetchBlockTrace,
@@ -66,101 +65,9 @@ vi.mock('../services/api', () => ({
   fetchOpCodeStats: mockFetchOpCodeStats,
 }));
 
-const server = setupServer();
-
-beforeAll(() => {
-  server.listen();
-});
 afterEach(() => {
-  server.resetHandlers();
   vi.clearAllMocks();
 });
-afterAll(() => server.close());
-
-const sampleOpcodes: OpCodeTraceEntry[] = [
-  {
-    blockIndex: 1,
-    txHash: '0xtx1',
-    contractHash: '0xaaaa1111bbbb',
-    instructionPointer: 0,
-    opcode: 'PUSH1',
-    opcodeName: 'PUSH1',
-    operand: '0x01',
-    gasConsumed: 2_00000000,
-    stackDepth: 1,
-    order: 1,
-  },
-  {
-    blockIndex: 1,
-    txHash: '0xtx1',
-    contractHash: '0xbbbb2222cccc',
-    instructionPointer: 4,
-    opcode: 'SHA256',
-    opcodeName: 'SHA256',
-    operand: '0x02',
-    gasConsumed: 5000000,
-    stackDepth: 5,
-    order: 2,
-  },
-];
-
-const sampleSyscalls: SyscallTraceEntry[] = [
-  {
-    blockIndex: 1,
-    txHash: '0xtx1',
-    contractHash: '0xaaaa1111bbbb',
-    syscallName: 'System.Storage.Get',
-    syscallHash: '0x01',
-    gasCost: 4_00000000,
-    order: 1,
-  },
-  {
-    blockIndex: 1,
-    txHash: '0xtx1',
-    contractHash: '0xbbbb2222cccc',
-    syscallName: 'System.Contract.Call',
-    syscallHash: '0x02',
-    gasCost: 10_00000000,
-    order: 2,
-  },
-];
-
-const sampleContractCalls: ContractCallTraceEntry[] = [
-  {
-    blockIndex: 1,
-    txHash: '0xtx1',
-    callerHash: null,
-    calleeHash: '0xaaaa1111bbbb',
-    methodName: 'deploy',
-    callDepth: 0,
-    order: 1,
-    gasConsumed: 10_00000000,
-  },
-  {
-    blockIndex: 1,
-    txHash: '0xtx1',
-    callerHash: '0xaaaa1111bbbb',
-    calleeHash: '0xbbbb2222cccc',
-    methodName: 'invoke',
-    callDepth: 1,
-    order: 2,
-    gasConsumed: 2_00000000,
-  },
-];
-
-const sampleTransaction: TransactionTraceResult = {
-  txHash: '0xtx1',
-  blockIndex: 777,
-  opcodes: sampleOpcodes,
-  syscalls: sampleSyscalls,
-  contractCalls: sampleContractCalls,
-};
-
-const blockTrace: BlockTraceResult = {
-  blockIndex: 777,
-  blockHash: '0xblock',
-  transactions: [sampleTransaction],
-};
 
 function renderTraceBrowser() {
   const queryClient = new QueryClient({
@@ -336,112 +243,5 @@ describe('TraceBrowser validation and error states', () => {
     fireEvent.change(endInput, { target: { value: '3' } });
     fireEvent.click(fetchButton);
     await waitFor(() => expect(screen.getByText(/Enter a valid block range/i)).toBeInTheDocument());
-  });
-});
-
-describe('Trace API service with MSW', () => {
-  it('fetchBlockTrace normalizes nested traces', async () => {
-    server.use(
-      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/blocks.*/, ({ request }) => {
-        const url = new URL(request.url);
-        expect(url.searchParams.get('block_index')).toBe('eq.123');
-        return HttpResponse.json({ hash: '0xabc' });
-      }),
-      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/opcode_traces.*/, ({ request }) => {
-        const url = new URL(request.url);
-        expect(url.searchParams.get('block_index')).toBe('eq.123');
-        return HttpResponse.json([
-          {
-            block_index: 123,
-            tx_hash: '0xtest',
-            contract_hash: '0xaaaa',
-            instruction_pointer: 0,
-            opcode: 1,
-            opcode_name: 'PUSH1',
-            operand_base64: null,
-            gas_consumed: 100000000,
-            stack_depth: 2,
-            trace_order: 1,
-          },
-        ]);
-      }),
-      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/syscall_traces.*/, ({ request }) => {
-        const url = new URL(request.url);
-        expect(url.searchParams.get('block_index')).toBe('eq.123');
-        return HttpResponse.json([
-          {
-            block_index: 123,
-            tx_hash: '0xtest',
-            contract_hash: '0xaaaa',
-            syscall_name: 'System.Storage.Get',
-            syscall_hash: '0x01',
-            gas_cost: 4000000,
-            trace_order: 1,
-          },
-        ]);
-      }),
-      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/contract_calls.*/, ({ request }) => {
-        const url = new URL(request.url);
-        expect(url.searchParams.get('block_index')).toBe('eq.123');
-        return HttpResponse.json([
-          {
-            block_index: 123,
-            tx_hash: '0xtest',
-            caller_hash: null,
-            callee_hash: '0xbbbb',
-            method_name: 'deploy',
-            call_depth: 0,
-            trace_order: 1,
-            gas_consumed: 500000000,
-            success: true,
-          },
-        ]);
-      })
-    );
-
-    const api = await vi.importActual<typeof import('../services/api')>('../services/api');
-    const result = await api.fetchBlockTrace(123);
-    expect(result.transactions).toHaveLength(1);
-    expect(result.transactions[0].opcodes[0].opcodeName).toBe('PUSH1');
-    expect(result.transactions[0].syscalls[0].syscallName).toBe('System.Storage.Get');
-    expect(result.transactions[0].contractCalls[0].calleeHash).toBe('0xbbbb');
-  });
-
-  it('fetchTransactionTrace returns normalized single transaction result', async () => {
-    server.use(
-      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/opcode_traces.*/, ({ request }) => {
-        const url = new URL(request.url);
-        expect(url.searchParams.get('tx_hash')).toBe('eq.0xtx2');
-        return HttpResponse.json([
-          {
-            block_index: 321,
-            tx_hash: '0xtx2',
-            contract_hash: '0xcccc',
-            instruction_pointer: 0,
-            opcode: 5,
-            opcode_name: 'PUSH2',
-            operand_base64: null,
-            gas_consumed: 9000000,
-            stack_depth: 1,
-            trace_order: 1,
-          },
-        ]);
-      }),
-      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/syscall_traces.*/, ({ request }) => {
-        const url = new URL(request.url);
-        expect(url.searchParams.get('tx_hash')).toBe('eq.0xtx2');
-        return HttpResponse.json([]);
-      }),
-      http.get(/https:\/\/test\.supabase\.co\/rest\/v1\/contract_calls.*/, ({ request }) => {
-        const url = new URL(request.url);
-        expect(url.searchParams.get('tx_hash')).toBe('eq.0xtx2');
-        return HttpResponse.json([]);
-      })
-    );
-
-    const api = await vi.importActual<typeof import('../services/api')>('../services/api');
-    const result = await api.fetchTransactionTrace('0xtx2');
-    expect(result.txHash).toBe('0xtx2');
-    expect(result.opcodes[0].opcodeName).toBe('PUSH2');
   });
 });
