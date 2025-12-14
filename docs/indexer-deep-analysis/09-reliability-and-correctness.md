@@ -22,13 +22,14 @@ What is safe by construction:
 What can become stale without extra cleanup:
 - Trace tables are keyed by `(block_index, tx_hash, order)`. If a reorg replaces the tx set at a height, rows for tx hashes that no longer exist at that height can remain in:
   - `opcode_traces`, `syscall_traces`, `contract_calls`, `storage_writes`, `notifications`
+- `transaction_results` is keyed by `(block_index, tx_hash)`, so tx outcome rows from the old block can remain at the same height when the tx set changes.
 - With migration `012` enabled, `storage_reads` uses a unique key on `(block_index, contract_id, key_base64)`. That makes uploads idempotent, but it also means keys that were read by the **old** block at that height can remain if the **new** block never reads them (because there is no conflicting row to overwrite).
 
 What this fork does to mitigate reorg orphans (when enabled):
 - `StateRecorderSupabase` tracks a best-effort **canonical block hash** per `block_index` (in-process) and wraps queued uploads in a guard:
   - if the queued work’s `expectedBlockHash` is no longer canonical, the upload is skipped
   - if a reorg cleanup is in-flight for that height, the upload waits for it
-- When `NEO_STATE_RECORDER__TRACE_TRIM_STALE_ROWS=true` and a block hash replacement is observed at the same height, the uploader schedules a **high priority** reorg cleanup that deletes all per-block rows for that height (reads + traces) before re-uploading.
+- When `NEO_STATE_RECORDER__TRACE_TRIM_STALE_ROWS=true` and a block hash replacement is observed at the same height, the uploader schedules a **high priority** reorg cleanup that deletes all per-block rows for that height (reads + traces + tx results) before re-uploading.
 
 Code pointers:
 - Canonical hash tracking + canonical-only execution: `src/Neo/Persistence/StateRecorderSupabase.ReorgGuard.*.cs`

@@ -49,6 +49,7 @@ namespace Neo.Persistence
             await DeleteTraceRowsPostgresAsync(connection, transaction, "contract_calls", blockIndex).ConfigureAwait(false);
             await DeleteTraceRowsPostgresAsync(connection, transaction, "storage_writes", blockIndex).ConfigureAwait(false);
             await DeleteTraceRowsPostgresAsync(connection, transaction, "notifications", blockIndex).ConfigureAwait(false);
+            await DeleteTraceRowsPostgresAsync(connection, transaction, "transaction_results", blockIndex).ConfigureAwait(false);
 
             await transaction.CommitAsync(CancellationToken.None).ConfigureAwait(false);
         }
@@ -69,4 +70,3 @@ namespace Neo.Persistence
 #endif
     }
 }
-
