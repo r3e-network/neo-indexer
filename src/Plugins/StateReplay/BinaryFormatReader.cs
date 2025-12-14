@@ -10,8 +10,6 @@
 // modifications are permitted.
 
 using Neo;
-using Neo.Persistence;
-using Neo.SmartContract;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -146,14 +144,4 @@ namespace StateReplay
             return magic.AsSpan().SequenceEqual(ExpectedMagic);
         }
     }
-
-    /// <summary>
-    /// Represents a parsed binary state file.
-    /// </summary>
-    public sealed record BinaryStateFile(uint BlockIndex, IReadOnlyList<BinaryStateEntry> Entries);
-
-    /// <summary>
-    /// Represents a single entry in the binary state file.
-    /// </summary>
-    public sealed record BinaryStateEntry(UInt160 ContractHash, byte[] Key, byte[] Value, int ReadOrder);
 }
