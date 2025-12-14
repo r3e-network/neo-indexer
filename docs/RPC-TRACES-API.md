@@ -104,7 +104,8 @@ Collections included:
 ```
 
 Response rows may include `syscallHash`, `category`, and `gasBase` when the `syscall_names`
-reference table is populated.
+reference table is populated. `gasCost` reflects the actual fee consumed by the syscall (including
+dynamic fees charged inside the handler), while `gasBase` is the fixed base price from `syscall_names`.
 
 ### Example Response
 

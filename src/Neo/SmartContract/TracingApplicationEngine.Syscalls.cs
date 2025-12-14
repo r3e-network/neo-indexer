@@ -20,9 +20,10 @@ namespace Neo.SmartContract
         /// </summary>
         protected override void OnSysCall(InteropDescriptor descriptor)
         {
+            var feeBefore = FeeConsumed;
             ValidateCallFlags(descriptor.RequiredCallFlags);
-            long gasCost = descriptor.FixedPrice * ExecFeeFactor;
-            AddFee(gasCost);
+            long baseGasCost = descriptor.FixedPrice * ExecFeeFactor;
+            AddFee(baseGasCost);
 
             object[] parameters = new object[descriptor.Parameters.Count];
             for (int i = 0; i < parameters.Length; i++)
@@ -31,24 +32,58 @@ namespace Neo.SmartContract
             StorageTraceScope? storageScope = PrepareStorageScope(descriptor, parameters);
             int notificationBaseline = ShouldTrace(ExecutionTraceLevel.Notifications) ? Notifications.Count : 0;
 
-            if (ShouldTrace(ExecutionTraceLevel.Syscalls))
+            try
             {
-                _traceRecorder.RecordSyscall(
-                    CurrentScriptHash,
-                    descriptor.Hash,
-                    descriptor.Name,
-                    gasCost);
+                object? returnValue = descriptor.Handler.Invoke(this, parameters);
+                if (descriptor.Handler.ReturnType != typeof(void))
+                    Push(Convert(returnValue));
             }
+            finally
+            {
+                if (ShouldTrace(ExecutionTraceLevel.Syscalls))
+                {
+                    try
+                    {
+                        var actualGasCost = FeeConsumed - feeBefore;
+                        if (actualGasCost < 0)
+                            actualGasCost = 0;
 
-            object? returnValue = descriptor.Handler.Invoke(this, parameters);
-            if (descriptor.Handler.ReturnType != typeof(void))
-                Push(Convert(returnValue));
+                        _traceRecorder.RecordSyscall(
+                            CurrentScriptHash,
+                            descriptor.Hash,
+                            descriptor.Name,
+                            actualGasCost);
+                    }
+                    catch
+                    {
+                        // Best-effort tracing; never fail syscall execution.
+                    }
+                }
 
-            if (storageScope is not null)
-                RecordStorageScope(storageScope);
+                if (storageScope is not null)
+                {
+                    try
+                    {
+                        RecordStorageScope(storageScope);
+                    }
+                    catch
+                    {
+                        // Best-effort tracing; never fail syscall execution.
+                    }
+                }
 
-            if (ShouldTrace(ExecutionTraceLevel.Notifications))
-                RecordNotifications(notificationBaseline);
+                if (ShouldTrace(ExecutionTraceLevel.Notifications))
+                {
+                    try
+                    {
+                        RecordNotifications(notificationBaseline);
+                    }
+                    catch
+                    {
+                        // Best-effort tracing; never fail syscall execution.
+                    }
+                }
+            }
         }
     }
 }

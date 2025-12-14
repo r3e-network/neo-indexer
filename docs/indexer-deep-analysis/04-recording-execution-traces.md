@@ -17,6 +17,10 @@ Trace/write interactions:
 - The tracer-only contract metadata lookup (contract id → contract hash) is wrapped in `StateReadRecorder.SuppressRecordingScope()` to avoid polluting `storage_reads`.
   - See `src/Neo/SmartContract/TracingApplicationEngine.Storage.cs`
 
+Syscall tracing notes:
+- Implemented by overriding `ApplicationEngine.OnSysCall` in `src/Neo/SmartContract/TracingApplicationEngine.Syscalls.cs`.
+- The recorded `gasCost` is computed from the engine’s `FeeConsumed` delta across the syscall, so it includes any dynamic fees charged inside the syscall handler.
+
 ## 4.2 Trace aggregation: `ExecutionTraceRecorder`
 
 - `src/Neo/Persistence/ExecutionTraceRecorder.Core.cs`
