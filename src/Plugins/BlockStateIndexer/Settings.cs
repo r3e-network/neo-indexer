@@ -27,8 +27,8 @@ namespace Neo.Plugins.BlockStateIndexer
         public uint Network { get; private set; } = 0;
 
         /// <summary>
-        /// Minimum transaction count required to record block state.
-        /// Blocks with fewer transactions will be skipped.
+        /// Minimum transaction count required to upload per-transaction execution traces.
+        /// Storage reads may still be uploaded for blocks below this threshold.
         /// </summary>
         public int MinTransactionCount { get; private set; } = 1;
 

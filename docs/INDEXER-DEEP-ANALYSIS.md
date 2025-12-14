@@ -294,3 +294,145 @@ This improves correctness at the cost of extra DELETE statements.
 - Query-only RPC endpoints should not expose service role keys.
   - Prefer `NEO_RPC_TRACES__SUPABASE_KEY` with an anon key and rely on RLS policies from migrations.
 - Partition management functions are SECURITY DEFINER and must remain admin-only.
+
+## 11. Block state file exports (Supabase Storage)
+
+In addition to writing rows into Postgres (via REST API or direct Postgres), the recorder can upload **per-block snapshot files** to Supabase Storage.
+
+Where this is implemented:
+- `src/Neo/Persistence/StateRecorderSupabase.Dispatch.Binary.cs`
+- `src/Neo/Persistence/StateRecorderSupabase.BinaryUpload.*.cs`
+- `src/Neo/Persistence/StateRecorderSupabase.JsonCsvUpload.*.cs`
+
+### 11.1 Binary snapshots (`.bin`, NSBR format)
+
+When the effective upload mode includes `Binary` and Supabase Storage is configured, the recorder uploads:
+- `block-{blockIndex}.bin` to bucket `NEO_STATE_RECORDER__SUPABASE_BUCKET` (default: `block-state`)
+
+It uses an HTTP `PUT` with `x-upsert=true` so re-syncs overwrite existing files:
+- `src/Neo/Persistence/StateRecorderSupabase.BinaryUpload.cs`
+
+Binary format is defined by the writer:
+- `src/Neo/Persistence/StateRecorderSupabase.BinaryUpload.PayloadBuilders.Write.cs`
+
+Format:
+- Header: `[Magic "NSBR": 4 bytes] [Version: uint16] [BlockIndex: uint32] [EntryCount: int32]`
+- Entries: `[ContractHash: 20 bytes] [KeyLen: uint16] [KeyBytes] [ValueLen: int32] [ValueBytes] [ReadOrder: int32]`
+
+Important nuance: `KeyBytes` is a serialized `StorageKey`:
+- `[ContractId: int32 little-endian] + [StorageKey.Key bytes]`
+
+This is the format consumed by `StateReplay` (see section 12).
+
+### 11.2 Optional JSON/CSV snapshots (`.json` / `.csv`)
+
+When `NEO_STATE_RECORDER__UPLOAD_AUX_FORMATS=true`, the uploader additionally writes:
+- `block-{blockIndex}.json`
+- `block-{blockIndex}.csv`
+
+The JSON format includes rich per-read metadata (contract id/hash, manifest name, tx hash attribution, source) and is intended for debugging/inspection:
+- `src/Neo/Persistence/StateRecorderSupabase.JsonCsvUpload.PayloadBuilders.Json.cs`
+
+Operationally, these formats are disabled by default because they create a large number of files and can be sizeable on “hot” blocks.
+
+### 11.3 Empty-read blocks
+
+If a block produced **zero recorded reads**, the plugin still upserts the `blocks` row (so the UI can find the block), but it avoids binary snapshot uploads to prevent file explosion:
+- `src/Plugins/BlockStateIndexer/BlockStateIndexerPlugin.Handlers.Committed.StorageReads.cs`
+
+## 12. StateReplay plugin (replaying blocks against captured state)
+
+The `StateReplay` plugin is a debugging tool: it can replay a given block using a captured key/value snapshot (from a file or Supabase) to help diagnose determinism/state issues.
+
+Where this is implemented:
+- `src/Plugins/StateReplay/StateReplayPlugin.Replay.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Commands.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Commands.Supabase.cs`
+- `src/Plugins/StateReplay/StateReplayPlugin.Supabase.cs`
+- `src/Plugins/StateReplay/BinaryFormatReader.cs`
+
+### 12.1 Replay algorithm
+
+`ReplayBlock(Block block, StoreCache snapshot)` follows Neo’s persistence lifecycle at a high level:
+1. Runs native `OnPersist` via a syscall script.
+2. Executes each transaction script:
+   - If `HALT`, commits the snapshot changes.
+   - If `FAULT`, discards changes and resets the snapshot to the original base (by cloning).
+3. Runs native `PostPersist` via a syscall script.
+
+This is a deliberately “pure” replay: it does not depend on the node’s live storage, only on the provided snapshot and the block’s transactions.
+
+### 12.2 Snapshot inputs
+
+StateReplay supports multiple snapshot sources:
+
+- **JSON snapshot file** (`replay block-state <file>`):
+  - Expects the same “block JSON export” shape that `StateRecorderSupabase` can upload (`block-<index>.json`)
+  - Reads base64 `key`/`value` and casts `key` bytes into a `StorageKey`
+
+- **Binary snapshot file** (`replay block-binary <file>`):
+  - Reads NSBR (`block-<index>.bin`) via `BinaryFormatReader`
+  - Loads entries into a `MemoryStore` snapshot
+
+- **Supabase PostgREST** (`replay supabase <blockIndex>`):
+  - Pages through `storage_reads` ordered by `read_order` and reconstructs `StorageKey { Id, Key }`
+  - Useful when you didn’t upload storage files but did persist `storage_reads`
+
+- **Supabase Storage download** (`replay download <blockIndex>`):
+  - Downloads `block-<index>.bin` into a local cache directory (`StateReplay.json` `CacheDirectory`)
+
+### 12.3 Current limitations
+
+`replay compare` currently produces a summary report but does **not** perform a full “live execution vs replay” diff:
+- `src/Plugins/StateReplay/StateReplayPlugin.Commands.Compare.cs`
+
+## 13. Enablement + mode matrix (plugin config vs env)
+
+There are two layers of configuration that jointly determine whether data is captured and where it goes:
+
+1) **Plugin config** (`src/Plugins/BlockStateIndexer/BlockStateIndexer.json`)
+- `Enabled`: gates whether `Blockchain.Committed` handling is active
+- `UploadMode`: what the plugin *intends* to upload (Binary / RestApi / Both / Postgres)
+- `MinTransactionCount`: trace upload gate (see below)
+
+2) **Environment variables** (`StateRecorderSettings`, prefix `NEO_STATE_RECORDER__`)
+- `ENABLED`: gates whether recorders are activated
+- `SUPABASE_URL` + `SUPABASE_KEY`: enable REST/Storage uploads (`UploadEnabled`)
+- `SUPABASE_CONNECTION_STRING`: enables direct Postgres uploads
+- `UPLOAD_MODE`: limits which upload modes are allowed at runtime
+- plus operational knobs like `TRACE_LEVEL`, `TRACE_UPLOAD_CONCURRENCY`, `UPLOAD_QUEUE_*`, `MAX_STORAGE_READS_PER_BLOCK`, etc.
+
+### 13.1 What must be true to capture traces/reads
+
+`BlockStateIndexer` registers the tracing provider only when BOTH are enabled:
+- `Settings.Default.Enabled` (plugin JSON)
+- `StateRecorderSettings.Current.Enabled` (env)
+
+See:
+- `src/Plugins/BlockStateIndexer/BlockStateIndexerPlugin.OnSystemLoaded.cs`
+
+### 13.2 Upload allow-listing (Binary vs DB)
+
+On each committed block, the plugin computes:
+- `allowBinaryUploads = (plugin allows Binary) AND (env allows Binary)`
+- `allowRestApiUploads = (plugin allows RestApi/Postgres) AND (env allows RestApi/Postgres)`
+
+See:
+- `src/Plugins/BlockStateIndexer/BlockStateIndexerPlugin.Handlers.Committed.UploadModes.cs`
+
+### 13.3 `MinTransactionCount` behavior
+
+`MinTransactionCount` applies to **trace uploads** (not to read recording):
+- If `block.Transactions.Length < MinTransactionCount`, traces are skipped (reads may still be uploaded).
+
+See:
+- `src/Plugins/BlockStateIndexer/BlockStateIndexerPlugin.Handlers.Committed.Traces.cs`
+
+### 13.4 REST API vs Postgres fallback behavior
+
+Within `StateRecorderSupabase`, “database upload” chooses REST vs direct Postgres based on the effective mode and available credentials:
+- `RestApi/Both`: prefers REST when URL/key exist, otherwise falls back to Postgres when a connection string exists.
+- `Postgres`: prefers Postgres when a connection string exists, otherwise falls back to REST when URL/key exist.
+
+See:
+- `src/Neo/Persistence/StateRecorderSupabase.Dispatch.Database.cs`
