@@ -18,6 +18,7 @@ Notes:
 - `opcodes.items[*].gasConsumed` is the opcode fee for that instruction (in datoshi).
 - `syscalls.items[*].gasCost` is the syscall fee (including any dynamic fees charged inside the handler).
 - `contractCalls.items[*].success` is `false` when the callee context unwinds due to an exception (including exceptions that are caught by the caller). For the overall transaction outcome, use `transactionResults`.
+- `transactionResults.items[*].storageReadCount` is the number of *first-observed unique keys* that were attributed to that transaction (because `storageReads` is deduped per key per block).
 - `storageWrites.items[*].isDelete` is `true` for delete operations; deletes set `newValueBase64` to an empty string (use `isDelete` to disambiguate from writes of an empty byte array).
 - `logs.items[*].message` is emitted by `System.Runtime.Log`.
 
@@ -37,9 +38,7 @@ Notes:
 }
 ```
 
-Response rows may include `syscallHash`, `category`, and `gasBase` when the `syscall_names`
-reference table is populated. `gasCost` reflects the actual fee consumed by the syscall (including
-dynamic fees charged inside the handler), while `gasBase` is the fixed base price from `syscall_names`.
+For syscall metadata such as `category` and fixed `gasBase`, use the stats endpoint `getsyscallstats` (which reads from the `syscall_names` reference table).
 
 ## Example Response
 
