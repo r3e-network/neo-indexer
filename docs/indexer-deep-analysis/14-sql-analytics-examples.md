@@ -127,6 +127,15 @@ GROUP BY success;
 ```
 
 ```sql
+-- Average unique storage reads per tx, grouped by success/failure
+-- Note: storage_read_count is "unique keys first-observed" (storage_reads is deduped per key per block).
+SELECT success, AVG(storage_read_count) AS avg_unique_reads
+FROM transaction_results
+WHERE block_index BETWEEN 5000000 AND 5010000
+GROUP BY success;
+```
+
+```sql
 -- Join tx outcome with contract calls for “fault rate by callee”
 SELECT c.callee_hash,
        COUNT(*) AS calls,

@@ -19,12 +19,20 @@ namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class BlockStateIndexerPlugin
     {
-        private bool TryQueueTransactionResultsUpload(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowDatabaseUploads)
+        private bool TryQueueTransactionResultsUpload(
+            Block block,
+            IReadOnlyCollection<ExecutionTraceRecorder> recorders,
+            IReadOnlyDictionary<UInt256, int>? storageReadCountsByTransaction,
+            bool allowDatabaseUploads)
         {
             if (!allowDatabaseUploads || recorders.Count == 0)
                 return true;
 
-            return StateRecorderSupabase.TryQueueTransactionResultsUpload(block.Index, block.Hash.ToString(), recorders);
+            return StateRecorderSupabase.TryQueueTransactionResultsUpload(
+                block.Index,
+                block.Hash.ToString(),
+                recorders,
+                storageReadCountsByTransaction);
         }
 
         private (int Attempted, int Enqueued) TryQueueTraceUploads(Block block, IReadOnlyCollection<ExecutionTraceRecorder> recorders, bool allowDatabaseUploads)

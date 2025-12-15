@@ -53,6 +53,7 @@ namespace Neo.Persistence
                 "opcode_count",
                 "syscall_count",
                 "contract_call_count",
+                "storage_read_count",
                 "storage_write_count",
                 "notification_count",
                 "log_count"
@@ -74,6 +75,7 @@ namespace Neo.Persistence
                     row.OpCodeCount,
                     row.SyscallCount,
                     row.ContractCallCount,
+                    row.StorageReadCount,
                     row.StorageWriteCount,
                     row.NotificationCount,
                     row.LogCount
@@ -86,7 +88,7 @@ namespace Neo.Persistence
                 "transaction_results",
                 columns,
                 "block_index, tx_hash",
-                "vm_state = EXCLUDED.vm_state, vm_state_name = EXCLUDED.vm_state_name, success = EXCLUDED.success, gas_consumed = EXCLUDED.gas_consumed, fault_exception = EXCLUDED.fault_exception, result_stack_json = EXCLUDED.result_stack_json, opcode_count = EXCLUDED.opcode_count, syscall_count = EXCLUDED.syscall_count, contract_call_count = EXCLUDED.contract_call_count, storage_write_count = EXCLUDED.storage_write_count, notification_count = EXCLUDED.notification_count, log_count = EXCLUDED.log_count, updated_at = NOW()",
+                "vm_state = EXCLUDED.vm_state, vm_state_name = EXCLUDED.vm_state_name, success = EXCLUDED.success, gas_consumed = EXCLUDED.gas_consumed, fault_exception = EXCLUDED.fault_exception, result_stack_json = EXCLUDED.result_stack_json, opcode_count = EXCLUDED.opcode_count, syscall_count = EXCLUDED.syscall_count, contract_call_count = EXCLUDED.contract_call_count, storage_read_count = EXCLUDED.storage_read_count, storage_write_count = EXCLUDED.storage_write_count, notification_count = EXCLUDED.notification_count, log_count = EXCLUDED.log_count, updated_at = NOW()",
                 values,
                 batchSize);
         }

@@ -23,6 +23,18 @@ namespace Neo.Persistence
         /// </summary>
         public static bool TryQueueTransactionResultsUpload(uint blockIndex, string blockHash, IReadOnlyCollection<ExecutionTraceRecorder> recorders)
         {
+            return TryQueueTransactionResultsUpload(blockIndex, blockHash, recorders, storageReadCountsByTransaction: null);
+        }
+
+        /// <summary>
+        /// Queue a per-block transaction results upload (high priority) with optional per-tx storage read counts.
+        /// </summary>
+        public static bool TryQueueTransactionResultsUpload(
+            uint blockIndex,
+            string blockHash,
+            IReadOnlyCollection<ExecutionTraceRecorder> recorders,
+            IReadOnlyDictionary<UInt256, int>? storageReadCountsByTransaction)
+        {
             if (recorders is null) throw new ArgumentNullException(nameof(recorders));
             if (recorders.Count == 0) return true;
 
@@ -34,7 +46,7 @@ namespace Neo.Persistence
                         blockIndex,
                         blockHash,
                         "transaction results upload",
-                        () => UploadTransactionResultsAsync(blockIndex, blockHash, recorders)),
+                        () => UploadTransactionResultsAsync(blockIndex, blockHash, recorders, storageReadCountsByTransaction)),
                     "transaction results upload",
                     blockIndex));
         }

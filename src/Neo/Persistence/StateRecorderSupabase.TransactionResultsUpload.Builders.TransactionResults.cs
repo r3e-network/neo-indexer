@@ -21,7 +21,8 @@ namespace Neo.Persistence
         private static TransactionResultRow BuildTransactionResultRow(
             int blockIndex,
             string txHash,
-            ExecutionTraceRecorder recorder)
+            ExecutionTraceRecorder recorder,
+            int storageReadCount)
         {
             var stats = recorder.GetStats();
             var vmState = recorder.VmState;
@@ -38,6 +39,7 @@ namespace Neo.Persistence
                 stats.OpCodeCount,
                 stats.SyscallCount,
                 stats.ContractCallCount,
+                storageReadCount,
                 stats.StorageWriteCount,
                 stats.NotificationCount,
                 recorder.LogCount);

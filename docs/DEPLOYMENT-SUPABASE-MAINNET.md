@@ -44,6 +44,7 @@ Run the SQL files in order in the Supabase SQL editor:
 27. `migrations/027_storage_write_stats_perf.sql`
 28. `migrations/028_storage_read_stats_perf.sql`
 29. `migrations/029_partition_management_runtime_logs.sql`
+30. `migrations/030_transaction_results_storage_read_count.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -70,6 +71,7 @@ Notes:
 - `027_storage_write_stats_perf.sql` optimizes `get_storage_write_stats(...)` to resolve `contract_hash` to `contract_id` (uses existing indexes).
 - `028_storage_read_stats_perf.sql` optimizes `get_storage_read_stats(...)` to resolve `contract_hash` to `contract_id` (uses existing indexes).
 - `029_partition_management_runtime_logs.sql` extends `ensure_trace_partitions` and friends to also manage `runtime_logs_*` partitions.
+- `030_transaction_results_storage_read_count.sql` adds `storage_read_count` to `transaction_results` for fast per-transaction analytics (unique keys first-observed).
 
 Optional automation (runs migrations using a direct Postgres connection string):
 

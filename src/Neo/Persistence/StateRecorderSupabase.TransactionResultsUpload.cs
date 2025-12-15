@@ -22,7 +22,8 @@ namespace Neo.Persistence
         private static Task UploadTransactionResultsAsync(
             uint blockIndex,
             string expectedBlockHash,
-            IReadOnlyCollection<ExecutionTraceRecorder> recorders)
+            IReadOnlyCollection<ExecutionTraceRecorder> recorders,
+            IReadOnlyDictionary<UInt256, int>? storageReadCountsByTransaction)
         {
             if (recorders is null) throw new ArgumentNullException(nameof(recorders));
 
@@ -34,6 +35,7 @@ namespace Neo.Persistence
                 blockIndex,
                 expectedBlockHash,
                 recorders,
+                storageReadCountsByTransaction,
                 settings);
         }
     }

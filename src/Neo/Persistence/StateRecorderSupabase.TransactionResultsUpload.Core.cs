@@ -24,6 +24,7 @@ namespace Neo.Persistence
             uint blockIndex,
             string expectedBlockHash,
             IReadOnlyCollection<ExecutionTraceRecorder> recorders,
+            IReadOnlyDictionary<UInt256, int>? storageReadCountsByTransaction,
             StateRecorderSettings settings)
         {
             await TraceUploadSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -45,7 +46,7 @@ namespace Neo.Persistence
                 var blockIndexValue = checked((int)blockIndex);
                 var batchSize = GetTraceUploadBatchSize();
 
-                var rows = BuildTransactionResultRows(blockIndexValue, recorders);
+                var rows = BuildTransactionResultRows(blockIndexValue, recorders, storageReadCountsByTransaction);
                 if (rows.Count == 0)
                     return;
 
@@ -70,7 +71,8 @@ namespace Neo.Persistence
 
         private static List<TransactionResultRow> BuildTransactionResultRows(
             int blockIndex,
-            IReadOnlyCollection<ExecutionTraceRecorder> recorders)
+            IReadOnlyCollection<ExecutionTraceRecorder> recorders,
+            IReadOnlyDictionary<UInt256, int>? storageReadCountsByTransaction)
         {
             var rows = new List<TransactionResultRow>(recorders.Count);
             foreach (var recorder in recorders)
@@ -82,11 +84,16 @@ namespace Neo.Persistence
                 if (string.IsNullOrWhiteSpace(txHash))
                     continue;
 
-                rows.Add(BuildTransactionResultRow(blockIndex, txHash, recorder));
+                var storageReadCount = 0;
+                if (storageReadCountsByTransaction != null && recorder.TxHash != null)
+                {
+                    storageReadCountsByTransaction.TryGetValue(recorder.TxHash, out storageReadCount);
+                }
+
+                rows.Add(BuildTransactionResultRow(blockIndex, txHash, recorder, storageReadCount));
             }
 
             return rows;
         }
     }
 }
-

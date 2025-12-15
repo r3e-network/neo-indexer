@@ -13,11 +13,29 @@
 
 using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
+using System.Collections.Generic;
 
 namespace Neo.Plugins.BlockStateIndexer
 {
     public sealed partial class BlockStateIndexerPlugin
     {
+        private static IReadOnlyDictionary<UInt256, int>? TryBuildStorageReadCountsByTransaction(BlockReadRecorder recorder)
+        {
+            Dictionary<UInt256, int>? counts = null;
+
+            foreach (var entry in recorder.Entries)
+            {
+                if (entry.TxHash is null)
+                    continue;
+
+                counts ??= new Dictionary<UInt256, int>();
+                var txHash = entry.TxHash;
+                counts[txHash] = counts.TryGetValue(txHash, out var current) ? current + 1 : 1;
+            }
+
+            return counts;
+        }
+
         private void HandleCommitted(global::Neo.NeoSystem system, Block block)
         {
             if (!Settings.Default.Enabled) return;
@@ -31,12 +49,15 @@ namespace Neo.Plugins.BlockStateIndexer
 
             var readRecorder = provider.DrainReadRecorder(block.Index);
             var storageReadCount = readRecorder?.Entries.Count ?? 0;
+            var storageReadCountsByTransaction = readRecorder is null
+                ? null
+                : TryBuildStorageReadCountsByTransaction(readRecorder);
             if (readRecorder != null)
                 TryUploadStorageReads(readRecorder, recorderSettings, allowBinaryUploads, allowDatabaseUploads, storageReadCount);
 
             var recorders = provider.DrainBlock(block.Index);
             if (recorders.Count == 0 && readRecorder == null) return;
-            var txResultsEnqueued = TryQueueTransactionResultsUpload(block, recorders, allowDatabaseUploads);
+            var txResultsEnqueued = TryQueueTransactionResultsUpload(block, recorders, storageReadCountsByTransaction, allowDatabaseUploads);
             var (traceAttempted, traceEnqueued) = TryQueueTraceUploads(block, recorders, allowDatabaseUploads);
 
             var blockStats = BuildBlockStats(block, recorders, storageReadCount);

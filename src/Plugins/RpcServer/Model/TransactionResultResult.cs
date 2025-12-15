@@ -56,6 +56,9 @@ namespace Neo.Plugins.RpcServer.Model
         [JsonPropertyName("contract_call_count")]
         public int ContractCallCount { get; set; }
 
+        [JsonPropertyName("storage_read_count")]
+        public int StorageReadCount { get; set; }
+
         [JsonPropertyName("storage_write_count")]
         public int StorageWriteCount { get; set; }
 
@@ -85,6 +88,7 @@ namespace Neo.Plugins.RpcServer.Model
             json["opcodeCount"] = OpCodeCount;
             json["syscallCount"] = SyscallCount;
             json["contractCallCount"] = ContractCallCount;
+            json["storageReadCount"] = StorageReadCount;
             json["storageWriteCount"] = StorageWriteCount;
             json["notificationCount"] = NotificationCount;
             json["logCount"] = LogCount;

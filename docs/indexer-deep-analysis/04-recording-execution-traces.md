@@ -49,7 +49,7 @@ Characteristics:
 - `HasTraces` indicates whether any per-opcode/syscall/call/write/notification/log traces were captured (tx results can still be uploaded even if trace capture is disabled).
 - `Get*Traces()` returns a snapshot and sorts only if needed (fast-path if already ordered).
 - `GetStats()` provides per-transaction aggregated counts (used to build block-level aggregates).
-- `transaction_results` stores per-tx counts, including `log_count` (runtime logs).
+- `transaction_results` stores per-tx counts, including `log_count` (runtime logs) and `storage_read_count` (unique keys first-observed, attributed via `storage_reads.tx_hash`).
 - Per-transaction “final result” fields are filled from the engine on disposal:
   - `VmState` (`HALT` / `FAULT`)
   - `TotalGasConsumed`

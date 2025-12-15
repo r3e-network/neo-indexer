@@ -6,6 +6,9 @@ This is complementary to `gettransactiontrace`:
 - `gettransactiontrace` returns the detailed trace rows.
 - `gettransactionresult` returns the final outcome + summary counters.
 
+Notes:
+- `storageReadCount` reflects `storage_reads` attribution (`tx_hash`) and is based on unique keys first-observed within the block (because `storage_reads` is deduped per key per block).
+
 ## Parameters
 
 1. `txHash` (string): transaction hash (`0x...`).
@@ -49,10 +52,10 @@ Otherwise, it returns the stored execution outcome:
   "opcodeCount": 1000,
   "syscallCount": 20,
   "contractCallCount": 5,
+  "storageReadCount": 7,
   "storageWriteCount": 3,
   "notificationCount": 2,
   "logCount": 1,
   "resultStack": [ ... ]
 }
 ```
-
