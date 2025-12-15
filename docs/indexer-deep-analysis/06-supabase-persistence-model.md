@@ -40,6 +40,7 @@ Note: `block_stats` includes `log_count` (`migrations/021_block_stats_log_count.
 
 See:
 - `migrations/008_partition_management_security_definer.sql`
+- `migrations/029_partition_management_runtime_logs.sql`
 
 Provides SECURITY DEFINER functions for:
 - creating partitions ahead of time (`ensure_trace_partitions`)
@@ -47,4 +48,4 @@ Provides SECURITY DEFINER functions for:
 
 This is operationally important because mainnet grows indefinitely.
 
-Note: `ensure_trace_partitions` and `prune_trace_partitions` also manage partitions for `transaction_results` and `runtime_logs` so per-tx analytics stays fast as mainnet grows.
+Note: `ensure_trace_partitions` and `prune_trace_partitions` are extended over time (via migrations) to manage partitions for newer trace tables like `transaction_results` and `runtime_logs`.

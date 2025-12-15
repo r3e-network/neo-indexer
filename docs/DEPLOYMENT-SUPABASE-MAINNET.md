@@ -43,6 +43,7 @@ Run the SQL files in order in the Supabase SQL editor:
 26. `migrations/026_storage_read_stats.sql`
 27. `migrations/027_storage_write_stats_perf.sql`
 28. `migrations/028_storage_read_stats_perf.sql`
+29. `migrations/029_partition_management_runtime_logs.sql`
 
 Notes:
 - `002_trace_tables.sql` sets up range partitions and locks down partition management RPCs.
@@ -58,7 +59,7 @@ Notes:
 - `016_partition_management_transaction_results_support.sql` extends the partition helper allowlists (SECURITY DEFINER functions) so `ensure_trace_partitions` can manage `transaction_results` too.
 - `017_prune_trace_partitions_include_transaction_results.sql` makes `prune_trace_partitions(retention_blocks)` also prune old `transaction_results_*` partitions.
 - `018_storage_writes_is_delete.sql` adds an explicit `is_delete` flag to `storage_writes` to disambiguate deletes from empty-value writes.
-- `019_runtime_logs.sql` adds the partitioned `runtime_logs` trace table for `System.Runtime.Log` and extends the partition management/pruning helper allowlists.
+- `019_runtime_logs.sql` adds the partitioned `runtime_logs` trace table for `System.Runtime.Log`.
 - `020_transaction_results_log_count.sql` adds `log_count` to `transaction_results` so log volume analytics can be done without joining `runtime_logs`.
 - `021_block_stats_log_count.sql` adds `log_count` to `block_stats` for fast per-block dashboards without scanning `runtime_logs`.
 - `022_runtime_log_stats.sql` adds `get_runtime_log_stats(...)` so public RPC endpoints can expose bounded log analytics (`getlogstats`).
@@ -68,6 +69,7 @@ Notes:
 - `026_storage_read_stats.sql` adds `get_storage_read_stats(...)` so public RPC endpoints can expose bounded storage read analytics (`getstoragereadstats`).
 - `027_storage_write_stats_perf.sql` optimizes `get_storage_write_stats(...)` to resolve `contract_hash` to `contract_id` (uses existing indexes).
 - `028_storage_read_stats_perf.sql` optimizes `get_storage_read_stats(...)` to resolve `contract_hash` to `contract_id` (uses existing indexes).
+- `029_partition_management_runtime_logs.sql` extends `ensure_trace_partitions` and friends to also manage `runtime_logs_*` partitions.
 
 Optional automation (runs migrations using a direct Postgres connection string):
 
