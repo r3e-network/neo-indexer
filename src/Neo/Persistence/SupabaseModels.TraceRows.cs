@@ -41,7 +41,8 @@ namespace Neo.Persistence
         [property: JsonPropertyName("contract_hash")] string ContractHash,
         [property: JsonPropertyName("syscall_hash")] string SyscallHash,
         [property: JsonPropertyName("syscall_name")] string SyscallName,
-        [property: JsonPropertyName("gas_cost")] long GasCost);
+        [property: JsonPropertyName("gas_cost")] long GasCost,
+        [property: JsonPropertyName("success")] bool Success);
 
     /// <summary>
     /// DTO for contract_calls table rows.

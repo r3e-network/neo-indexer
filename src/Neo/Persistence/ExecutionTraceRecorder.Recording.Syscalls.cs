@@ -34,7 +34,8 @@ namespace Neo.Persistence
             UInt160 contractHash,
             uint syscallHash,
             string syscallName,
-            long gasCost)
+            long gasCost,
+            bool success = true)
         {
             var trace = new SyscallTrace
             {
@@ -42,6 +43,7 @@ namespace Neo.Persistence
                 SyscallHash = GetSyscallHashString(syscallHash),
                 SyscallName = syscallName,
                 GasCost = gasCost,
+                Success = success,
                 Order = Interlocked.Increment(ref _syscallOrder) - 1
             };
 
@@ -55,4 +57,3 @@ namespace Neo.Persistence
         }
     }
 }
-

@@ -35,10 +35,10 @@ namespace Neo.Persistence
                     contractHashString,
                     trace.SyscallHash,
                     trace.SyscallName,
-                    trace.GasCost));
+                    trace.GasCost,
+                    trace.Success));
             }
             return rows;
         }
     }
 }
-

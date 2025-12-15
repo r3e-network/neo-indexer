@@ -17,6 +17,7 @@ Notes:
 - `storageReads.items[*].contractHash` / `manifestName` are included when `contract_id` resolves in the `contracts` reference table.
 - `opcodes.items[*].gasConsumed` is the opcode fee for that instruction (in datoshi).
 - `syscalls.items[*].gasCost` is the syscall fee (including any dynamic fees charged inside the handler).
+- `syscalls.items[*].success` is `false` when the syscall handler throws (best-effort; does not imply the overall transaction outcome).
 - `contractCalls.items[*].success` is `false` when the callee context unwinds due to an exception (including exceptions that are caught by the caller). For the overall transaction outcome, use `transactionResults`.
 - `transactionResults.items[*].storageReadCount` is the number of *first-observed unique keys* that were attributed to that transaction (because `storageReads` is deduped per key per block).
 - `storageWrites.items[*].isDelete` is `true` for delete operations; deletes set `newValueBase64` to an empty string (use `isDelete` to disambiguate from writes of an empty byte array).
@@ -78,6 +79,7 @@ For syscall metadata such as `category` and fixed `gasBase`, use the stats endpo
           "syscallHash": "31E85D92",
           "syscallName": "System.Storage.Get",
           "gasCost": 32768,
+          "success": true,
           "traceOrder": 0
         }
       ]

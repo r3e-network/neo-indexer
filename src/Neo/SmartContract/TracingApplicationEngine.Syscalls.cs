@@ -79,7 +79,8 @@ namespace Neo.SmartContract
                             CurrentScriptHash,
                             descriptor.Hash,
                             descriptor.Name,
-                            actualGasCost);
+                            actualGasCost,
+                            success: callSucceeded);
                     }
                     catch
                     {

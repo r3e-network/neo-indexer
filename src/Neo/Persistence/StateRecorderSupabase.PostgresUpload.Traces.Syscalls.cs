@@ -37,7 +37,8 @@ namespace Neo.Persistence
                 "contract_hash",
                 "syscall_hash",
                 "syscall_name",
-                "gas_cost"
+                "gas_cost",
+                "success"
             };
 
             var values = rows.Select(r => new object?[]
@@ -48,7 +49,8 @@ namespace Neo.Persistence
                 r.ContractHash,
                 r.SyscallHash,
                 r.SyscallName,
-                r.GasCost
+                r.GasCost,
+                r.Success
             }).ToList();
 
             return UpsertRowsPostgresAsync(
@@ -57,11 +59,10 @@ namespace Neo.Persistence
                 "syscall_traces",
                 columns,
                 "block_index, tx_hash, trace_order",
-                "contract_hash = EXCLUDED.contract_hash, syscall_hash = EXCLUDED.syscall_hash, syscall_name = EXCLUDED.syscall_name, gas_cost = EXCLUDED.gas_cost",
+                "contract_hash = EXCLUDED.contract_hash, syscall_hash = EXCLUDED.syscall_hash, syscall_name = EXCLUDED.syscall_name, gas_cost = EXCLUDED.gas_cost, success = EXCLUDED.success",
                 values,
                 batchSize);
         }
 #endif
     }
 }
-

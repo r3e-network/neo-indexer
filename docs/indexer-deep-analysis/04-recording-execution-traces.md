@@ -21,6 +21,7 @@ Trace/write interactions:
 Syscall tracing notes:
 - Implemented by overriding `ApplicationEngine.OnSysCall` in `src/Neo/SmartContract/TracingApplicationEngine.Syscalls.cs`.
 - The recorded `gasCost` is computed from the engine’s `FeeConsumed` delta across the syscall, so it includes any dynamic fees charged inside the syscall handler.
+- `syscall_traces.success=false` when the syscall handler throws (best-effort).
 
 Runtime log tracing notes:
 - `System.Runtime.Log` messages are recorded to the partitioned `runtime_logs` table (best-effort, only on successful syscall execution).

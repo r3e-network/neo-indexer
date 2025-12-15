@@ -40,9 +40,13 @@ namespace Neo.Persistence
         public long GasCost { get; init; }
 
         /// <summary>
+        /// True when the syscall handler returned without throwing.
+        /// </summary>
+        public bool Success { get; init; }
+
+        /// <summary>
         /// Execution order within the transaction.
         /// </summary>
         public int Order { get; init; }
     }
 }
-

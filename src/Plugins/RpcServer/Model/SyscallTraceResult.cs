@@ -39,6 +39,9 @@ namespace Neo.Plugins.RpcServer.Model
         [JsonPropertyName("gas_cost")]
         public long GasCost { get; set; }
 
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+
         [JsonPropertyName("trace_order")]
         public int TraceOrder { get; set; }
 
@@ -51,9 +54,9 @@ namespace Neo.Plugins.RpcServer.Model
             json["syscallHash"] = SyscallHash;
             json["syscallName"] = SyscallName;
             json["gasCost"] = GasCost;
+            json["success"] = Success;
             json["traceOrder"] = TraceOrder;
             return json;
         }
     }
 }
-
