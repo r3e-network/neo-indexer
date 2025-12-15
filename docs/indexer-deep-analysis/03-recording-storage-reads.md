@@ -16,6 +16,7 @@ Key properties:
 - **Low overhead when disabled**: wrappers do nothing unless `StateReadRecorder.IsRecording` is true.
 - **`Contains(...)` becomes `TryGet(...)` when recording**: this is intentional so the recorder captures the value that the code path depends on.
 - **Find enumeration records each returned row**: still gated by `IsRecording`.
+- **Best-effort read attribution**: when a read happens inside a syscall handler, the indexer records the syscall name into `storage_reads.source` (e.g., `System.Storage.Get`, `System.Storage.Find`). Otherwise it falls back to the underlying store operation name (`TryGet`, `Contains`, `Find`).
 
 ## 3.2 Recorder scope + transaction attribution: `StateReadRecorder`
 

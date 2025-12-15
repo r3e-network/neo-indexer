@@ -21,6 +21,7 @@ namespace Neo.Persistence
     {
         private static readonly AsyncLocal<BlockReadRecorder?> CurrentRecorder = new();
         private static readonly AsyncLocal<UInt256?> CurrentTransaction = new();
+        private static readonly AsyncLocal<string?> CurrentSource = new();
         private static readonly AsyncLocal<int> RecordingSuppressed = new();
 
         internal static BlockReadRecorder? Current
@@ -33,6 +34,12 @@ namespace Neo.Persistence
         {
             get => CurrentTransaction.Value;
             set => CurrentTransaction.Value = value;
+        }
+
+        internal static string? Source
+        {
+            get => CurrentSource.Value;
+            set => CurrentSource.Value = value;
         }
 
         private static bool IsRecordingSuppressed => RecordingSuppressed.Value > 0;
@@ -63,7 +70,8 @@ namespace Neo.Persistence
             if (recorder is null || recorder.IsFull) return;
 
             txHash ??= TransactionHash;
-            recorder.TryAdd(store, key, value, source, txHash);
+            var effectiveSource = Source ?? source;
+            recorder.TryAdd(store, key, value, effectiveSource, txHash);
         }
     }
 }

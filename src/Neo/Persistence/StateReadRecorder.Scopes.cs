@@ -28,6 +28,15 @@ namespace Neo.Persistence
         }
 
         /// <summary>
+        /// Begin a scope that attributes reads to a higher-level source (e.g., the active syscall name).
+        /// </summary>
+        internal static IDisposable? BeginSource(string? source)
+        {
+            if (!Enabled) return null;
+            return new SourceScope(source);
+        }
+
+        /// <summary>
         /// Suppress recording temporarily (used when querying contract metadata to avoid recursion).
         /// </summary>
         internal static IDisposable SuppressRecordingScope()
@@ -52,6 +61,22 @@ namespace Neo.Persistence
             }
         }
 
+        private sealed class SourceScope : IDisposable
+        {
+            private readonly string? _previous;
+
+            public SourceScope(string? source)
+            {
+                _previous = Source;
+                Source = source;
+            }
+
+            public void Dispose()
+            {
+                Source = _previous;
+            }
+        }
+
         private sealed class RecordingSuppressionScope : IDisposable
         {
             public void Dispose()
@@ -62,4 +87,3 @@ namespace Neo.Persistence
         }
     }
 }
-

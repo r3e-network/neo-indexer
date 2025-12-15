@@ -12,6 +12,8 @@
 #nullable enable
 
 using Neo.Extensions;
+using Neo.Persistence;
+using System;
 
 namespace Neo.SmartContract
 {
@@ -35,9 +37,13 @@ namespace Neo.SmartContract
             int notificationBaseline = ShouldTrace(ExecutionTraceLevel.Notifications) ? Notifications.Count : 0;
             var shouldTraceLogs = ShouldTrace(ExecutionTraceLevel.Logs);
             var callSucceeded = false;
+            IDisposable? readSourceScope = null;
 
             try
             {
+                if (StateReadRecorder.IsRecording)
+                    readSourceScope = StateReadRecorder.BeginSource(descriptor.Name);
+
                 object? returnValue = descriptor.Handler.Invoke(this, parameters);
                 callSucceeded = true;
                 if (descriptor.Handler.ReturnType != typeof(void))
@@ -45,6 +51,8 @@ namespace Neo.SmartContract
             }
             finally
             {
+                readSourceScope?.Dispose();
+
                 if (callSucceeded && shouldTraceLogs && string.Equals(descriptor.Name, "System.Runtime.Log", System.StringComparison.Ordinal))
                 {
                     try

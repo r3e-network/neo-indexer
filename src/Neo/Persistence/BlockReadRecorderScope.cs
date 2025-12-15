@@ -19,6 +19,7 @@ namespace Neo.Persistence
     {
         private readonly BlockReadRecorder? _previous;
         private readonly UInt256? _previousTransactionHash;
+        private readonly string? _previousSource;
         public BlockReadRecorder Recorder { get; }
 
         public BlockReadRecorderScope(BlockReadRecorder recorder, BlockReadRecorder? previous)
@@ -26,7 +27,9 @@ namespace Neo.Persistence
             Recorder = recorder;
             _previous = previous;
             _previousTransactionHash = StateReadRecorder.TransactionHash;
+            _previousSource = StateReadRecorder.Source;
             StateReadRecorder.TransactionHash = null;
+            StateReadRecorder.Source = null;
             StateReadRecorder.Current = recorder;
         }
 
@@ -34,7 +37,7 @@ namespace Neo.Persistence
         {
             StateReadRecorder.Current = _previous;
             StateReadRecorder.TransactionHash = _previousTransactionHash;
+            StateReadRecorder.Source = _previousSource;
         }
     }
 }
-
